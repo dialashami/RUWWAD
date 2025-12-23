@@ -1,0 +1,289 @@
+/* CSS/login.css */
+/* General reset */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* Container to center the card */
+.login-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  padding: 20px;
+}
+
+/* Card styling */
+.login-box {
+  background: #ffffff;
+  padding: 50px 40px;
+  border-radius: 15px;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.2);
+  width: 100%;
+  max-width: 400px;
+  text-align: left;
+  animation: fadeIn 0.8s ease-in-out;
+}
+
+/* Heading */
+.login-box h2 {
+  margin-bottom: 30px;
+  color: #333;
+  font-size: 28px;
+  font-weight: 600;
+}
+
+/* Inputs */
+.login-box input {
+  width: 100%;
+  padding: 14px 18px;
+  margin-bottom: 20px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font-size: 16px;
+  transition: all 0.3s;
+}
+
+.login-box input:focus {
+  border-color: #2575fc;
+  box-shadow: 0 0 8px rgba(29, 34, 42, 0.3);
+  outline: none;
+}
+
+/* Buttons */
+.login-btn, .signup-btn {
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.3s;
+}
+
+/* Login button */
+.login-btn {
+  background: #2575fc;
+  color: white;
+  margin-bottom: 15px;
+}
+
+.login-btn:hover {
+  background: #1a5ed1;
+}
+
+/* Sign Up button */
+.signup-btn {
+  background: #6a11cb;
+  color: white;
+}
+
+.signup-btn:hover {
+  background: #540fb0;
+}
+
+/* Error message styling */
+.error-text {
+  color: #f44336;
+  font-size: 14px;
+  margin-bottom: 10px;
+}
+
+/* Social login section */
+.social-login {
+  margin: 25px 0;
+  text-align: center;
+}
+
+.social-text {
+  color: #666;
+  font-size: 14px;
+  margin-bottom: 15px;
+  position: relative;
+}
+
+.social-text::before,
+.social-text::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 30%;
+  height: 1px;
+  background: #ddd;
+}
+
+.social-text::before {
+  left: 0;
+}
+
+.social-text::after {
+  right: 0;
+}
+
+.social-buttons {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.social-btn {
+  flex: 1;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  background: white;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.social-btn:hover {
+  background: #f5f5f5;
+  transform: translateY(-1px);
+}
+
+.google-btn {
+  color: #db4437;
+  border-color: #db4437;
+}
+
+.facebook-btn {
+  color: #4267B2;
+  border-color: #4267B2;
+}
+
+/* Sign up link section */
+.signup-section {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #eee;
+  color: #666;
+  font-size: 14px;
+}
+
+.signup-link {
+  color: #2575fc;
+  text-decoration: none;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.signup-link:hover {
+  text-decoration: underline;
+}
+
+/* Fade-in animation */
+@keyframes fadeIn {
+  0% { opacity: 0; transform: translateY(-20px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+/* Responsive */
+@media (max-width: 500px) {
+  .login-box {
+    padding: 40px 20px;
+  }
+  .login-box h2 {
+    font-size: 24px;
+  }
+  .social-buttons {
+    flex-direction: column;
+    gap: 10px;
+  }
+}
+/* إضافة إلى CSS/login.css */
+.button-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.spinner-small {
+  width: 16px;
+  height: 16px;
+  border: 2px solid transparent;
+  border-top: 2px solid currentColor;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Forgot Password Styles */
+.forgot-password-section {
+  text-align: right;
+  margin-bottom: 15px;
+  margin-top: -10px;
+}
+
+.forgot-password-link {
+  color: #2575fc;
+  font-size: 14px;
+  cursor: pointer;
+  transition: color 0.3s;
+}
+
+.forgot-password-link:hover {
+  color: #1a5ed1;
+  text-decoration: underline;
+}
+
+.forgot-description {
+  color: #666;
+  font-size: 14px;
+  line-height: 1.5;
+  margin-bottom: 20px;
+}
+
+.forgot-description strong {
+  color: #333;
+}
+
+.success-text {
+  color: #4caf50;
+  font-size: 14px;
+  margin-bottom: 10px;
+}
+
+.forgot-resend-btn {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #2575fc;
+  border-radius: 8px;
+  background: transparent;
+  color: #2575fc;
+  font-size: 14px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.3s;
+  margin-top: 10px;
+}
+
+.forgot-resend-btn:hover {
+  background: #f0f7ff;
+}
+
+.forgot-resend-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
