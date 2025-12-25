@@ -26,19 +26,32 @@ export default function Settings({ navigation }) {
 
   const loadUserData = async () => {
     try {
+      // First try to load from local storage
       const userStr = await AsyncStorage.getItem('user');
       if (userStr) {
-        setUser(JSON.parse(userStr));
-      }
-      // Try to fetch latest profile from API
-      const response = await userAPI.getProfile();
-      if (response.data) {
-        setUser(response.data);
-        await AsyncStorage.setItem('user', JSON.stringify(response.data));
+        const userData = JSON.parse(userStr);
+        setUser(userData);
+        setLoading(false);
+        
+        // Only try to refresh from API if we have a valid token (not admin-token)
+        const token = await AsyncStorage.getItem('token');
+        if (token && token !== 'admin-token') {
+          try {
+            const response = await userAPI.getProfile();
+            if (response.data) {
+              setUser(response.data);
+              await AsyncStorage.setItem('user', JSON.stringify(response.data));
+            }
+          } catch (apiErr) {
+            // Silently fail - we already have local data
+            console.log('Could not refresh profile from API');
+          }
+        }
+      } else {
+        setLoading(false);
       }
     } catch (err) {
       console.error('Error loading user data:', err);
-    } finally {
       setLoading(false);
     }
   };

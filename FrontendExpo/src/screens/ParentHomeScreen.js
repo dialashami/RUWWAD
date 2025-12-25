@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,12 @@ import {
   ScrollView,
   StatusBar,
   SafeAreaView,
+  Image,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Context Provider
+import { ParentProvider, useParent } from '../context/ParentContext';
 
 // Import components
 import Dashboard from '../components/parent/Dashboard';
@@ -17,25 +22,69 @@ import Notifications from '../components/shared/Notifications';
 import Settings from '../components/shared/Settings';
 import FeedbackStar from '../components/shared/FeedbackStar';
 
-export default function ParentHomeScreen({ navigation }) {
+// Inner component that uses context
+function ParentHomeContent({ navigation }) {
   const [activePage, setActivePage] = useState('dashboard');
   const [sidebarVisible, setSidebarVisible] = useState(false);
 
-  const menuItems = [
-    { id: 'dashboard', title: 'Dashboard', icon: '📊' },
-    { id: 'chat', title: 'Messages', icon: '💬' },
-    { id: 'notifications', title: 'Notifications', icon: '🔔' },
-    { id: 'settings', title: 'Settings', icon: '⚙️' },
+  // Get data from context
+  const {
+    parent,
+    stats,
+    children,
+    getInitials,
+    getFullName,
+    getChildrenNames,
+    updateUnreadMessages,
+    updateUnreadNotifications,
+    decrementUnreadMessages,
+    decrementUnreadNotifications,
+    refreshData,
+  } = useParent();
+
+  // Menu items with dynamic badges from context
+  const getMenuItems = () => [
+    { id: 'dashboard', title: 'Dashboard', icon: '📊', badge: 0 },
+    { id: 'chat', title: 'Messages', icon: '💬', badge: stats.unreadMessages || 0 },
+    { id: 'notifications', title: 'Notifications', icon: '🔔', badge: stats.unreadNotifications || 0 },
+    { id: 'settings', title: 'Settings', icon: '⚙️', badge: 0 },
   ];
+
+  // Refresh data when switching pages
+  useEffect(() => {
+    if (activePage === 'dashboard') {
+      refreshData();
+    }
+  }, [activePage]);
+
+  // Callbacks for components
+  const onMessagesRead = useCallback(() => {
+    updateUnreadMessages(0);
+  }, [updateUnreadMessages]);
+
+  const onNotificationsRead = useCallback(() => {
+    updateUnreadNotifications(0);
+  }, [updateUnreadNotifications]);
 
   const renderPage = () => {
     switch (activePage) {
       case 'dashboard':
         return <Dashboard />;
       case 'chat':
-        return <ChatCenter currentRole="parent" />;
+        return (
+          <ChatCenter 
+            currentRole="parent"
+            onMessagesRead={onMessagesRead}
+            decrementUnreadMessages={decrementUnreadMessages}
+          />
+        );
       case 'notifications':
-        return <Notifications />;
+        return (
+          <Notifications
+            onNotificationsRead={onNotificationsRead}
+            decrementUnreadNotifications={decrementUnreadNotifications}
+          />
+        );
       case 'settings':
         return <Settings navigation={navigation} />;
       default:
@@ -48,7 +97,14 @@ export default function ParentHomeScreen({ navigation }) {
     setSidebarVisible(false);
   };
 
+  const handleLogout = async () => {
+    // Clear storage and navigate to Welcome
+    await AsyncStorage.multiRemove(['token', 'user', 'userId']);
+    navigation.replace('Welcome');
+  };
+
   const getActiveTitle = () => {
+    const menuItems = getMenuItems();
     const item = menuItems.find(m => m.id === activePage);
     return item ? item.title : 'Dashboard';
   };
@@ -65,10 +121,41 @@ export default function ParentHomeScreen({ navigation }) {
         >
           <Text style={styles.menuIcon}>☰</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{getActiveTitle()}</Text>
+        <TouchableOpacity onPress={() => setActivePage('dashboard')}>
+          <Text style={styles.headerTitle}>RUWWAD</Text>
+        </TouchableOpacity>
         <View style={styles.headerRight}>
-          <TouchableOpacity onPress={() => setActivePage('notifications')}>
+          <TouchableOpacity 
+            style={styles.headerIconContainer}
+            onPress={() => { setActivePage('notifications'); setSidebarVisible(false); }}
+          >
             <Text style={styles.headerIcon}>🔔</Text>
+            {stats.unreadNotifications > 0 && (
+              <View style={styles.headerBadge}>
+                <Text style={styles.headerBadgeText}>{stats.unreadNotifications > 9 ? '9+' : stats.unreadNotifications}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.headerIconContainer}
+            onPress={() => { setActivePage('chat'); setSidebarVisible(false); }}
+          >
+            <Text style={styles.headerIcon}>💬</Text>
+            {stats.unreadMessages > 0 && (
+              <View style={styles.headerBadge}>
+                <Text style={styles.headerBadgeText}>{stats.unreadMessages > 9 ? '9+' : stats.unreadMessages}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.profileIcon}
+            onPress={() => setActivePage('settings')}
+          >
+            {parent.profilePicture ? (
+              <Image source={{ uri: parent.profilePicture }} style={styles.profileImage} />
+            ) : (
+              <Text style={styles.profileInitials}>{getInitials()}</Text>
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -87,17 +174,12 @@ export default function ParentHomeScreen({ navigation }) {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.sidebar}>
-            {/* Sidebar Header */}
+            {/* Sidebar Header with Logo */}
             <View style={styles.sidebarHeader}>
-              <View style={styles.profileSection}>
-                <View style={styles.avatar}>
-                  <Text style={styles.avatarText}>👨‍👩‍👧</Text>
-                </View>
-                <View style={styles.profileInfo}>
-                  <Text style={styles.profileName}>Parent</Text>
-                  <Text style={styles.profileRole}>RUWWAD Family</Text>
-                </View>
-              </View>
+              <TouchableOpacity onPress={() => { setActivePage('dashboard'); setSidebarVisible(false); }}>
+                <Text style={styles.sidebarLogo}>RUWWAD</Text>
+              </TouchableOpacity>
+              <Text style={styles.sidebarSubtitle}>Parent Portal</Text>
               <TouchableOpacity
                 style={styles.closeButton}
                 onPress={() => setSidebarVisible(false)}
@@ -106,9 +188,24 @@ export default function ParentHomeScreen({ navigation }) {
               </TouchableOpacity>
             </View>
 
+            {/* User Profile Section - Dynamic from Context */}
+            <View style={styles.userInfo}>
+              {parent.profilePicture ? (
+                <Image source={{ uri: parent.profilePicture }} style={styles.avatarImage} />
+              ) : (
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarInitials}>{getInitials()}</Text>
+                </View>
+              )}
+              <Text style={styles.userName}>{getFullName()}</Text>
+              <Text style={styles.userRole}>
+                {children.length > 0 ? `${children.length} child${children.length > 1 ? 'ren' : ''} linked` : 'Family Account'}
+              </Text>
+            </View>
+
             {/* Menu Items */}
             <ScrollView style={styles.menuContainer}>
-              {menuItems.map((item) => (
+              {getMenuItems().map((item) => (
                 <TouchableOpacity
                   key={item.id}
                   style={[
@@ -124,18 +221,17 @@ export default function ParentHomeScreen({ navigation }) {
                   ]}>
                     {item.title}
                   </Text>
+                  {item.badge > 0 && (
+                    <View style={styles.menuBadge}>
+                      <Text style={styles.menuBadgeText}>{item.badge > 99 ? '99+' : item.badge}</Text>
+                    </View>
+                  )}
                 </TouchableOpacity>
               ))}
             </ScrollView>
 
             {/* Logout Button */}
-            <TouchableOpacity
-              style={styles.logoutButton}
-              onPress={() => {
-                setSidebarVisible(false);
-                navigation.replace('Login');
-              }}
-            >
+            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
               <Text style={styles.logoutIcon}>🚪</Text>
               <Text style={styles.logoutText}>Logout</Text>
             </TouchableOpacity>
@@ -152,6 +248,15 @@ export default function ParentHomeScreen({ navigation }) {
       {/* Feedback Star */}
       <FeedbackStar />
     </SafeAreaView>
+  );
+}
+
+// Export wrapped with ParentProvider (like web version pattern)
+export default function ParentHomeScreen({ navigation }) {
+  return (
+    <ParentProvider>
+      <ParentHomeContent navigation={navigation} />
+    </ParentProvider>
   );
 }
 
@@ -196,62 +301,100 @@ const styles = StyleSheet.create({
   },
   sidebar: {
     width: '75%',
-    backgroundColor: '#fff',
-    shadowColor: '#000',
-    shadowOffset: { width: 2, height: 0 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 10,
+    backgroundColor: '#1a1f36',
+    height: '100%',
   },
   overlayClose: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   sidebarHeader: {
-    backgroundColor: '#9333ea',
     padding: 20,
     paddingTop: 50,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: '#1a1f36',
   },
-  profileSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  avatarText: {
-    fontSize: 28,
-  },
-  profileInfo: {},
-  profileName: {
-    fontSize: 18,
+  sidebarLogo: {
+    fontSize: 24,
     fontWeight: 'bold',
-    color: '#fff',
+    color: '#9333ea',
   },
-  profileRole: {
-    fontSize: 13,
-    color: 'rgba(255, 255, 255, 0.8)',
-    marginTop: 2,
+  sidebarSubtitle: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.6)',
+    marginTop: 4,
   },
   closeButton: {
-    padding: 8,
+    position: 'absolute',
+    top: 50,
+    right: 15,
+    padding: 5,
   },
   closeIcon: {
     fontSize: 20,
     color: '#fff',
   },
+  userInfo: {
+    padding: 20,
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: '#1a1f36',
+  },
+  avatar: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: '#9333ea',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  avatarImage: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    marginBottom: 12,
+  },
+  avatarInitials: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  userName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+    marginBottom: 4,
+  },
+  userRole: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.6)',
+  },
+  profileIcon: {
+    width: 35,
+    height: 35,
+    borderRadius: 17.5,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  profileImage: {
+    width: 35,
+    height: 35,
+    borderRadius: 17.5,
+  },
+  profileInitials: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
   menuContainer: {
     flex: 1,
     paddingTop: 10,
+    backgroundColor: '#1a1f36',
   },
   menuItem: {
     flexDirection: 'row',
@@ -263,7 +406,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   menuItemActive: {
-    backgroundColor: '#f3e8ff',
+    backgroundColor: 'rgba(147, 51, 234, 0.2)',
   },
   menuItemIcon: {
     fontSize: 22,
@@ -273,19 +416,55 @@ const styles = StyleSheet.create({
   },
   menuItemText: {
     fontSize: 16,
-    color: '#374151',
+    color: 'rgba(255,255,255,0.8)',
+    flex: 1,
   },
   menuItemTextActive: {
     color: '#9333ea',
     fontWeight: '600',
+  },
+  menuBadge: {
+    backgroundColor: '#ef4444',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+  },
+  menuBadgeText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  headerIconContainer: {
+    position: 'relative',
+    marginLeft: 12,
+  },
+  headerBadge: {
+    position: 'absolute',
+    top: -5,
+    right: -8,
+    backgroundColor: '#ef4444',
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  headerBadgeText: {
+    color: '#fff',
+    fontSize: 9,
+    fontWeight: '700',
   },
   logoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 20,
     borderTopWidth: 1,
-    borderTopColor: '#f3f4f6',
-    marginTop: 10,
+    borderTopColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: '#1a1f36',
   },
   logoutIcon: {
     fontSize: 22,

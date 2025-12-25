@@ -47,7 +47,7 @@ const defaultMessages = [
   { id: 5, text: 'Great progress on your assignment!', sender: 'teacher', time: '10:30 AM' },
 ];
 
-export default function ChatCenter({ currentRole }) {
+export default function ChatCenter({ currentRole, onMessagesRead, decrementUnreadMessages }) {
   const [selectedChat, setSelectedChat] = useState(null);
   const [messageText, setMessageText] = useState('');
   const [messages, setMessages] = useState([]);
@@ -131,6 +131,25 @@ export default function ChatCenter({ currentRole }) {
   useEffect(() => {
     if (selectedChat) {
       fetchMessages(selectedChat);
+      
+      // Mark conversation as read and update unread count
+      const conversation = conversations.find(c => c.id === selectedChat);
+      if (conversation && conversation.unread > 0) {
+        // Decrement parent count
+        if (decrementUnreadMessages) {
+          decrementUnreadMessages(conversation.unread);
+        }
+        
+        // Update local state
+        setConversations(prev => 
+          prev.map(c => c.id === selectedChat ? { ...c, unread: 0 } : c)
+        );
+        
+        // Call API to mark as read
+        messageAPI.markConversationAsRead(selectedChat).catch(err => {
+          console.error('Error marking conversation as read:', err);
+        });
+      }
     }
   }, [selectedChat]);
 

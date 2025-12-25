@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
+import { useStudent } from '../../context/StudentContext';
 import { studentDashboardAPI } from '../../services/api';
 
 const defaultProgressData = {
@@ -31,16 +32,37 @@ const defaultProgressData = {
 };
 
 export default function ProgressPage() {
+  // Get data from student context
+  const { student, progress: contextProgress, refreshData, loading: contextLoading } = useStudent();
+
   const [progressData, setProgressData] = useState(defaultProgressData);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     fetchProgress();
-  }, []);
+  }, [student.id, contextProgress]);
 
   const fetchProgress = async () => {
     try {
+      // First check context progress data
+      if (contextProgress && contextProgress.overallProgress !== undefined) {
+        setProgressData({
+          overallProgress: contextProgress.overallProgress || 0,
+          subjects: contextProgress.subjectProgress?.map(s => ({
+            name: s.name,
+            progress: s.progress || 0,
+            grade: s.grade || '-',
+          })) || defaultProgressData.subjects,
+          achievements: contextProgress.achievements || defaultProgressData.achievements,
+          weeklyStats: contextProgress.weeklyStats || defaultProgressData.weeklyStats,
+        });
+        setLoading(false);
+        setRefreshing(false);
+        return;
+      }
+
+      // Fallback to API call
       const response = await studentDashboardAPI.getProgress();
       const data = response.data;
       if (data) {
@@ -60,8 +82,9 @@ export default function ProgressPage() {
     }
   };
 
-  const onRefresh = () => {
+  const onRefresh = async () => {
     setRefreshing(true);
+    await refreshData();
     fetchProgress();
   };
 

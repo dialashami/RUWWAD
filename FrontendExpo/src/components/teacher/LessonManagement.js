@@ -12,9 +12,13 @@ import {
   RefreshControl,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useTeacher } from '../../context/TeacherContext';
 import { courseAPI } from '../../services/api';
 
 export default function LessonManagement() {
+  // Get data from context
+  const { teacher, courses: contextCourses, refreshData } = useTeacher();
+
   const [lessons, setLessons] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -31,15 +35,37 @@ export default function LessonManagement() {
 
   useEffect(() => {
     fetchCourses();
-  }, []);
+  }, [teacher.id, contextCourses]);
 
   const fetchCourses = async () => {
     try {
-      let teacherId = null;
-      const storedUser = await AsyncStorage.getItem('user');
-      if (storedUser) {
-        const parsed = JSON.parse(storedUser);
-        teacherId = parsed?._id || parsed?.id || null;
+      // First check context courses
+      if (contextCourses && contextCourses.length > 0) {
+        const mapped = contextCourses.map((course) => ({
+          id: course._id || course.id,
+          title: course.title || 'Untitled Course',
+          subject: course.subject || 'Course',
+          grade: course.grade || 'All Grades',
+          status: course.isActive === false ? 'draft' : 'published',
+          duration: course.duration || '45 min',
+          lastEdited: formatTimeAgo(course.updatedAt),
+          description: course.description || 'No description provided.',
+          students: course.students || 0,
+        }));
+        setLessons(mapped);
+        setLoading(false);
+        setRefreshing(false);
+        return;
+      }
+
+      // Fallback to API call
+      let teacherId = teacher.id;
+      if (!teacherId) {
+        const storedUser = await AsyncStorage.getItem('user');
+        if (storedUser) {
+          const parsed = JSON.parse(storedUser);
+          teacherId = parsed?._id || parsed?.id || null;
+        }
       }
 
       const response = teacherId 
@@ -68,8 +94,9 @@ export default function LessonManagement() {
     }
   };
 
-  const onRefresh = () => {
+  const onRefresh = async () => {
     setRefreshing(true);
+    await refreshData();
     fetchCourses();
   };
 

@@ -8,65 +8,28 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useParent } from '../../context/ParentContext';
 import { parentDashboardAPI } from '../../services/api';
 
 export default function Dashboard() {
-  const [children, setChildren] = useState([]);
-  const [childrenData, setChildrenData] = useState({});
-  const [loading, setLoading] = useState(true);
+  // Get data from context
+  const {
+    parent,
+    getFullName,
+    children: contextChildren,
+    childrenData: contextChildrenData,
+    selectedChild,
+    selectChild,
+    loading: contextLoading,
+    refreshData,
+  } = useParent();
+
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedChild, setSelectedChild] = useState(null);
-  const [parentName, setParentName] = useState('');
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
-    try {
-      const storedUser = await AsyncStorage.getItem('user');
-      if (storedUser) {
-        const parsed = JSON.parse(storedUser);
-        setParentName(`${parsed.firstName || ''} ${parsed.lastName || ''}`.trim());
-      }
-
-      // Fetch linked children
-      try {
-        const childrenRes = await parentDashboardAPI.getChildren();
-        const childrenList = childrenRes.data || [];
-        setChildren(childrenList);
-
-        // Fetch dashboard data for each child
-        const dashboardData = {};
-        for (const child of childrenList) {
-          try {
-            const dashRes = await parentDashboardAPI.getChildProgress(child._id);
-            dashboardData[child._id] = dashRes.data;
-          } catch (err) {
-            console.error(`Error fetching dashboard for child ${child._id}:`, err);
-          }
-        }
-        setChildrenData(dashboardData);
-
-        // Select first child by default
-        if (childrenList.length > 0) {
-          setSelectedChild(childrenList[0]._id);
-        }
-      } catch (err) {
-        console.error('Error fetching children:', err);
-      }
-    } catch (err) {
-      console.error('Error:', err);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
-
-  const onRefresh = () => {
+  const onRefresh = async () => {
     setRefreshing(true);
-    fetchData();
+    await refreshData();
+    setRefreshing(false);
   };
 
   const getGradeDisplay = (child) => {
@@ -91,21 +54,27 @@ export default function Dashboard() {
     return 'D';
   };
 
-  if (loading) {
+  if (contextLoading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#9333ea" />
+        <Text style={styles.loadingText}>Loading dashboard...</Text>
       </View>
     );
   }
 
   // No children linked
-  if (children.length === 0) {
+  if (contextChildren.length === 0) {
     return (
-      <ScrollView style={styles.container}>
+      <ScrollView 
+        style={styles.container}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#9333ea']} />
+        }
+      >
         <View style={styles.banner}>
           <Text style={styles.bannerTitle}>
-            Welcome{parentName ? `, ${parentName}` : ''}
+            Welcome{getFullName() !== 'Parent' ? `, ${getFullName()}` : ''}
           </Text>
           <Text style={styles.bannerSubtitle}>No children linked yet</Text>
         </View>
@@ -124,35 +93,41 @@ export default function Dashboard() {
     );
   }
 
-  const childNames = children.map(c => `${c.firstName} ${c.lastName}`).join(', ');
-  const currentChildData = selectedChild ? childrenData[selectedChild] : null;
-  const currentChild = children.find(c => c._id === selectedChild);
+  const childNames = contextChildren.map(c => `${c.firstName} ${c.lastName}`).join(', ');
+  const currentChildData = selectedChild ? contextChildrenData[selectedChild] : null;
+  const currentChild = contextChildren.find(c => c._id === selectedChild);
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <ScrollView 
+      style={styles.container} 
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#9333ea']} />
+      }
+    >
       {/* Banner */}
       <View style={styles.banner}>
         <Text style={styles.bannerTitle}>
-          Welcome{parentName ? `, ${parentName}` : ''}
+          Welcome{getFullName() !== 'Parent' ? `, ${getFullName()}` : ''}
         </Text>
         <Text style={styles.bannerSubtitle}>Your children: {childNames}</Text>
       </View>
 
       {/* Child Selector */}
-      {children.length > 1 && (
+      {contextChildren.length > 1 && (
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           style={styles.childSelector}
         >
-          {children.map((child) => (
+          {contextChildren.map((child) => (
             <TouchableOpacity
               key={child._id}
               style={[
                 styles.childTab,
                 selectedChild === child._id && styles.childTabActive
               ]}
-              onPress={() => setSelectedChild(child._id)}
+              onPress={() => selectChild(child._id)}
             >
               <Text style={[
                 styles.childTabText,

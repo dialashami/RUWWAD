@@ -9,7 +9,7 @@ import {
   Animated,
   Linking,
 } from 'react-native';
-import api from '../services/api';
+import api, { feedbackAPI } from '../services/api';
 
 const { width } = Dimensions.get('window');
 
@@ -17,14 +17,17 @@ const { width } = Dimensions.get('window');
 const defaultTestimonials = [
   {
     comment: "RUWWAD has transformed how I manage my classroom and communicate with parents",
+    rating: 5,
     author: { firstName: "Sarah", lastName: "Hamad", role: "teacher" }
   },
   {
     comment: "As a parent, I can easily track my child's progress and stay connected with teachers",
+    rating: 5,
     author: { firstName: "Hamza", lastName: "Suleiman", role: "parent" }
   },
   {
     comment: "The platform makes learning fun and accessible. I love the interactive lessons",
+    rating: 4,
     author: { firstName: "Rand", lastName: "Qasem", role: "student" }
   }
 ];
@@ -86,11 +89,15 @@ export default function WelcomeScreen({ navigation }) {
 
     // Fetch testimonials
     fetchFeedback();
+    
+    // Refresh feedback every 5 minutes
+    const interval = setInterval(fetchFeedback, 300000);
+    return () => clearInterval(interval);
   }, []);
 
   const fetchFeedback = async () => {
     try {
-      const res = await api.get('/feedback/random?limit=3');
+      const res = await api.get('/api/feedback/random?limit=3');
       if (res.data && res.data.length > 0) {
         setTestimonials(res.data);
       }
@@ -221,20 +228,44 @@ export default function WelcomeScreen({ navigation }) {
           </Text>
         </View>
 
-        {/* Testimonials Section */}
+        {/* Testimonials/Feedback Section */}
         <View style={styles.testimonialsSection}>
           <Text style={styles.testimonialsTitle}>What Our Users Say</Text>
+          <Text style={styles.testimonialsSubtitle}>Real feedback from our community</Text>
           <View style={styles.testimonialsGrid}>
             {testimonials.map((feedback, index) => (
-              <View key={index} style={styles.testimonialCard}>
+              <View key={feedback._id || index} style={styles.testimonialCard}>
+                {/* Star Rating */}
+                {feedback.rating && (
+                  <View style={styles.ratingContainer}>
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Text 
+                        key={star} 
+                        style={[
+                          styles.ratingStar,
+                          star <= feedback.rating && styles.ratingStarFilled
+                        ]}
+                      >
+                        ★
+                      </Text>
+                    ))}
+                  </View>
+                )}
                 <Text style={styles.testimonialText}>"{feedback.comment}"</Text>
                 <View style={styles.testimonialAuthor}>
-                  <Text style={styles.authorName}>
-                    {feedback.author?.firstName || 'Anonymous'} {feedback.author?.lastName || ''}
-                  </Text>
-                  <Text style={styles.authorRole}>
-                    {feedback.author?.role ? feedback.author.role.charAt(0).toUpperCase() + feedback.author.role.slice(1) : 'User'}
-                  </Text>
+                  <View style={styles.authorAvatar}>
+                    <Text style={styles.avatarText}>
+                      {(feedback.author?.firstName?.[0] || 'A').toUpperCase()}
+                    </Text>
+                  </View>
+                  <View style={styles.authorInfo}>
+                    <Text style={styles.authorName}>
+                      {feedback.author?.firstName || 'Anonymous'} {feedback.author?.lastName || ''}
+                    </Text>
+                    <Text style={styles.authorRole}>
+                      {feedback.author?.role ? feedback.author.role.charAt(0).toUpperCase() + feedback.author.role.slice(1) : 'User'}
+                    </Text>
+                  </View>
                 </View>
               </View>
             ))}
@@ -559,8 +590,14 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '600',
     color: '#1f2937',
-    marginBottom: 20,
+    marginBottom: 8,
     textAlign: 'center',
+  },
+  testimonialsSubtitle: {
+    fontSize: 14,
+    color: '#6b7280',
+    textAlign: 'center',
+    marginBottom: 20,
   },
   testimonialsGrid: {
     gap: 15,
@@ -571,6 +608,23 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderLeftWidth: 4,
     borderLeftColor: '#3498db',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  ratingContainer: {
+    flexDirection: 'row',
+    marginBottom: 10,
+  },
+  ratingStar: {
+    fontSize: 18,
+    color: '#d1d5db',
+    marginRight: 2,
+  },
+  ratingStarFilled: {
+    color: '#fbbf24',
   },
   testimonialText: {
     fontSize: 15,
@@ -580,9 +634,28 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   testimonialAuthor: {
+    flexDirection: 'row',
+    alignItems: 'center',
     borderTopWidth: 1,
     borderTopColor: '#e5e7eb',
-    paddingTop: 10,
+    paddingTop: 12,
+  },
+  authorAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#3498db',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  avatarText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#ffffff',
+  },
+  authorInfo: {
+    flex: 1,
   },
   authorName: {
     fontSize: 14,

@@ -12,6 +12,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useTeacher } from '../../context/TeacherContext';
 import { assignmentAPI } from '../../services/api';
 
 const defaultAssignments = [
@@ -51,6 +52,9 @@ const defaultAssignments = [
 ];
 
 export default function AssignmentManagement() {
+  // Get data from context
+  const { teacher, assignments: contextAssignments, refreshData } = useTeacher();
+
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -68,10 +72,29 @@ export default function AssignmentManagement() {
 
   useEffect(() => {
     fetchAssignments();
-  }, []);
+  }, [teacher.id, contextAssignments]);
 
   const fetchAssignments = async () => {
     try {
+      // First check context assignments
+      if (contextAssignments && contextAssignments.length > 0) {
+        setAssignments(contextAssignments.map(a => ({
+          id: a._id || a.id,
+          title: a.title || 'Untitled Assignment',
+          subject: a.subject || 'General',
+          grade: a.grade || 'All Grades',
+          dueDate: a.dueDate,
+          maxScore: a.maxScore || 100,
+          submissions: a.submissions || 0,
+          totalStudents: a.totalStudents || 0,
+          status: a.dueDate && new Date(a.dueDate) > new Date() ? 'active' : 'completed',
+        })));
+        setLoading(false);
+        setRefreshing(false);
+        return;
+      }
+
+      // Fallback to API call
       const response = await assignmentAPI.getAssignments();
       if (Array.isArray(response.data) && response.data.length > 0) {
         setAssignments(response.data.map(a => ({
@@ -97,8 +120,9 @@ export default function AssignmentManagement() {
     }
   };
 
-  const onRefresh = () => {
+  const onRefresh = async () => {
     setRefreshing(true);
+    await refreshData();
     fetchAssignments();
   };
 

@@ -8,59 +8,135 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
+import { useStudent } from '../../context/StudentContext';
 import { studentDashboardAPI } from '../../services/api';
 
 export default function Dashboard() {
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [dashboardData, setDashboardData] = useState(null);
-  const [error, setError] = useState(null);
+  // Get data from context
+  const {
+    student,
+    getFullName,
+    stats: contextStats,
+    courses: contextCourses,
+    todaySchedule: contextTodaySchedule,
+    recentActivities: contextRecentActivities,
+    loading: contextLoading,
+    refreshData,
+  } = useStudent();
 
-  const fetchDashboard = async () => {
-    try {
-      const response = await studentDashboardAPI.getDashboard();
-      setDashboardData(response.data);
-      setError(null);
-    } catch (err) {
-      console.error('Error fetching dashboard:', err);
-      setError('Failed to load dashboard');
-      // Use default data if API fails
-      setDashboardData(null);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [progressData, setProgressData] = useState({});
+
+  // Helper function for activity icons
+  const getActivityIcon = (type) => {
+    switch(type) {
+      case 'lesson':
+      case 'course':
+        return '📖';
+      case 'assignment':
+        return '✅';
+      case 'achievement':
+        return '🏆';
+      case 'message':
+        return '💬';
+      case 'notification':
+        return '🔔';
+      default:
+        return '📌';
     }
   };
 
-  useEffect(() => {
-    fetchDashboard();
-  }, []);
+  // Helper function to format time ago
+  const formatTimeAgo = (dateString) => {
+    if (!dateString) return '';
+    const now = new Date();
+    const date = new Date(dateString);
+    const diffMs = now - date;
+    const diffSecs = Math.floor(diffMs / 1000);
+    const diffMins = Math.floor(diffSecs / 60);
+    const diffHours = Math.floor(diffMins / 60);
+    const diffDays = Math.floor(diffHours / 24);
 
-  const onRefresh = () => {
-    setRefreshing(true);
-    fetchDashboard();
+    if (diffDays > 0) {
+      return diffDays === 1 ? 'Yesterday' : `${diffDays} days ago`;
+    } else if (diffHours > 0) {
+      return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+    } else if (diffMins > 0) {
+      return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`;
+    } else {
+      return 'Just now';
+    }
   };
 
-  // Default data if API fails
-  const stats = dashboardData?.stats || [
-    { label: 'Courses', value: '5', icon: '📚', color: '#007bff' },
-    { label: 'Pending', value: '3', icon: '📝', color: '#ffc107' },
-    { label: 'Progress', value: '85%', icon: '📈', color: '#28a745' },
+  // Fetch progress data
+  useEffect(() => {
+    const fetchProgressData = async () => {
+      try {
+        const response = await studentDashboardAPI.getProgress();
+        if (response.data?.subjectProgress) {
+          const progressObj = {};
+          response.data.subjectProgress.forEach(subject => {
+            const key = subject.name.toLowerCase();
+            progressObj[key] = {
+              percent: subject.progress || 0,
+              completedLessons: subject.completedLessons || 0,
+              totalLessons: subject.totalLessons || 0,
+              grade: subject.grade || '-',
+            };
+          });
+          setProgressData(progressObj);
+        }
+      } catch (err) {
+        console.log('Progress data error:', err);
+      }
+    };
+    fetchProgressData();
+  }, [student.id]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await refreshData();
+    setRefreshing(false);
+  };
+
+  // Build stats from context
+  const stats = [
+    { label: 'Courses', value: contextStats.totalCourses || contextCourses.length || 0, icon: '📚', color: '#007bff' },
+    { label: 'Pending', value: contextStats.pendingAssignments || 0, icon: '📝', color: '#ffc107' },
+    { label: 'Messages', value: contextStats.unreadMessages || 0, icon: '💬', color: '#17a2b8' },
   ];
 
-  const upcomingClasses = dashboardData?.schedule || [
-    { subject: 'Mathematics', time: '09:00 AM', room: 'Room 201' },
-    { subject: 'Physics', time: '11:00 AM', room: 'Lab 102' },
-    { subject: 'English', time: '02:00 PM', room: 'Room 305' },
-  ];
+  // Build schedule from context
+  const upcomingClasses = contextTodaySchedule.length > 0
+    ? contextTodaySchedule.map((item, index) => ({
+        id: item._id || index,
+        time: item.dueDate 
+          ? new Date(item.dueDate).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+          : '09:00 AM',
+        subject: item.title || item.subject || 'Course',
+        room: item.description || 'Online',
+      }))
+    : contextCourses.slice(0, 3).map((course, index) => ({
+        id: course._id || index,
+        time: '09:00 AM',
+        subject: course.title || course.subject || 'Course',
+        room: course.description || 'Online Session',
+      }));
 
-  const recentActivity = dashboardData?.recentActivity || [
-    { text: '📖 Completed Lesson 5 in Math', time: '2 hours ago' },
-    { text: '✅ Submitted English Assignment', time: 'Yesterday' },
-    { text: '🏆 Earned Achievement Badge', time: '2 days ago' },
-  ];
+  // Build activities from context
+  const recentActivity = contextRecentActivities.length > 0
+    ? contextRecentActivities.map((activity, index) => ({
+        id: activity.id || index,
+        text: `${getActivityIcon(activity.type)} ${activity.title}`,
+        time: formatTimeAgo(activity.createdAt),
+      }))
+    : [
+        { text: '📖 Completed Lesson 5 in Math', time: '2 hours ago' },
+        { text: '✅ Submitted English Assignment', time: 'Yesterday' },
+        { text: '🏆 Earned Achievement Badge', time: '2 days ago' },
+      ];
 
-  if (loading) {
+  if (contextLoading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#007bff" />
@@ -79,7 +155,7 @@ export default function Dashboard() {
     >
       {/* Welcome Header */}
       <View style={styles.header}>
-        <Text style={styles.greeting}>Hello, Student! 👋</Text>
+        <Text style={styles.greeting}>Hello, {getFullName()}! 👋</Text>
         <Text style={styles.subtitle}>Welcome back to your dashboard</Text>
       </View>
 

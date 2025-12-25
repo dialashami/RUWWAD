@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,7 +8,12 @@ import {
   ScrollView,
   StatusBar,
   SafeAreaView,
+  Image,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Context Provider
+import { TeacherProvider, useTeacher } from '../context/TeacherContext';
 
 // Import components
 import Dashboard from '../components/teacher/Dashboard';
@@ -20,19 +25,51 @@ import AITutorPage from '../components/shared/AITutorPage';
 import Settings from '../components/shared/Settings';
 import FeedbackStar from '../components/shared/FeedbackStar';
 
-export default function TeacherHomeScreen({ navigation }) {
+// Inner component that uses context
+function TeacherHomeContent({ navigation }) {
   const [activePage, setActivePage] = useState('dashboard');
   const [sidebarVisible, setSidebarVisible] = useState(false);
 
-  const menuItems = [
-    { id: 'dashboard', title: 'Dashboard', icon: '📊' },
-    { id: 'lessons', title: 'Lessons', icon: '📚' },
-    { id: 'assignments', title: 'Assignments', icon: '📝' },
-    { id: 'chat', title: 'Chat Center', icon: '💬' },
-    { id: 'notifications', title: 'Notifications', icon: '🔔' },
-    { id: 'ai-tutor', title: 'AI Assistant', icon: '🤖' },
-    { id: 'settings', title: 'Settings', icon: '⚙️' },
+  // Get data from context
+  const {
+    teacher,
+    stats,
+    getInitials,
+    getFullName,
+    getSpecializationDisplay,
+    updateUnreadMessages,
+    updateUnreadNotifications,
+    decrementUnreadMessages,
+    decrementUnreadNotifications,
+    refreshData,
+  } = useTeacher();
+
+  // Menu items with dynamic badges from context
+  const getMenuItems = () => [
+    { id: 'dashboard', title: 'Dashboard', icon: '📊', badge: 0 },
+    { id: 'lessons', title: 'My Lessons', icon: '📚', badge: 0 },
+    { id: 'assignments', title: 'Assignments', icon: '📝', badge: stats.pendingSubmissions || 0 },
+    { id: 'chat', title: 'Messages', icon: '💬', badge: stats.unreadMessages || 0 },
+    { id: 'notifications', title: 'Notifications', icon: '🔔', badge: stats.unreadNotifications || 0 },
+    { id: 'ai-tutor', title: 'AI Tutor', icon: '🤖', badge: 0 },
+    { id: 'settings', title: 'Settings', icon: '⚙️', badge: 0 },
   ];
+
+  // Refresh data when switching pages
+  useEffect(() => {
+    if (activePage === 'dashboard') {
+      refreshData();
+    }
+  }, [activePage]);
+
+  // Callbacks for components
+  const onMessagesRead = useCallback(() => {
+    updateUnreadMessages(0);
+  }, [updateUnreadMessages]);
+
+  const onNotificationsRead = useCallback(() => {
+    updateUnreadNotifications(0);
+  }, [updateUnreadNotifications]);
 
   const renderPage = () => {
     switch (activePage) {
@@ -43,9 +80,20 @@ export default function TeacherHomeScreen({ navigation }) {
       case 'assignments':
         return <AssignmentManagement />;
       case 'chat':
-        return <ChatCenter currentRole="teacher" />;
+        return (
+          <ChatCenter 
+            currentRole="teacher"
+            onMessagesRead={onMessagesRead}
+            decrementUnreadMessages={decrementUnreadMessages}
+          />
+        );
       case 'notifications':
-        return <Notifications />;
+        return (
+          <Notifications
+            onNotificationsRead={onNotificationsRead}
+            decrementUnreadNotifications={decrementUnreadNotifications}
+          />
+        );
       case 'ai-tutor':
         return <AITutorPage />;
       case 'settings':
@@ -60,7 +108,14 @@ export default function TeacherHomeScreen({ navigation }) {
     setSidebarVisible(false);
   };
 
+  const handleLogout = async () => {
+    // Clear storage and navigate to Welcome
+    await AsyncStorage.multiRemove(['token', 'user', 'userId']);
+    navigation.replace('Welcome');
+  };
+
   const getActiveTitle = () => {
+    const menuItems = getMenuItems();
     const item = menuItems.find(m => m.id === activePage);
     return item ? item.title : 'Dashboard';
   };
@@ -77,10 +132,41 @@ export default function TeacherHomeScreen({ navigation }) {
         >
           <Text style={styles.menuIcon}>☰</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{getActiveTitle()}</Text>
+        <TouchableOpacity onPress={() => setActivePage('dashboard')}>
+          <Text style={styles.headerTitle}>RUWWAD</Text>
+        </TouchableOpacity>
         <View style={styles.headerRight}>
-          <TouchableOpacity onPress={() => setActivePage('notifications')}>
+          <TouchableOpacity 
+            style={styles.headerIconContainer}
+            onPress={() => { setActivePage('notifications'); setSidebarVisible(false); }}
+          >
             <Text style={styles.headerIcon}>🔔</Text>
+            {stats.unreadNotifications > 0 && (
+              <View style={styles.headerBadge}>
+                <Text style={styles.headerBadgeText}>{stats.unreadNotifications > 9 ? '9+' : stats.unreadNotifications}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.headerIconContainer}
+            onPress={() => { setActivePage('chat'); setSidebarVisible(false); }}
+          >
+            <Text style={styles.headerIcon}>💬</Text>
+            {stats.unreadMessages > 0 && (
+              <View style={styles.headerBadge}>
+                <Text style={styles.headerBadgeText}>{stats.unreadMessages > 9 ? '9+' : stats.unreadMessages}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.profileIcon}
+            onPress={() => setActivePage('settings')}
+          >
+            {teacher.profilePicture ? (
+              <Image source={{ uri: teacher.profilePicture }} style={styles.profileImage} />
+            ) : (
+              <Text style={styles.profileInitials}>{getInitials()}</Text>
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -99,17 +185,12 @@ export default function TeacherHomeScreen({ navigation }) {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.sidebar}>
-            {/* Sidebar Header */}
+            {/* Sidebar Header with Logo */}
             <View style={styles.sidebarHeader}>
-              <View style={styles.profileSection}>
-                <View style={styles.avatar}>
-                  <Text style={styles.avatarText}>👨‍🏫</Text>
-                </View>
-                <View style={styles.profileInfo}>
-                  <Text style={styles.profileName}>Teacher</Text>
-                  <Text style={styles.profileRole}>RUWWAD Educator</Text>
-                </View>
-              </View>
+              <TouchableOpacity onPress={() => { setActivePage('dashboard'); setSidebarVisible(false); }}>
+                <Text style={styles.sidebarLogo}>RUWWAD</Text>
+              </TouchableOpacity>
+              <Text style={styles.sidebarSubtitle}>Teacher Portal</Text>
               <TouchableOpacity
                 style={styles.closeButton}
                 onPress={() => setSidebarVisible(false)}
@@ -118,9 +199,22 @@ export default function TeacherHomeScreen({ navigation }) {
               </TouchableOpacity>
             </View>
 
+            {/* User Profile Section - Dynamic from Context */}
+            <View style={styles.userInfo}>
+              {teacher.profilePicture ? (
+                <Image source={{ uri: teacher.profilePicture }} style={styles.avatarImage} />
+              ) : (
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarInitials}>{getInitials()}</Text>
+                </View>
+              )}
+              <Text style={styles.userName}>{getFullName()}</Text>
+              <Text style={styles.userRole}>{getSpecializationDisplay()}</Text>
+            </View>
+
             {/* Menu Items */}
             <ScrollView style={styles.menuContainer}>
-              {menuItems.map((item) => (
+              {getMenuItems().map((item) => (
                 <TouchableOpacity
                   key={item.id}
                   style={[
@@ -136,18 +230,17 @@ export default function TeacherHomeScreen({ navigation }) {
                   ]}>
                     {item.title}
                   </Text>
+                  {item.badge > 0 && (
+                    <View style={styles.menuBadge}>
+                      <Text style={styles.menuBadgeText}>{item.badge > 99 ? '99+' : item.badge}</Text>
+                    </View>
+                  )}
                 </TouchableOpacity>
               ))}
             </ScrollView>
 
             {/* Logout Button */}
-            <TouchableOpacity
-              style={styles.logoutButton}
-              onPress={() => {
-                setSidebarVisible(false);
-                navigation.replace('Login');
-              }}
-            >
+            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
               <Text style={styles.logoutIcon}>🚪</Text>
               <Text style={styles.logoutText}>Logout</Text>
             </TouchableOpacity>
@@ -164,6 +257,15 @@ export default function TeacherHomeScreen({ navigation }) {
       {/* Feedback Star */}
       <FeedbackStar />
     </SafeAreaView>
+  );
+}
+
+// Export wrapped with TeacherProvider (like web version pattern)
+export default function TeacherHomeScreen({ navigation }) {
+  return (
+    <TeacherProvider>
+      <TeacherHomeContent navigation={navigation} />
+    </TeacherProvider>
   );
 }
 
@@ -208,62 +310,100 @@ const styles = StyleSheet.create({
   },
   sidebar: {
     width: '75%',
-    backgroundColor: '#fff',
-    shadowColor: '#000',
-    shadowOffset: { width: 2, height: 0 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 10,
+    backgroundColor: '#1a1f36',
+    height: '100%',
   },
   overlayClose: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   sidebarHeader: {
-    backgroundColor: '#28a745',
     padding: 20,
     paddingTop: 50,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: '#1a1f36',
   },
-  profileSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  avatarText: {
-    fontSize: 28,
-  },
-  profileInfo: {},
-  profileName: {
-    fontSize: 18,
+  sidebarLogo: {
+    fontSize: 24,
     fontWeight: 'bold',
-    color: '#fff',
+    color: '#28a745',
   },
-  profileRole: {
-    fontSize: 13,
-    color: 'rgba(255, 255, 255, 0.8)',
-    marginTop: 2,
+  sidebarSubtitle: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.6)',
+    marginTop: 4,
   },
   closeButton: {
-    padding: 8,
+    position: 'absolute',
+    top: 50,
+    right: 15,
+    padding: 5,
   },
   closeIcon: {
     fontSize: 20,
     color: '#fff',
   },
+  userInfo: {
+    padding: 20,
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: '#1a1f36',
+  },
+  avatar: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: '#28a745',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  avatarImage: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    marginBottom: 12,
+  },
+  avatarInitials: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  userName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+    marginBottom: 4,
+  },
+  userRole: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.6)',
+  },
+  profileIcon: {
+    width: 35,
+    height: 35,
+    borderRadius: 17.5,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  profileImage: {
+    width: 35,
+    height: 35,
+    borderRadius: 17.5,
+  },
+  profileInitials: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
   menuContainer: {
     flex: 1,
     paddingTop: 10,
+    backgroundColor: '#1a1f36',
   },
   menuItem: {
     flexDirection: 'row',
@@ -275,7 +415,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   menuItemActive: {
-    backgroundColor: '#e8f5e9',
+    backgroundColor: 'rgba(40, 167, 69, 0.2)',
   },
   menuItemIcon: {
     fontSize: 22,
@@ -285,19 +425,55 @@ const styles = StyleSheet.create({
   },
   menuItemText: {
     fontSize: 16,
-    color: '#374151',
+    color: 'rgba(255,255,255,0.8)',
+    flex: 1,
   },
   menuItemTextActive: {
     color: '#28a745',
     fontWeight: '600',
+  },
+  menuBadge: {
+    backgroundColor: '#ef4444',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+  },
+  menuBadgeText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  headerIconContainer: {
+    position: 'relative',
+    marginLeft: 12,
+  },
+  headerBadge: {
+    position: 'absolute',
+    top: -5,
+    right: -8,
+    backgroundColor: '#ef4444',
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  headerBadgeText: {
+    color: '#fff',
+    fontSize: 9,
+    fontWeight: '700',
   },
   logoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 20,
     borderTopWidth: 1,
-    borderTopColor: '#f3f4f6',
-    marginTop: 10,
+    borderTopColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: '#1a1f36',
   },
   logoutIcon: {
     fontSize: 22,

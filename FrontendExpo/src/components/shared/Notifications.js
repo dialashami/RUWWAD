@@ -53,7 +53,7 @@ const defaultNotifications = [
   },
 ];
 
-export default function Notifications() {
+export default function Notifications({ onNotificationsRead, decrementUnreadNotifications }) {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -142,11 +142,26 @@ export default function Notifications() {
   };
 
   const markAsRead = async (id) => {
+    // Check if notification was unread
+    const notification = notifications.find(n => n.id === id);
+    const wasUnread = notification && !notification.read;
+    
     setNotifications(
       notifications.map((n) => (n.id === id ? { ...n, read: true } : n))
     );
+    
+    // Update parent count
+    if (wasUnread && decrementUnreadNotifications) {
+      decrementUnreadNotifications(1);
+    }
+    
     try {
-      await notificationAPI.markAsRead(id);
+      // Don't call API for default notifications
+      if (typeof id === 'string' && !id.toString().startsWith('fallback')) {
+        await notificationAPI.markAsRead(id);
+      } else if (typeof id !== 'number') {
+        await notificationAPI.markAsRead(id);
+      }
     } catch (err) {
       console.error('Error marking notification as read:', err);
     }
@@ -154,6 +169,12 @@ export default function Notifications() {
 
   const markAllAsRead = async () => {
     setNotifications(notifications.map((n) => ({ ...n, read: true })));
+    
+    // Update parent count to 0
+    if (onNotificationsRead) {
+      onNotificationsRead();
+    }
+    
     try {
       await notificationAPI.markAllAsRead();
     } catch (err) {

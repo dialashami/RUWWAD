@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,11 @@ import {
   TouchableOpacity,
   Dimensions,
   Modal,
+  Image,
 } from 'react-native';
+
+// Context Provider
+import { StudentProvider, useStudent } from '../context/StudentContext';
 
 // Sub-components
 import Dashboard from '../components/student/Dashboard';
@@ -22,20 +26,52 @@ import FeedbackStar from '../components/shared/FeedbackStar';
 
 const { width } = Dimensions.get('window');
 
-const menuItems = [
-  { id: 'dashboard', title: 'Dashboard', icon: '📊' },
-  { id: 'lessons', title: 'My Lessons', icon: '📚' },
-  { id: 'assignments', title: 'Assignments', icon: '📝' },
-  { id: 'chat', title: 'Messages', icon: '💬' },
-  { id: 'progress', title: 'Progress', icon: '📈' },
-  { id: 'notifications', title: 'Notifications', icon: '🔔' },
-  { id: 'ai-tutor', title: 'AI Tutor', icon: '🤖' },
-  { id: 'settings', title: 'Settings', icon: '⚙️' },
-];
-
-export default function StudentHomeScreen({ navigation }) {
+// Inner component that uses context
+function StudentHomeContent({ navigation }) {
   const [activePage, setActivePage] = useState('dashboard');
   const [sidebarVisible, setSidebarVisible] = useState(false);
+
+  // Get data from context
+  const {
+    student,
+    stats,
+    getInitials,
+    getFullName,
+    getGradeDisplay,
+    updateUnreadMessages,
+    updateUnreadNotifications,
+    decrementUnreadMessages,
+    decrementUnreadNotifications,
+    refreshData,
+  } = useStudent();
+
+  // Menu items with dynamic badges from context
+  const getMenuItems = () => [
+    { id: 'dashboard', title: 'Dashboard', icon: '📊', badge: 0 },
+    { id: 'lessons', title: 'My Lessons', icon: '📚', badge: 0 },
+    { id: 'assignments', title: 'Assignments', icon: '📝', badge: stats.pendingAssignments || 0 },
+    { id: 'chat', title: 'Messages', icon: '💬', badge: stats.unreadMessages || 0 },
+    { id: 'progress', title: 'Progress', icon: '📈', badge: 0 },
+    { id: 'notifications', title: 'Notifications', icon: '🔔', badge: stats.unreadNotifications || 0 },
+    { id: 'ai-tutor', title: 'AI Tutor', icon: '🤖', badge: 0 },
+    { id: 'settings', title: 'Settings', icon: '⚙️', badge: 0 },
+  ];
+
+  // Refresh data when switching pages
+  useEffect(() => {
+    if (activePage === 'dashboard') {
+      refreshData();
+    }
+  }, [activePage]);
+
+  // Callbacks for components
+  const onMessagesRead = useCallback(() => {
+    updateUnreadMessages(0);
+  }, [updateUnreadMessages]);
+
+  const onNotificationsRead = useCallback(() => {
+    updateUnreadNotifications(0);
+  }, [updateUnreadNotifications]);
 
   const renderPage = () => {
     switch (activePage) {
@@ -46,11 +82,22 @@ export default function StudentHomeScreen({ navigation }) {
       case 'assignments':
         return <Assignments />;
       case 'chat':
-        return <ChatCenter currentRole="student" />;
+        return (
+          <ChatCenter 
+            currentRole="student" 
+            onMessagesRead={onMessagesRead}
+            decrementUnreadMessages={decrementUnreadMessages}
+          />
+        );
       case 'progress':
         return <ProgressPage />;
       case 'notifications':
-        return <Notifications />;
+        return (
+          <Notifications 
+            onNotificationsRead={onNotificationsRead}
+            decrementUnreadNotifications={decrementUnreadNotifications}
+          />
+        );
       case 'ai-tutor':
         return <AITutorPage />;
       case 'settings':
@@ -65,7 +112,10 @@ export default function StudentHomeScreen({ navigation }) {
     setSidebarVisible(false);
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    // Clear storage and navigate to Welcome
+    const AsyncStorage = require('@react-native-async-storage/async-storage').default;
+    await AsyncStorage.multiRemove(['token', 'user', 'userId']);
     navigation.replace('Welcome');
   };
 
@@ -79,13 +129,41 @@ export default function StudentHomeScreen({ navigation }) {
         >
           <Text style={styles.menuIcon}>☰</Text>
         </TouchableOpacity>
-        <Text style={styles.navTitle}>RUWWAD</Text>
+        <TouchableOpacity onPress={() => setActivePage('dashboard')}>
+          <Text style={styles.navTitle}>RUWWAD</Text>
+        </TouchableOpacity>
         <View style={styles.navRight}>
-          <TouchableOpacity style={styles.navIcon}>
+          <TouchableOpacity 
+            style={styles.navIcon}
+            onPress={() => { setActivePage('notifications'); setSidebarVisible(false); }}
+          >
             <Text>🔔</Text>
+            {stats.unreadNotifications > 0 && (
+              <View style={styles.navBadge}>
+                <Text style={styles.navBadgeText}>{stats.unreadNotifications > 9 ? '9+' : stats.unreadNotifications}</Text>
+              </View>
+            )}
           </TouchableOpacity>
-          <TouchableOpacity style={styles.profileIcon}>
-            <Text>👤</Text>
+          <TouchableOpacity 
+            style={styles.navIcon}
+            onPress={() => { setActivePage('chat'); setSidebarVisible(false); }}
+          >
+            <Text>💬</Text>
+            {stats.unreadMessages > 0 && (
+              <View style={styles.navBadge}>
+                <Text style={styles.navBadgeText}>{stats.unreadMessages > 9 ? '9+' : stats.unreadMessages}</Text>
+              </View>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.profileIcon}
+            onPress={() => setActivePage('settings')}
+          >
+            {student.profilePicture ? (
+              <Image source={{ uri: student.profilePicture }} style={styles.profileImage} />
+            ) : (
+              <Text style={styles.profileInitials}>{getInitials()}</Text>
+            )}
           </TouchableOpacity>
         </View>
       </View>
@@ -99,9 +177,11 @@ export default function StudentHomeScreen({ navigation }) {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.sidebar}>
-            {/* Sidebar Header */}
+            {/* Sidebar Header with Logo */}
             <View style={styles.sidebarHeader}>
-              <Text style={styles.sidebarLogo}>RUWWAD</Text>
+              <TouchableOpacity onPress={() => { setActivePage('dashboard'); setSidebarVisible(false); }}>
+                <Text style={styles.sidebarLogo}>RUWWAD</Text>
+              </TouchableOpacity>
               <Text style={styles.sidebarSubtitle}>Student Portal</Text>
               <TouchableOpacity
                 style={styles.closeButton}
@@ -111,18 +191,22 @@ export default function StudentHomeScreen({ navigation }) {
               </TouchableOpacity>
             </View>
 
-            {/* User Info */}
+            {/* User Profile Section - Dynamic from Context */}
             <View style={styles.userInfo}>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>👨‍🎓</Text>
-              </View>
-              <Text style={styles.userName}>Student</Text>
-              <Text style={styles.userRole}>Student Account</Text>
+              {student.profilePicture ? (
+                <Image source={{ uri: student.profilePicture }} style={styles.avatarImage} />
+              ) : (
+                <View style={styles.avatar}>
+                  <Text style={styles.avatarInitials}>{getInitials()}</Text>
+                </View>
+              )}
+              <Text style={styles.userName}>{getFullName()}</Text>
+              <Text style={styles.userRole}>{getGradeDisplay()}</Text>
             </View>
 
             {/* Menu Items */}
             <ScrollView style={styles.menuList}>
-              {menuItems.map((item) => (
+              {getMenuItems().map((item) => (
                 <TouchableOpacity
                   key={item.id}
                   style={[
@@ -140,6 +224,11 @@ export default function StudentHomeScreen({ navigation }) {
                   >
                     {item.title}
                   </Text>
+                  {item.badge > 0 && (
+                    <View style={styles.badge}>
+                      <Text style={styles.badgeText}>{item.badge > 99 ? '99+' : item.badge}</Text>
+                    </View>
+                  )}
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -161,6 +250,15 @@ export default function StudentHomeScreen({ navigation }) {
       {/* Floating Feedback Button */}
       <FeedbackStar />
     </View>
+  );
+}
+
+// Export wrapped with StudentProvider (like web version)
+export default function StudentHomeScreen({ navigation }) {
+  return (
+    <StudentProvider>
+      <StudentHomeContent navigation={navigation} />
+    </StudentProvider>
   );
 }
 
@@ -204,6 +302,17 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.2)',
     justifyContent: 'center',
     alignItems: 'center',
+    overflow: 'hidden',
+  },
+  profileImage: {
+    width: 35,
+    height: 35,
+    borderRadius: 17.5,
+  },
+  profileInitials: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
   modalOverlay: {
     flex: 1,
@@ -251,10 +360,21 @@ const styles = StyleSheet.create({
     width: 70,
     height: 70,
     borderRadius: 35,
-    backgroundColor: '#007bff',
+    backgroundColor: 'linear-gradient(135deg, #007bff, #8b5cf6)',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 10,
+  },
+  avatarImage: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    marginBottom: 10,
+  },
+  avatarInitials: {
+    fontSize: 24,
+    fontWeight: '600',
+    color: '#fff',
   },
   avatarText: {
     fontSize: 35,
@@ -291,10 +411,42 @@ const styles = StyleSheet.create({
   menuItemText: {
     fontSize: 16,
     color: 'rgba(255,255,255,0.8)',
+    flex: 1,
   },
   menuItemTextActive: {
     color: '#007bff',
     fontWeight: '600',
+  },
+  badge: {
+    backgroundColor: '#ef4444',
+    borderRadius: 10,
+    minWidth: 20,
+    height: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  navBadge: {
+    position: 'absolute',
+    top: -5,
+    right: -8,
+    backgroundColor: '#ef4444',
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  navBadgeText: {
+    color: '#fff',
+    fontSize: 9,
+    fontWeight: '700',
   },
   logoutButton: {
     flexDirection: 'row',

@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
+import { useStudent } from '../../context/StudentContext';
 import { courseAPI } from '../../services/api';
 
 const defaultLessons = [
@@ -54,6 +55,9 @@ const defaultLessons = [
 ];
 
 export default function MyLessons() {
+  // Get data from student context
+  const { student, courses: contextCourses, refreshData, loading: contextLoading } = useStudent();
+
   const [activeFilter, setActiveFilter] = useState('all');
   const [lessons, setLessons] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -61,10 +65,27 @@ export default function MyLessons() {
 
   useEffect(() => {
     fetchLessons();
-  }, []);
+  }, [student.id, student.grade, contextCourses]);
 
   const fetchLessons = async () => {
     try {
+      // First try context courses
+      if (contextCourses && contextCourses.length > 0) {
+        setLessons(contextCourses.map(c => ({
+          id: c._id || c.id,
+          title: c.title || 'Untitled Course',
+          subject: c.subject || 'Course',
+          progress: c.progress || 0,
+          duration: c.duration || '30 min',
+          completed: c.progress === 100,
+          status: c.progress >= 100 ? 'completed' : c.progress > 0 ? 'in-progress' : 'not-started',
+        })));
+        setLoading(false);
+        setRefreshing(false);
+        return;
+      }
+
+      // Fallback to API call
       const response = await courseAPI.getMyCourses();
       const data = response.data || [];
       if (data.length > 0) {
@@ -75,6 +96,7 @@ export default function MyLessons() {
           progress: c.progress || 0,
           duration: c.duration || '30 min',
           completed: c.progress === 100,
+          status: c.progress >= 100 ? 'completed' : c.progress > 0 ? 'in-progress' : 'not-started',
         })));
       } else {
         setLessons(defaultLessons);
@@ -88,8 +110,9 @@ export default function MyLessons() {
     }
   };
 
-  const onRefresh = () => {
+  const onRefresh = async () => {
     setRefreshing(true);
+    await refreshData();
     fetchLessons();
   };
 

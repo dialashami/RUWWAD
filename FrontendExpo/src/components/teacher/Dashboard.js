@@ -8,103 +8,70 @@ import {
   TouchableOpacity,
   RefreshControl,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useTeacher } from '../../context/TeacherContext';
 import { teacherDashboardAPI } from '../../services/api';
 
 export default function Dashboard() {
-  const [loading, setLoading] = useState(true);
+  // Get data from context
+  const {
+    teacher,
+    getFullName,
+    stats: contextStats,
+    courses: contextCourses,
+    recentActivities: contextActivities,
+    upcomingLessons: contextLessons,
+    weeklyStats: contextWeeklyStats,
+    loading: contextLoading,
+    refreshData,
+  } = useTeacher();
+
   const [refreshing, setRefreshing] = useState(false);
-  const [teacherName, setTeacherName] = useState('Teacher');
-  const [stats, setStats] = useState({
-    totalStudents: 0,
-    activeCourses: 0,
-    totalAssignments: 0,
-    activityRate: 0,
-    pendingSubmissions: 0,
-    unreadMessages: 0,
-  });
-  const [courses, setCourses] = useState([]);
-  const [recentActivities, setRecentActivities] = useState([]);
-  const [upcomingLessons, setUpcomingLessons] = useState([]);
-  const [weeklyStats, setWeeklyStats] = useState([
-    { day: 'Mon', value: 30 },
-    { day: 'Tue', value: 45 },
-    { day: 'Wed', value: 60 },
-    { day: 'Thu', value: 50 },
-    { day: 'Fri', value: 75 },
-    { day: 'Sat', value: 40 },
-    { day: 'Sun', value: 25 },
-  ]);
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
+  // Build stats from context
+  const stats = {
+    totalStudents: contextStats.totalStudents || 0,
+    activeCourses: contextStats.activeCourses || contextCourses.length || 0,
+    totalAssignments: contextStats.totalAssignments || 0,
+    activityRate: contextStats.activityRate || 0,
+    pendingSubmissions: contextStats.pendingSubmissions || 0,
+    unreadMessages: contextStats.unreadMessages || 0,
+  };
 
-  const fetchDashboardData = async () => {
-    try {
-      const storedUser = await AsyncStorage.getItem('user');
-      if (storedUser) {
-        const parsed = JSON.parse(storedUser);
-        if (parsed?.firstName || parsed?.lastName) {
-          setTeacherName(`${parsed.firstName || ''} ${parsed.lastName || ''}`.trim());
-        }
-      }
+  // Build courses from context
+  const courses = contextCourses.length > 0 ? contextCourses : [];
 
-      try {
-        const response = await teacherDashboardAPI.getDashboard();
-        const data = response.data;
+  // Build activities from context
+  const recentActivities = contextActivities.length > 0 
+    ? contextActivities.map((a, i) => ({
+        id: a.id || i,
+        type: a.type || 'activity',
+        title: a.title || 'Activity',
+        time: formatTimeAgo(a.createdAt),
+      }))
+    : [];
 
-        if (data.stats) {
-          setStats({
-            totalStudents: data.stats.totalStudents || 0,
-            activeCourses: data.stats.activeCourses || 0,
-            totalAssignments: data.stats.totalAssignments || 0,
-            activityRate: data.stats.activityRate || 0,
-            pendingSubmissions: data.stats.pendingSubmissions || 0,
-            unreadMessages: data.stats.unreadMessages || 0,
-          });
-        }
+  // Build lessons from context
+  const upcomingLessons = contextLessons.length > 0 
+    ? contextLessons 
+    : [];
 
-        if (data.courses?.length > 0) {
-          setCourses(data.courses.map(c => ({
-            _id: c._id,
-            title: c.title || 'Untitled Course',
-            subject: c.subject || 'Course',
-            grade: c.grade || 'All Grades',
-            students: Array.isArray(c.students) ? c.students.length : 0,
-          })));
-        }
+  // Weekly stats from context
+  const weeklyStats = contextWeeklyStats.length > 0 
+    ? contextWeeklyStats 
+    : [
+        { day: 'Mon', value: 30 },
+        { day: 'Tue', value: 45 },
+        { day: 'Wed', value: 60 },
+        { day: 'Thu', value: 50 },
+        { day: 'Fri', value: 75 },
+        { day: 'Sat', value: 40 },
+        { day: 'Sun', value: 25 },
+      ];
 
-        if (data.recentActivities?.length > 0) {
-          setRecentActivities(data.recentActivities.map((a, i) => ({
-            id: a.id || i,
-            type: a.type || 'activity',
-            title: a.title || 'Activity',
-            time: formatTimeAgo(a.createdAt),
-          })));
-        }
-
-        if (data.upcomingLessons?.length > 0) {
-          setUpcomingLessons(data.upcomingLessons.map((l, i) => ({
-            id: l.id || i,
-            title: l.title || 'Lesson',
-            time: l.time || 'Scheduled',
-            grade: l.grade || 'All Grades',
-            room: l.room || 'TBD',
-          })));
-        }
-
-        if (data.weeklyStats?.length > 0) {
-          setWeeklyStats(data.weeklyStats);
-        }
-      } catch (err) {
-        console.error('Error fetching dashboard:', err);
-      }
-    } catch (err) {
-      console.error('Error:', err);
-    } finally {
-      setLoading(false);
-    }
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await refreshData();
+    setRefreshing(false);
   };
 
   const formatTimeAgo = (dateString) => {
@@ -131,19 +98,26 @@ export default function Dashboard() {
     }
   };
 
-  if (loading) {
+  if (contextLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007bff" />
+        <ActivityIndicator size="large" color="#28a745" />
+        <Text style={styles.loadingText}>Loading dashboard...</Text>
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <ScrollView 
+      style={styles.container} 
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#28a745']} />
+      }
+    >
       {/* Welcome Header */}
       <View style={styles.header}>
-        <Text style={styles.welcomeText}>Welcome back, {teacherName}!</Text>
+        <Text style={styles.welcomeText}>Welcome back, {getFullName()}!</Text>
         <Text style={styles.subText}>Here's an overview of your classes and students</Text>
       </View>
 
