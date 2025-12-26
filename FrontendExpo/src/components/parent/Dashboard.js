@@ -63,8 +63,11 @@ export default function Dashboard() {
     );
   }
 
+  // Ensure contextChildren is an array
+  const children = Array.isArray(contextChildren) ? contextChildren : [];
+
   // No children linked
-  if (contextChildren.length === 0) {
+  if (children.length === 0) {
     return (
       <ScrollView 
         style={styles.container}
@@ -93,9 +96,9 @@ export default function Dashboard() {
     );
   }
 
-  const childNames = contextChildren.map(c => `${c.firstName} ${c.lastName}`).join(', ');
+  const childNames = children.map(c => `${c.firstName} ${c.lastName}`).join(', ');
   const currentChildData = selectedChild ? contextChildrenData[selectedChild] : null;
-  const currentChild = contextChildren.find(c => c._id === selectedChild);
+  const currentChild = children.find(c => c._id === selectedChild);
 
   return (
     <ScrollView 
@@ -114,13 +117,13 @@ export default function Dashboard() {
       </View>
 
       {/* Child Selector */}
-      {contextChildren.length > 1 && (
+      {children.length > 1 && (
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           style={styles.childSelector}
         >
-          {contextChildren.map((child) => (
+          {children.map((child) => (
             <TouchableOpacity
               key={child._id}
               style={[

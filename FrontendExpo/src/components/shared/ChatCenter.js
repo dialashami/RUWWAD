@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,41 +10,15 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
-import { messageAPI } from '../../services/api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { messageAPI, userAPI, adminDashboardAPI } from '../../services/api';
 
-const defaultConversations = [
-  {
-    id: 1,
-    name: 'Mr. Ahmed (Math Teacher)',
-    lastMessage: 'Great progress on your assignment!',
-    time: '10:30 AM',
-    unread: 2,
-    avatar: '👨‍🏫',
-  },
-  {
-    id: 2,
-    name: 'Ms. Sara (English Teacher)',
-    lastMessage: 'Don\'t forget to submit your essay',
-    time: 'Yesterday',
-    unread: 0,
-    avatar: '👩‍🏫',
-  },
-  {
-    id: 3,
-    name: 'Dr. Mohammed (Physics)',
-    lastMessage: 'Lab session is rescheduled',
-    time: 'Dec 23',
-    unread: 1,
-    avatar: '👨‍🔬',
-  },
-];
+const defaultConversations = [];
 
 const defaultMessages = [
-  { id: 1, text: 'Hello! How can I help you today?', sender: 'teacher', time: '10:00 AM' },
+  { id: 1, text: 'Hello! How can I help you today?', sender: 'other', time: '10:00 AM' },
   { id: 2, text: 'I have a question about the homework', sender: 'me', time: '10:05 AM' },
-  { id: 3, text: 'Sure, go ahead and ask!', sender: 'teacher', time: '10:06 AM' },
-  { id: 4, text: 'I\'m confused about problem 3', sender: 'me', time: '10:10 AM' },
-  { id: 5, text: 'Great progress on your assignment!', sender: 'teacher', time: '10:30 AM' },
+  { id: 3, text: 'Sure, go ahead and ask!', sender: 'other', time: '10:06 AM' },
 ];
 
 export default function ChatCenter({ currentRole, onMessagesRead, decrementUnreadMessages }) {
@@ -52,53 +26,150 @@ export default function ChatCenter({ currentRole, onMessagesRead, decrementUnrea
   const [messageText, setMessageText] = useState('');
   const [messages, setMessages] = useState([]);
   const [conversations, setConversations] = useState([]);
+  const [allUsers, setAllUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [sending, setSending] = useState(false);
+  const [searchText, setSearchText] = useState('');
+  const [activeTab, setActiveTab] = useState('all');
   const flatListRef = useRef(null);
+  const [currentUserId, setCurrentUserId] = useState(null);
 
-  const fetchConversations = async () => {
+  // Get tabs based on role
+  const getTabs = () => {
+    switch (currentRole) {
+      case 'teacher':
+        return [
+          { key: 'all', label: 'All' },
+          { key: 'student', label: 'Students' },
+          { key: 'parent', label: 'Parents' },
+        ];
+      case 'admin':
+        return [
+          { key: 'all', label: 'All' },
+          { key: 'teacher', label: 'Teachers' },
+          { key: 'student', label: 'Students' },
+          { key: 'parent', label: 'Parents' },
+        ];
+      case 'parent':
+        return [
+          { key: 'all', label: 'All' },
+          { key: 'teacher', label: 'Teachers' },
+        ];
+      case 'student':
+      default:
+        return [
+          { key: 'all', label: 'All' },
+          { key: 'teacher', label: 'Teachers' },
+        ];
+    }
+  };
+
+  const fetchAllData = useCallback(async () => {
     try {
-      const response = await messageAPI.getConversations();
-      const data = response.data || [];
-      if (data.length > 0) {
-        setConversations(data.map(c => ({
-          id: c._id || c.id,
-          name: c.name || `${c.firstName} ${c.lastName}`,
-          lastMessage: c.lastMessage || '',
-          time: formatTime(c.lastMessageTime),
-          unread: c.unreadCount || 0,
-          avatar: getAvatarByRole(c.role),
-        })));
-      } else {
-        setConversations(defaultConversations);
+      setLoading(true);
+      
+      // Get current user ID
+      const userId = await AsyncStorage.getItem('userId');
+      setCurrentUserId(userId);
+      
+      // Fetch all users (use admin API for admin role, regular API for others)
+      let users = [];
+      try {
+        if (currentRole === 'admin') {
+          const adminResponse = await adminDashboardAPI.getUsers();
+          users = adminResponse.data?.users || adminResponse.data || [];
+        } else {
+          const usersResponse = await userAPI.getUsers();
+          users = usersResponse.data || [];
+        }
+      } catch (userErr) {
+        console.log('Error fetching users:', userErr.message);
       }
+      
+      // Fetch conversations for unread counts
+      let conversationsData = [];
+      try {
+        const convResponse = await messageAPI.getConversations();
+        conversationsData = convResponse.data || [];
+      } catch (convErr) {
+        console.log('No conversations yet:', convErr.message);
+      }
+      
+      // Create a map of unread counts by recipient ID
+      const unreadMap = {};
+      conversationsData.forEach(conv => {
+        const recipientId = conv._id || conv.id || conv.recipientId;
+        unreadMap[recipientId] = conv.unreadCount || 0;
+      });
+      
+      // Filter out current user and map users to conversation format
+      const filteredUsers = users.filter(user => {
+        const id = user._id || user.id;
+        return id !== userId && id !== currentUserId;
+      });
+      
+      const mappedUsers = filteredUsers.map((user, index) => ({
+        id: user._id || user.id || `user-${index}`,
+        name: user.name || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
+        email: user.email,
+        role: user.role || 'user',
+        lastMessage: conversationsData.find(c => c._id === user._id || c.recipientId === user._id)?.lastMessage || '',
+        time: conversationsData.find(c => c._id === user._id || c.recipientId === user._id)?.lastMessageTime || '',
+        unread: unreadMap[user._id || user.id] || 0,
+        avatar: getAvatarByRole(user.role),
+      }));
+      
+      setAllUsers(mappedUsers);
+      setConversations(mappedUsers);
+      
     } catch (err) {
-      console.error('Error fetching conversations:', err);
+      console.error('Error fetching data:', err);
       setConversations(defaultConversations);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, [currentUserId, currentRole]);
+
+  // Filter conversations based on search and active tab
+  const getFilteredConversations = useCallback(() => {
+    let filtered = allUsers;
+    
+    // Filter by tab (role)
+    if (activeTab !== 'all') {
+      filtered = filtered.filter(user => user.role === activeTab);
+    }
+    
+    // Filter by search text
+    if (searchText.trim()) {
+      const search = searchText.toLowerCase();
+      filtered = filtered.filter(user => 
+        user.name.toLowerCase().includes(search) ||
+        (user.email && user.email.toLowerCase().includes(search))
+      );
+    }
+    
+    return filtered;
+  }, [allUsers, activeTab, searchText]);
 
   const fetchMessages = async (recipientId) => {
     try {
       const response = await messageAPI.getMessages(recipientId);
       const data = response.data || [];
       if (data.length > 0) {
-        setMessages(data.map(m => ({
-          id: m._id || m.id,
+        setMessages(data.map((m, index) => ({
+          id: m._id || m.id || `msg-${index}`,
           text: m.content || m.message,
-          sender: m.isFromMe ? 'me' : 'teacher',
+          sender: m.isFromMe || m.sender === currentUserId || m.senderId === currentUserId ? 'me' : 'other',
           time: formatTime(m.createdAt),
         })));
       } else {
-        setMessages(defaultMessages);
+        setMessages([]);
       }
     } catch (err) {
       console.error('Error fetching messages:', err);
-      setMessages(defaultMessages);
+      setMessages([]);
     }
   };
 
@@ -125,15 +196,15 @@ export default function ChatCenter({ currentRole, onMessagesRead, decrementUnrea
   };
 
   useEffect(() => {
-    fetchConversations();
-  }, []);
+    fetchAllData();
+  }, [fetchAllData]);
 
   useEffect(() => {
     if (selectedChat) {
       fetchMessages(selectedChat);
       
       // Mark conversation as read and update unread count
-      const conversation = conversations.find(c => c.id === selectedChat);
+      const conversation = allUsers.find(c => c.id === selectedChat);
       if (conversation && conversation.unread > 0) {
         // Decrement parent count
         if (decrementUnreadMessages) {
@@ -141,7 +212,7 @@ export default function ChatCenter({ currentRole, onMessagesRead, decrementUnrea
         }
         
         // Update local state
-        setConversations(prev => 
+        setAllUsers(prev => 
           prev.map(c => c.id === selectedChat ? { ...c, unread: 0 } : c)
         );
         
@@ -155,7 +226,7 @@ export default function ChatCenter({ currentRole, onMessagesRead, decrementUnrea
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchConversations();
+    fetchAllData();
   };
 
   const sendMessage = async () => {
@@ -190,7 +261,7 @@ export default function ChatCenter({ currentRole, onMessagesRead, decrementUnrea
   }
 
   if (selectedChat) {
-    const currentConversation = conversations.find(c => c.id === selectedChat) || defaultConversations[0];
+    const currentConversation = allUsers.find(c => c.id === selectedChat) || { name: 'Chat', avatar: '👤' };
     
     return (
       <View style={styles.container}>
@@ -260,7 +331,10 @@ export default function ChatCenter({ currentRole, onMessagesRead, decrementUnrea
       <View style={styles.header}>
         <Text style={styles.title}>Messages</Text>
         <Text style={styles.subtitle}>
-          {currentRole === 'teacher' ? 'Chat with your students' : 'Chat with your teachers'}
+          {currentRole === 'admin' ? 'Communicate with all users' :
+           currentRole === 'teacher' ? 'Chat with students and parents' : 
+           currentRole === 'parent' ? 'Chat with teachers' :
+           'Chat with your teachers'}
         </Text>
       </View>
 
@@ -268,9 +342,28 @@ export default function ChatCenter({ currentRole, onMessagesRead, decrementUnrea
       <View style={styles.searchContainer}>
         <TextInput
           style={styles.searchInput}
-          placeholder="Search conversations..."
+          placeholder="Search by name or email..."
           placeholderTextColor="#999"
+          value={searchText}
+          onChangeText={setSearchText}
         />
+      </View>
+
+      {/* Role Tabs */}
+      <View style={styles.tabsContainer}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          {getTabs().map(tab => (
+            <TouchableOpacity
+              key={tab.key}
+              style={[styles.tab, activeTab === tab.key && styles.activeTab]}
+              onPress={() => setActiveTab(tab.key)}
+            >
+              <Text style={[styles.tabText, activeTab === tab.key && styles.activeTabText]}>
+                {tab.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
       </View>
 
       {/* Conversations List */}
@@ -280,33 +373,49 @@ export default function ChatCenter({ currentRole, onMessagesRead, decrementUnrea
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#007bff']} />
         }
       >
-        {conversations.map((conversation) => (
-          <TouchableOpacity
-            key={conversation.id}
-            style={styles.conversationItem}
-            onPress={() => setSelectedChat(conversation.id)}
-          >
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{conversation.avatar}</Text>
-            </View>
-            <View style={styles.conversationInfo}>
-              <View style={styles.conversationHeader}>
-                <Text style={styles.conversationName}>{conversation.name}</Text>
-                <Text style={styles.conversationTime}>{conversation.time}</Text>
+        {getFilteredConversations().length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyIcon}>💬</Text>
+            <Text style={styles.emptyText}>
+              {searchText ? 'No users found matching your search' : 'No users available'}
+            </Text>
+          </View>
+        ) : (
+          getFilteredConversations().map((conversation) => (
+            <TouchableOpacity
+              key={conversation.id}
+              style={styles.conversationItem}
+              onPress={() => setSelectedChat(conversation.id)}
+            >
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>{conversation.avatar}</Text>
               </View>
-              <View style={styles.conversationFooter}>
-                <Text style={styles.lastMessage} numberOfLines={1}>
-                  {conversation.lastMessage}
-                </Text>
+              <View style={styles.conversationInfo}>
+                <View style={styles.conversationHeader}>
+                  <Text style={styles.conversationName}>{conversation.name}</Text>
+                  {conversation.time ? (
+                    <Text style={styles.conversationTime}>{formatTime(conversation.time)}</Text>
+                  ) : null}
+                </View>
+                <View style={styles.conversationFooter}>
+                  <Text style={styles.roleTag}>{conversation.role}</Text>
+                  {conversation.lastMessage ? (
+                    <Text style={styles.lastMessage} numberOfLines={1}>
+                      {conversation.lastMessage}
+                    </Text>
+                  ) : (
+                    <Text style={styles.lastMessageEmpty}>Start a conversation</Text>
+                  )}
+                </View>
                 {conversation.unread > 0 && (
                   <View style={styles.unreadBadge}>
                     <Text style={styles.unreadText}>{conversation.unread}</Text>
                   </View>
                 )}
               </View>
-            </View>
-          </TouchableOpacity>
-        ))}
+            </TouchableOpacity>
+          ))
+        )}
       </ScrollView>
     </View>
   );
@@ -346,6 +455,62 @@ const styles = StyleSheet.create({
     borderColor: '#e5e7eb',
   },
   conversationsList: {
+    flex: 1,
+  },
+  tabsContainer: {
+    paddingHorizontal: 15,
+    paddingVertical: 10,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  tab: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginRight: 10,
+    borderRadius: 20,
+    backgroundColor: '#f3f4f6',
+  },
+  activeTab: {
+    backgroundColor: '#007bff',
+  },
+  tabText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#6b7280',
+  },
+  activeTabText: {
+    color: '#fff',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 50,
+  },
+  emptyIcon: {
+    fontSize: 48,
+    marginBottom: 15,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: '#6b7280',
+    textAlign: 'center',
+  },
+  roleTag: {
+    fontSize: 12,
+    color: '#007bff',
+    backgroundColor: '#e0f2fe',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+    marginRight: 8,
+    textTransform: 'capitalize',
+  },
+  lastMessageEmpty: {
+    fontSize: 14,
+    color: '#9ca3af',
+    fontStyle: 'italic',
     flex: 1,
   },
   conversationItem: {

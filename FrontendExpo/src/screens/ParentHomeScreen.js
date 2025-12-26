@@ -19,7 +19,7 @@ import { ParentProvider, useParent } from '../context/ParentContext';
 import Dashboard from '../components/parent/Dashboard';
 import ChatCenter from '../components/shared/ChatCenter';
 import Notifications from '../components/shared/Notifications';
-import Settings from '../components/shared/Settings';
+import Settings from '../components/parent/Settings';
 import FeedbackStar from '../components/shared/FeedbackStar';
 
 // Inner component that uses context
@@ -245,8 +245,8 @@ function ParentHomeContent({ navigation }) {
         </View>
       </Modal>
 
-      {/* Feedback Star */}
-      <FeedbackStar />
+      {/* Feedback Star - Only on Dashboard */}
+      {activePage === 'dashboard' && <FeedbackStar />}
     </SafeAreaView>
   );
 }

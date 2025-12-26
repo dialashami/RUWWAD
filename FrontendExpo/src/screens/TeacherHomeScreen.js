@@ -20,7 +20,7 @@ import Dashboard from '../components/teacher/Dashboard';
 import LessonManagement from '../components/teacher/LessonManagement';
 import AssignmentManagement from '../components/teacher/AssignmentManagement';
 import ChatCenter from '../components/shared/ChatCenter';
-import Notifications from '../components/shared/Notifications';
+import TeacherNotifications from '../components/teacher/Notifications';
 import AITutorPage from '../components/shared/AITutorPage';
 import Settings from '../components/shared/Settings';
 import FeedbackStar from '../components/shared/FeedbackStar';
@@ -89,7 +89,7 @@ function TeacherHomeContent({ navigation }) {
         );
       case 'notifications':
         return (
-          <Notifications
+          <TeacherNotifications
             onNotificationsRead={onNotificationsRead}
             decrementUnreadNotifications={decrementUnreadNotifications}
           />
@@ -254,8 +254,8 @@ function TeacherHomeContent({ navigation }) {
         </View>
       </Modal>
 
-      {/* Feedback Star */}
-      <FeedbackStar />
+      {/* Feedback Star - Only on Dashboard */}
+      {activePage === 'dashboard' && <FeedbackStar />}
     </SafeAreaView>
   );
 }

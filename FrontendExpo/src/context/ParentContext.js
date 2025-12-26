@@ -89,18 +89,21 @@ export const ParentProvider = ({ children: providerChildren }) => {
       // Fetch linked children
       try {
         const childrenRes = await parentDashboardAPI.getChildren();
-        const childrenList = childrenRes.data || [];
+        const childrenList = Array.isArray(childrenRes.data) ? childrenRes.data : [];
         setChildren(childrenList);
         setStats(prev => ({ ...prev, totalChildren: childrenList.length }));
 
         // Fetch dashboard data for each child
         const dashboardData = {};
-        for (const child of childrenList) {
-          try {
-            const dashRes = await parentDashboardAPI.getChildProgress(child._id);
-            dashboardData[child._id] = dashRes.data;
-          } catch (err) {
-            console.log(`Error fetching dashboard for child ${child._id}:`, err);
+        if (childrenList.length > 0) {
+          for (let i = 0; i < childrenList.length; i++) {
+            const child = childrenList[i];
+            try {
+              const dashRes = await parentDashboardAPI.getChildProgress(child._id);
+              dashboardData[child._id] = dashRes.data;
+            } catch (err) {
+              console.log(`Error fetching dashboard for child ${child._id}:`, err);
+            }
           }
         }
         setChildrenData(dashboardData);

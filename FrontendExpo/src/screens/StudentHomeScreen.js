@@ -247,8 +247,8 @@ function StudentHomeContent({ navigation }) {
         {renderPage()}
       </View>
 
-      {/* Floating Feedback Button */}
-      <FeedbackStar />
+      {/* Floating Feedback Button - Only on Dashboard */}
+      {activePage === 'dashboard' && <FeedbackStar />}
     </View>
   );
 }

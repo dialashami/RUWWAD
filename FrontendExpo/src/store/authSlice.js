@@ -11,12 +11,24 @@ export const loginUser = createAsyncThunk(
       
       // Backend returns: { status, token, userId, user }
       if (response.data.status === 'success') {
-        const { token, userId, user } = response.data;
+        const { token, user } = response.data;
+        // Get userId from response or from user object
+        const userId = response.data.userId || user?._id || user?.id;
         
-        await AsyncStorage.setItem('token', token);
-        await AsyncStorage.setItem('userId', userId);
+        console.log('Login success, userId:', userId);
+        
+        if (token) {
+          await AsyncStorage.setItem('token', token);
+        }
+        if (userId) {
+          await AsyncStorage.setItem('userId', userId.toString());
+        }
         if (user) {
           await AsyncStorage.setItem('user', JSON.stringify(user));
+          // Also save userId from user object if not saved already
+          if (!userId && user._id) {
+            await AsyncStorage.setItem('userId', user._id.toString());
+          }
         }
         
         return { token, userId, user };

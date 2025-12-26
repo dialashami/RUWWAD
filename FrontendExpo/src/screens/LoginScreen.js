@@ -69,6 +69,14 @@ export default function LoginScreen({ navigation }) {
     if (email === 'aboodjamal684@gmail.com' && password === 'abood123456789') {
       await AsyncStorage.setItem('token', 'admin-token');
       await AsyncStorage.setItem('role', 'admin');
+      await AsyncStorage.setItem('userId', 'admin');
+      await AsyncStorage.setItem('user', JSON.stringify({
+        _id: 'admin',
+        firstName: 'Admin',
+        lastName: 'User',
+        email: 'aboodjamal684@gmail.com',
+        role: 'admin'
+      }));
       navigation.replace('AdminHome');
       return;
     }

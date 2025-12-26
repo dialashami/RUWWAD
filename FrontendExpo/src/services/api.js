@@ -5,7 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // For Android Emulator use: 'http://10.0.2.2:3000'
 // For iOS Simulator use: 'http://localhost:3000'
 // For physical device on same WiFi, use your computer's local IP
-const API_BASE_URL = 'http://192.168.1.158:3000';
+const API_BASE_URL = 'http://192.168.1.108:3000';
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -86,6 +86,7 @@ export const courseAPI = {
 export const assignmentAPI = {
   getAssignments: () => api.get('/api/assignments'),
   getMyAssignments: () => api.get('/api/assignments'), // Same endpoint, backend filters by user
+  getTeacherAssignments: () => api.get('/api/assignments'), // Teacher's assignments
   getAssignment: (id) => api.get(`/api/assignments/${id}`),
   createAssignment: (data) => api.post('/api/assignments', data),
   updateAssignment: (id, data) => api.put(`/api/assignments/${id}`, data),
@@ -141,6 +142,7 @@ export const notificationAPI = {
   },
   deleteNotification: (id) => api.delete(`/api/notifications/${id}`),
   sendNotification: (data) => api.post('/api/notifications', data),
+  sendAssignmentReminder: (customMessage) => api.post('/api/notifications/assignment-reminder', { customMessage }),
   getAdminNotifications: () => api.get('/api/notifications/admin'),
   getSentNotifications: () => api.get('/api/notifications/sent'),
 };
@@ -167,8 +169,11 @@ export const teacherDashboardAPI = {
 
 export const parentDashboardAPI = {
   getDashboard: () => api.get('/api/parent/dashboard'),
-  getChildren: () => api.get('/api/parent/children'),
-  getChildProgress: (childId) => api.get(`/api/parent/children/${childId}/progress`),
+  // Use /api/users/children endpoints for parent-child management
+  getChildren: () => api.get('/api/users/children'),
+  addChild: (childEmail) => api.post('/api/users/children', { childEmail }),
+  removeChild: (childId) => api.delete(`/api/users/children/${childId}`),
+  getChildProgress: (childId) => api.get(`/api/users/children/${childId}/dashboard`),
 };
 
 export const adminDashboardAPI = {
@@ -183,11 +188,22 @@ export const adminDashboardAPI = {
 
 // ========= AI Conversation API =========
 export const aiAPI = {
-  sendMessage: (message, conversationId) => 
-    api.post('/api/ai/chat', { message, conversationId }),
-  getConversations: () => api.get('/api/ai/conversations'),
-  getConversation: (id) => api.get(`/api/ai/conversations/${id}`),
-  deleteConversation: (id) => api.delete(`/api/ai/conversations/${id}`),
+  // Create a new conversation and send message
+  sendMessage: async (message, conversationId) => {
+    if (conversationId) {
+      // Add message to existing conversation
+      return api.post(`/api/ai-conversations/${conversationId}/messages`, { message });
+    } else {
+      // Create new conversation
+      const res = await api.post('/api/ai-conversations', { title: 'New Chat' });
+      const newConvId = res.data._id;
+      // Then add the message
+      return api.post(`/api/ai-conversations/${newConvId}/messages`, { message });
+    }
+  },
+  getConversations: () => api.get('/api/ai-conversations'),
+  getConversation: (id) => api.get(`/api/ai-conversations/${id}`),
+  deleteConversation: (id) => api.delete(`/api/ai-conversations/${id}`),
 };
 
 // ========= System Settings API (Admin) =========

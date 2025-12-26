@@ -106,7 +106,8 @@ export default function AdminHomeScreen({ navigation }) {
   };
 
   const getActiveTitle = () => {
-    const item = menuItems.find(m => m.id === activePage);
+    const items = getMenuItems();
+    const item = items.find(m => m.id === activePage);
     return item ? item.title : 'Dashboard';
   };
 
@@ -230,8 +231,8 @@ export default function AdminHomeScreen({ navigation }) {
         </View>
       </Modal>
 
-      {/* Feedback Star */}
-      <FeedbackStar />
+      {/* Feedback Star - Only on Dashboard */}
+      {activePage === 'dashboard' && <FeedbackStar />}
     </SafeAreaView>
   );
 }

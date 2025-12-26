@@ -11,6 +11,22 @@ import {
 import { useTeacher } from '../../context/TeacherContext';
 import { teacherDashboardAPI } from '../../services/api';
 
+// Helper function - format time ago (defined outside component to avoid hoisting issues)
+const formatTimeAgo = (dateString) => {
+  if (!dateString) return 'Recently';
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now - date;
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 60) return `${diffMins} min ago`;
+  if (diffHours < 24) return `${diffHours} hours ago`;
+  if (diffDays < 7) return `${diffDays} days ago`;
+  return date.toLocaleDateString();
+};
+
 export default function Dashboard() {
   // Get data from context
   const {
@@ -72,21 +88,6 @@ export default function Dashboard() {
     setRefreshing(true);
     await refreshData();
     setRefreshing(false);
-  };
-
-  const formatTimeAgo = (dateString) => {
-    if (!dateString) return 'Recently';
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now - date;
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMs / 3600000);
-    const diffDays = Math.floor(diffMs / 86400000);
-
-    if (diffMins < 60) return `${diffMins} min ago`;
-    if (diffHours < 24) return `${diffHours} hours ago`;
-    if (diffDays < 7) return `${diffDays} days ago`;
-    return date.toLocaleDateString();
   };
 
   const getSubjectColor = (subject) => {

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   TextInput,
   Alert,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { feedbackAPI } from '../../services/api';
 
 export default function FeedbackStar() {
@@ -15,6 +16,15 @@ export default function FeedbackStar() {
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [userId, setUserId] = useState(null);
+
+  useEffect(() => {
+    const getUserId = async () => {
+      const id = await AsyncStorage.getItem('userId');
+      setUserId(id);
+    };
+    getUserId();
+  }, []);
 
   const handleSubmit = async () => {
     if (rating === 0) {
@@ -22,14 +32,25 @@ export default function FeedbackStar() {
       return;
     }
 
+    if (!userId) {
+      Alert.alert('Error', 'Please log in to submit feedback');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      await feedbackAPI.createFeedback({ rating, comment });
+      // Send feedback with author field (like web version)
+      await feedbackAPI.createFeedback({ 
+        author: userId,
+        rating, 
+        comment: comment.trim() 
+      });
       Alert.alert('Thank you!', 'Your feedback has been submitted successfully.');
       setModalVisible(false);
       setRating(0);
       setComment('');
     } catch (error) {
+      console.error('Feedback error:', error);
       Alert.alert('Error', 'Failed to submit feedback. Please try again.');
     } finally {
       setIsSubmitting(false);
