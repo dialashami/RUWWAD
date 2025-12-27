@@ -4,8 +4,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // Base URL for API - change this to your backend URL
 // For Android Emulator use: 'http://10.0.2.2:3000'
 // For iOS Simulator use: 'http://localhost:3000'
-// For physical device on same WiFi, use your computer's local IP
-const API_BASE_URL = 'http://192.168.1.108:3000';
+// For physical device on same WiFi, use your computer's local IP: 'http://192.168.1.158:3000'
+// For devices on different networks (tunnel): 'https://plenty-spiders-hide.loca.lt'
+const API_BASE_URL = 'https://plenty-spiders-hide.loca.lt';
 
 const api = axios.create({
   baseURL: API_BASE_URL,

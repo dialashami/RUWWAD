@@ -96,6 +96,10 @@ exports.getConversations = async (req, res, next) => {
   try {
     const userId = req.params.userId;
     
+    if (!userId) {
+      return res.json([]);
+    }
+    
     // Get all messages involving this user
     const messages = await Message.find({
       $or: [{ sender: userId }, { receiver: userId }],
@@ -107,6 +111,11 @@ exports.getConversations = async (req, res, next) => {
     const conversationsMap = new Map();
     
     messages.forEach(msg => {
+      // Skip messages with missing sender or receiver (deleted users)
+      if (!msg.sender || !msg.receiver || !msg.sender._id || !msg.receiver._id) {
+        return;
+      }
+      
       const partnerId = msg.sender._id.toString() === userId 
         ? msg.receiver._id.toString() 
         : msg.sender._id.toString();
@@ -115,9 +124,9 @@ exports.getConversations = async (req, res, next) => {
         const partner = msg.sender._id.toString() === userId ? msg.receiver : msg.sender;
         conversationsMap.set(partnerId, {
           partnerId,
-          partnerName: `${partner.firstName} ${partner.lastName}`,
-          partnerEmail: partner.email,
-          partnerRole: partner.role,
+          partnerName: `${partner.firstName || ''} ${partner.lastName || ''}`.trim() || 'Unknown',
+          partnerEmail: partner.email || '',
+          partnerRole: partner.role || 'user',
           lastMessage: msg.content,
           lastMessageTime: msg.createdAt,
           unreadCount: 0,
@@ -127,12 +136,13 @@ exports.getConversations = async (req, res, next) => {
       // Count unread messages from partner
       if (msg.receiver._id.toString() === userId && !msg.isRead) {
         const conv = conversationsMap.get(partnerId);
-        conv.unreadCount++;
+        if (conv) conv.unreadCount++;
       }
     });
 
     res.json(Array.from(conversationsMap.values()));
   } catch (err) {
+    console.error('getConversations error:', err);
     next(err);
   }
 };
