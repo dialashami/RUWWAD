@@ -9,6 +9,8 @@ import {
   Modal,
   Image,
 } from 'react-native';
+import { useDispatch } from 'react-redux';
+import { logoutUser } from '../store/authSlice';
 
 // Context Provider
 import { StudentProvider, useStudent } from '../context/StudentContext';
@@ -28,6 +30,7 @@ const { width } = Dimensions.get('window');
 
 // Inner component that uses context
 function StudentHomeContent({ navigation }) {
+  const dispatch = useDispatch();
   const [activePage, setActivePage] = useState('dashboard');
   const [sidebarVisible, setSidebarVisible] = useState(false);
 
@@ -113,9 +116,8 @@ function StudentHomeContent({ navigation }) {
   };
 
   const handleLogout = async () => {
-    // Clear storage and navigate to Welcome
-    const AsyncStorage = require('@react-native-async-storage/async-storage').default;
-    await AsyncStorage.multiRemove(['token', 'user', 'userId']);
+    // Dispatch Redux logout action to clear storage and reset state
+    await dispatch(logoutUser());
     navigation.replace('Welcome');
   };
 

@@ -10,13 +10,51 @@ import {
   Alert,
   ActivityIndicator,
   RefreshControl,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTeacher } from '../../context/TeacherContext';
 import { courseAPI } from '../../services/api';
 
+// Options matching web version
+const subjectOptions = [
+  'Mathematics',
+  'Sciences',
+  'English',
+  'Arabic',
+  'Technology',
+  'Religion',
+  'Computer Engineering',
+  'Architectural Engineering',
+  'Civil Engineering',
+  'Electrical Engineering',
+  'Industrial Engineering',
+  'Mechanical Engineering',
+  'Mechatronics Engineering',
+  'Chemical Engineering',
+];
+
+const gradeOptions = [
+  'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4', 'Grade 5', 'Grade 6',
+  'Grade 7', 'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12',
+  'University',
+];
+
+const universityMajors = [
+  'Computer Engineering',
+  'Architectural Engineering',
+  'Civil Engineering',
+  'Electrical Engineering',
+  'Industrial Engineering',
+  'Mechanical Engineering',
+  'Mechatronics Engineering',
+  'Chemical Engineering',
+];
+
+const statusOptions = ['Draft', 'Published'];
+
 export default function LessonManagement() {
-  // Get data from context
   const { teacher, courses: contextCourses, refreshData } = useTeacher();
 
   const [lessons, setLessons] = useState([]);
@@ -24,13 +62,24 @@ export default function LessonManagement() {
   const [refreshing, setRefreshing] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
+  
+  // Picker modal states
+  const [showSubjectPicker, setShowSubjectPicker] = useState(false);
+  const [showGradePicker, setShowGradePicker] = useState(false);
+  const [showMajorPicker, setShowMajorPicker] = useState(false);
+  const [showStatusPicker, setShowStatusPicker] = useState(false);
+  
   const [formData, setFormData] = useState({
     title: '',
     subject: '',
     grade: '',
+    universityMajor: '',
     duration: '',
-    status: 'draft',
+    status: 'Draft',
     description: '',
+    objectives: '',
+    materials: '',
   });
 
   useEffect(() => {
@@ -39,7 +88,6 @@ export default function LessonManagement() {
 
   const fetchCourses = async () => {
     try {
-      // First check context courses
       if (contextCourses && contextCourses.length > 0) {
         const mapped = contextCourses.map((course) => ({
           id: course._id || course.id,
@@ -58,7 +106,6 @@ export default function LessonManagement() {
         return;
       }
 
-      // Fallback to API call
       let teacherId = teacher.id;
       if (!teacherId) {
         const storedUser = await AsyncStorage.getItem('user');
@@ -94,12 +141,6 @@ export default function LessonManagement() {
     }
   };
 
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await refreshData();
-    fetchCourses();
-  };
-
   const formatTimeAgo = (dateString) => {
     if (!dateString) return 'Recently';
     const date = new Date(dateString);
@@ -115,52 +156,87 @@ export default function LessonManagement() {
     return date.toLocaleDateString();
   };
 
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await refreshData();
+    fetchCourses();
+  };
+
+  const resetForm = () => {
+    setFormData({
+      title: '',
+      subject: '',
+      grade: '',
+      universityMajor: '',
+      duration: '',
+      status: 'Draft',
+      description: '',
+      objectives: '',
+      materials: '',
+    });
+  };
+
   const handleCreateLesson = async () => {
     if (!formData.title || !formData.subject || !formData.grade || !formData.duration) {
       Alert.alert('Error', 'Please fill in all required fields (*)');
       return;
     }
 
+    if (formData.grade === 'University' && !formData.universityMajor) {
+      Alert.alert('Error', 'Please select a specialization for university level');
+      return;
+    }
+
+    setIsCreating(true);
+
     try {
+      let teacherId = teacher.id;
       const token = await AsyncStorage.getItem('token');
-      let teacherId = null;
-      const storedUser = await AsyncStorage.getItem('user');
-      if (storedUser) {
-        const parsed = JSON.parse(storedUser);
-        teacherId = parsed?._id || parsed?.id || null;
+      
+      if (!teacherId) {
+        const storedUser = await AsyncStorage.getItem('user');
+        if (storedUser) {
+          const parsed = JSON.parse(storedUser);
+          teacherId = parsed?._id || parsed?.id || null;
+        }
       }
 
-      if (teacherId) {
-        await courseAPI.createCourse({
-          ...formData,
-          teacher: teacherId,
-        });
-        await fetchCourses();
-      } else {
-        // Local only
+      const courseData = {
+        title: formData.title,
+        subject: formData.subject,
+        grade: formData.grade,
+        universityMajor: formData.grade === 'University' ? formData.universityMajor : undefined,
+        duration: formData.duration,
+        description: formData.description || 'No description provided.',
+        isActive: formData.status.toLowerCase() === 'published',
+        teacher: teacherId,
+      };
+
+      const response = await courseAPI.createCourse(courseData);
+
+      if (response.data) {
         const newLesson = {
-          id: Date.now(),
-          title: formData.title,
-          subject: formData.subject,
-          status: formData.status,
-          duration: formData.duration,
+          id: response.data._id || response.data.id || Date.now(),
+          title: response.data.title || formData.title,
+          subject: response.data.subject || formData.subject,
+          grade: response.data.grade || formData.grade,
+          status: response.data.isActive === false ? 'draft' : 'published',
+          duration: response.data.duration || formData.duration,
           lastEdited: 'just now',
-          description: formData.description || 'No description provided.',
+          description: response.data.description || formData.description,
         };
         setLessons([newLesson, ...lessons]);
+        Alert.alert('Success', 'Lesson created successfully!');
       }
 
       setShowModal(false);
-      setFormData({
-        title: '',
-        subject: '',
-        grade: '',
-        duration: '',
-        status: 'draft',
-        description: '',
-      });
+      resetForm();
+      refreshData();
     } catch (err) {
-      Alert.alert('Error', 'Failed to create lesson');
+      console.error('Error creating lesson:', err);
+      Alert.alert('Error', 'Failed to create lesson. Please try again.');
+    } finally {
+      setIsCreating(false);
     }
   };
 
@@ -174,10 +250,58 @@ export default function LessonManagement() {
     drafts: lessons.filter(l => l.status === 'draft').length,
   };
 
+  // Render picker as absolute positioned overlay (not nested Modal)
+  const renderPickerModal = (visible, setVisible, options, currentValue, onSelect, title) => {
+    if (!visible) return null;
+    return (
+      <View style={styles.pickerAbsoluteOverlay}>
+        <TouchableOpacity 
+          style={styles.pickerBackdrop} 
+          activeOpacity={1} 
+          onPress={() => setVisible(false)}
+        />
+        <View style={styles.pickerContainer}>
+          <View style={styles.pickerHeader}>
+            <Text style={styles.pickerTitle}>{title}</Text>
+            <TouchableOpacity onPress={() => setVisible(false)}>
+              <Text style={styles.pickerClose}>✕</Text>
+            </TouchableOpacity>
+          </View>
+          <ScrollView style={styles.pickerList} showsVerticalScrollIndicator={true}>
+            {options.map((option, index) => (
+              <TouchableOpacity
+                key={index}
+                style={[
+                  styles.pickerOption,
+                  currentValue === option && styles.pickerOptionSelected,
+                ]}
+                onPress={() => {
+                  onSelect(option);
+                  setVisible(false);
+                }}
+              >
+                <Text style={[
+                  styles.pickerOptionText,
+                  currentValue === option && styles.pickerOptionTextSelected,
+                ]}>
+                  {option}
+                </Text>
+                {currentValue === option && (
+                  <Text style={styles.pickerCheck}>✓</Text>
+                )}
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+      </View>
+    );
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#007bff" />
+        <Text style={styles.loadingText}>Loading lessons...</Text>
       </View>
     );
   }
@@ -186,10 +310,8 @@ export default function LessonManagement() {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <View>
-          <Text style={styles.headerTitle}>Lesson Management</Text>
-          <Text style={styles.headerSubtitle}>Create, edit, and organize your lessons</Text>
-        </View>
+        <Text style={styles.headerTitle}>Lesson Management</Text>
+        <Text style={styles.headerSubtitle}>Create, edit, and organize your lessons</Text>
       </View>
 
       {/* Stats */}
@@ -222,7 +344,8 @@ export default function LessonManagement() {
 
       {/* Create Button */}
       <TouchableOpacity style={styles.createButton} onPress={() => setShowModal(true)}>
-        <Text style={styles.createButtonText}>+ Create New Lesson</Text>
+        <Text style={styles.createButtonIcon}>+</Text>
+        <Text style={styles.createButtonText}>Create New Lesson</Text>
       </TouchableOpacity>
 
       {/* Lessons List */}
@@ -230,7 +353,7 @@ export default function LessonManagement() {
         style={styles.lessonsContainer} 
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#007bff']} />
         }
       >
         {filteredLessons.length > 0 ? (
@@ -245,119 +368,224 @@ export default function LessonManagement() {
                   styles.statusBadge,
                   lesson.status === 'published' ? styles.publishedBadge : styles.draftBadge
                 ]}>
+                  <Text style={styles.statusIcon}>
+                    {lesson.status === 'published' ? '✓' : '✎'}
+                  </Text>
                   <Text style={[
                     styles.statusText,
                     lesson.status === 'published' ? styles.publishedText : styles.draftText
                   ]}>
-                    {lesson.status === 'published' ? '✓ ' : '✎ '}{lesson.status}
+                    {lesson.status}
                   </Text>
                 </View>
               </View>
               <Text style={styles.lessonDescription} numberOfLines={2}>
                 {lesson.description}
               </Text>
-              <View style={styles.lessonFooter}>
-                <Text style={styles.lessonMeta}>⏱ {lesson.duration}</Text>
-                <Text style={styles.lessonMeta}>📝 {lesson.lastEdited}</Text>
-                <Text style={styles.lessonMeta}>🎓 {lesson.grade}</Text>
+              <View style={styles.lessonMeta}>
+                <Text style={styles.metaItem}>📍 {lesson.grade}</Text>
+                <Text style={styles.metaItem}>⏱️ {lesson.duration}</Text>
+                <Text style={styles.metaItem}>✏️ {lesson.lastEdited}</Text>
               </View>
             </TouchableOpacity>
           ))
         ) : (
           <View style={styles.emptyState}>
             <Text style={styles.emptyIcon}>📚</Text>
-            <Text style={styles.emptyText}>No lessons found</Text>
-            <Text style={styles.emptySubtext}>Create your first lesson to get started</Text>
+            <Text style={styles.emptyTitle}>No Lessons Yet</Text>
+            <Text style={styles.emptySubtitle}>Click "Create New Lesson" to add your first lesson.</Text>
           </View>
         )}
+        <View style={{ height: 20 }} />
       </ScrollView>
 
       {/* Create Modal */}
-      <Modal
-        visible={showModal}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowModal(false)}
-      >
+      <Modal visible={showModal} animationType="slide" transparent>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={styles.modalTitle}>Create New Lesson</Text>
-
-              <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>Lesson Title *</Text>
-                <TextInput
-                  style={styles.formInput}
-                  placeholder="Enter lesson title"
-                  placeholderTextColor="#9ca3af"
-                  value={formData.title}
-                  onChangeText={(text) => setFormData({ ...formData, title: text })}
-                />
-              </View>
-
-              <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>Subject *</Text>
-                <TextInput
-                  style={styles.formInput}
-                  placeholder="e.g., Mathematics, Science"
-                  placeholderTextColor="#9ca3af"
-                  value={formData.subject}
-                  onChangeText={(text) => setFormData({ ...formData, subject: text })}
-                />
-              </View>
-
-              <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>Grade *</Text>
-                <TextInput
-                  style={styles.formInput}
-                  placeholder="e.g., Grade 6, Grade 7"
-                  placeholderTextColor="#9ca3af"
-                  value={formData.grade}
-                  onChangeText={(text) => setFormData({ ...formData, grade: text })}
-                />
-              </View>
-
-              <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>Duration *</Text>
-                <TextInput
-                  style={styles.formInput}
-                  placeholder="e.g., 45 min"
-                  placeholderTextColor="#9ca3af"
-                  value={formData.duration}
-                  onChangeText={(text) => setFormData({ ...formData, duration: text })}
-                />
-              </View>
-
-              <View style={styles.formGroup}>
-                <Text style={styles.formLabel}>Description</Text>
-                <TextInput
-                  style={[styles.formInput, styles.textArea]}
-                  placeholder="Enter lesson description..."
-                  placeholderTextColor="#9ca3af"
-                  value={formData.description}
-                  onChangeText={(text) => setFormData({ ...formData, description: text })}
-                  multiline
-                  numberOfLines={4}
-                  textAlignVertical="top"
-                />
-              </View>
-
-              <View style={styles.modalActions}>
-                <TouchableOpacity
-                  style={[styles.modalButton, styles.cancelButton]}
-                  onPress={() => setShowModal(false)}
-                >
-                  <Text style={styles.cancelButtonText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[styles.modalButton, styles.submitButton]}
-                  onPress={handleCreateLesson}
-                >
-                  <Text style={styles.submitButtonText}>Create Lesson</Text>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.modalContainer}
+          >
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Create New Lesson</Text>
+                <TouchableOpacity onPress={() => { setShowModal(false); resetForm(); }}>
+                  <Text style={styles.modalClose}>✕</Text>
                 </TouchableOpacity>
               </View>
-            </ScrollView>
-          </View>
+
+              <ScrollView 
+                style={styles.modalForm} 
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+              >
+                {/* Title */}
+                <View style={styles.formGroup}>
+                  <Text style={styles.formLabel}>Lesson Title <Text style={styles.required}>*</Text></Text>
+                  <TextInput
+                    style={styles.formInput}
+                    placeholder="Enter lesson title"
+                    placeholderTextColor="#9ca3af"
+                    value={formData.title}
+                    onChangeText={(text) => setFormData({ ...formData, title: text })}
+                  />
+                </View>
+
+                {/* Subject Picker */}
+                <View style={styles.formGroup}>
+                  <Text style={styles.formLabel}>Subject <Text style={styles.required}>*</Text></Text>
+                  <TouchableOpacity 
+                    style={styles.pickerButton}
+                    onPress={() => setShowSubjectPicker(true)}
+                  >
+                    <Text style={formData.subject ? styles.pickerButtonText : styles.pickerButtonPlaceholder}>
+                      {formData.subject || 'Select subject'}
+                    </Text>
+                    <Text style={styles.pickerArrow}>▼</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Grade Picker */}
+                <View style={styles.formGroup}>
+                  <Text style={styles.formLabel}>Grade <Text style={styles.required}>*</Text></Text>
+                  <TouchableOpacity 
+                    style={styles.pickerButton}
+                    onPress={() => setShowGradePicker(true)}
+                  >
+                    <Text style={formData.grade ? styles.pickerButtonText : styles.pickerButtonPlaceholder}>
+                      {formData.grade || 'Select grade'}
+                    </Text>
+                    <Text style={styles.pickerArrow}>▼</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* University Major Picker (conditional) */}
+                {formData.grade === 'University' && (
+                  <View style={styles.formGroup}>
+                    <Text style={styles.formLabel}>Specialization <Text style={styles.required}>*</Text></Text>
+                    <TouchableOpacity 
+                      style={styles.pickerButton}
+                      onPress={() => setShowMajorPicker(true)}
+                    >
+                      <Text style={formData.universityMajor ? styles.pickerButtonText : styles.pickerButtonPlaceholder}>
+                        {formData.universityMajor || 'Select specialization'}
+                      </Text>
+                      <Text style={styles.pickerArrow}>▼</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {/* Duration */}
+                <View style={styles.formGroup}>
+                  <Text style={styles.formLabel}>Duration <Text style={styles.required}>*</Text></Text>
+                  <TextInput
+                    style={styles.formInput}
+                    placeholder="e.g., 45 min"
+                    placeholderTextColor="#9ca3af"
+                    value={formData.duration}
+                    onChangeText={(text) => setFormData({ ...formData, duration: text })}
+                  />
+                </View>
+
+                {/* Status Picker */}
+                <View style={styles.formGroup}>
+                  <Text style={styles.formLabel}>Status</Text>
+                  <TouchableOpacity 
+                    style={styles.pickerButton}
+                    onPress={() => setShowStatusPicker(true)}
+                  >
+                    <View style={styles.statusPreview}>
+                      <View style={[
+                        styles.statusDot,
+                        formData.status === 'Published' ? styles.publishedDot : styles.draftDot
+                      ]} />
+                      <Text style={styles.pickerButtonText}>{formData.status}</Text>
+                    </View>
+                    <Text style={styles.pickerArrow}>▼</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Description */}
+                <View style={styles.formGroup}>
+                  <Text style={styles.formLabel}>Description</Text>
+                  <TextInput
+                    style={[styles.formInput, styles.textArea]}
+                    placeholder="Enter lesson description..."
+                    placeholderTextColor="#9ca3af"
+                    value={formData.description}
+                    onChangeText={(text) => setFormData({ ...formData, description: text })}
+                    multiline
+                    numberOfLines={4}
+                    textAlignVertical="top"
+                  />
+                </View>
+
+                {/* Learning Objectives */}
+                <View style={styles.formGroup}>
+                  <Text style={styles.formLabel}>Learning Objectives (one per line)</Text>
+                  <TextInput
+                    style={[styles.formInput, styles.textArea]}
+                    placeholder="List the learning objectives..."
+                    placeholderTextColor="#9ca3af"
+                    value={formData.objectives}
+                    onChangeText={(text) => setFormData({ ...formData, objectives: text })}
+                    multiline
+                    numberOfLines={3}
+                    textAlignVertical="top"
+                  />
+                </View>
+
+                {/* Materials */}
+                <View style={styles.formGroup}>
+                  <Text style={styles.formLabel}>Materials (one per line)</Text>
+                  <TextInput
+                    style={[styles.formInput, styles.textArea]}
+                    placeholder="List required materials..."
+                    placeholderTextColor="#9ca3af"
+                    value={formData.materials}
+                    onChangeText={(text) => setFormData({ ...formData, materials: text })}
+                    multiline
+                    numberOfLines={3}
+                    textAlignVertical="top"
+                  />
+                </View>
+
+                {/* Actions */}
+                <View style={styles.modalActions}>
+                  <TouchableOpacity
+                    style={[styles.modalButton, styles.cancelButton]}
+                    onPress={() => { setShowModal(false); resetForm(); }}
+                    disabled={isCreating}
+                  >
+                    <Text style={styles.cancelButtonText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.modalButton, styles.submitButton, isCreating && styles.disabledButton]}
+                    onPress={handleCreateLesson}
+                    disabled={isCreating}
+                  >
+                    {isCreating ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <Text style={styles.submitButtonText}>Create Lesson</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+
+                <View style={{ height: 30 }} />
+              </ScrollView>
+            </View>
+          </KeyboardAvoidingView>
+
+          {/* Picker Modals - Inside main modal overlay */}
+          {showSubjectPicker && renderPickerModal(showSubjectPicker, setShowSubjectPicker, subjectOptions, formData.subject, 
+            (val) => setFormData({ ...formData, subject: val }), 'Select Subject')}
+          {showGradePicker && renderPickerModal(showGradePicker, setShowGradePicker, gradeOptions, formData.grade, 
+            (val) => setFormData({ ...formData, grade: val, universityMajor: val === 'University' ? formData.universityMajor : '' }), 'Select Grade')}
+          {showMajorPicker && renderPickerModal(showMajorPicker, setShowMajorPicker, universityMajors, formData.universityMajor, 
+            (val) => setFormData({ ...formData, universityMajor: val }), 'Select Specialization')}
+          {showStatusPicker && renderPickerModal(showStatusPicker, setShowStatusPicker, statusOptions, formData.status, 
+            (val) => setFormData({ ...formData, status: val }), 'Select Status')}
         </View>
       </Modal>
     </View>
@@ -374,6 +602,12 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#f5f7fa',
+  },
+  loadingText: {
+    marginTop: 12,
+    color: '#6b7280',
+    fontSize: 14,
   },
   header: {
     marginBottom: 16,
@@ -438,8 +672,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#007bff',
     borderRadius: 10,
     paddingVertical: 14,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 16,
+    gap: 8,
+  },
+  createButtonIcon: {
+    color: '#fff',
+    fontSize: 20,
+    fontWeight: 'bold',
   },
   createButtonText: {
     color: '#fff',
@@ -455,16 +697,16 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 12,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowRadius: 2,
+    elevation: 2,
   },
   lessonHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   lessonTitleSection: {
     flex: 1,
@@ -472,7 +714,7 @@ const styles = StyleSheet.create({
   },
   lessonTitle: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '600',
     color: '#1f2937',
     marginBottom: 4,
   },
@@ -481,9 +723,12 @@ const styles = StyleSheet.create({
     color: '#6b7280',
   },
   statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 20,
+    gap: 4,
   },
   publishedBadge: {
     backgroundColor: '#d1fae5',
@@ -491,9 +736,12 @@ const styles = StyleSheet.create({
   draftBadge: {
     backgroundColor: '#fef3c7',
   },
+  statusIcon: {
+    fontSize: 10,
+  },
   statusText: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '500',
     textTransform: 'capitalize',
   },
   publishedText: {
@@ -503,94 +751,162 @@ const styles = StyleSheet.create({
     color: '#d97706',
   },
   lessonDescription: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#6b7280',
-    lineHeight: 20,
     marginBottom: 12,
+    lineHeight: 18,
   },
-  lessonFooter: {
+  lessonMeta: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 12,
   },
-  lessonMeta: {
+  metaItem: {
     fontSize: 12,
     color: '#9ca3af',
   },
   emptyState: {
     alignItems: 'center',
+    justifyContent: 'center',
     paddingVertical: 60,
+    backgroundColor: '#fff',
+    borderRadius: 12,
   },
   emptyIcon: {
     fontSize: 48,
     marginBottom: 16,
   },
-  emptyText: {
+  emptyTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1f2937',
-  },
-  emptySubtext: {
-    fontSize: 14,
     color: '#6b7280',
-    marginTop: 4,
+    marginBottom: 8,
   },
+  emptySubtitle: {
+    fontSize: 14,
+    color: '#9ca3af',
+    textAlign: 'center',
+    paddingHorizontal: 20,
+  },
+  // Modal styles
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    padding: 20,
+    justifyContent: 'flex-end',
+  },
+  modalContainer: {
+    maxHeight: '90%',
   },
   modalContent: {
     backgroundColor: '#fff',
-    borderRadius: 20,
-    padding: 24,
-    maxHeight: '90%',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '100%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
   },
   modalTitle: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#1f2937',
-    marginBottom: 20,
-    textAlign: 'center',
+  },
+  modalClose: {
+    fontSize: 24,
+    color: '#6b7280',
+    padding: 4,
+  },
+  modalForm: {
+    padding: 20,
   },
   formGroup: {
     marginBottom: 16,
   },
   formLabel: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '500',
     color: '#374151',
     marginBottom: 8,
   },
+  required: {
+    color: '#ef4444',
+  },
   formInput: {
+    backgroundColor: '#f9fafb',
     borderWidth: 1,
     borderColor: '#e5e7eb',
-    borderRadius: 10,
-    padding: 12,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
     fontSize: 14,
     color: '#1f2937',
-    backgroundColor: '#f9fafb',
   },
   textArea: {
-    minHeight: 100,
+    minHeight: 80,
+    textAlignVertical: 'top',
+  },
+  pickerButton: {
+    backgroundColor: '#f9fafb',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  pickerButtonText: {
+    fontSize: 14,
+    color: '#1f2937',
+  },
+  pickerButtonPlaceholder: {
+    fontSize: 14,
+    color: '#9ca3af',
+  },
+  pickerArrow: {
+    fontSize: 12,
+    color: '#6b7280',
+  },
+  statusPreview: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  publishedDot: {
+    backgroundColor: '#10b981',
+  },
+  draftDot: {
+    backgroundColor: '#f59e0b',
   },
   modalActions: {
     flexDirection: 'row',
     gap: 12,
-    marginTop: 20,
+    marginTop: 8,
   },
   modalButton: {
     flex: 1,
     paddingVertical: 14,
-    borderRadius: 10,
+    borderRadius: 8,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   cancelButton: {
     backgroundColor: '#f3f4f6',
   },
   cancelButtonText: {
     color: '#6b7280',
+    fontSize: 16,
     fontWeight: '600',
   },
   submitButton: {
@@ -598,6 +914,82 @@ const styles = StyleSheet.create({
   },
   submitButtonText: {
     color: '#fff',
+    fontSize: 16,
     fontWeight: '600',
+  },
+  disabledButton: {
+    opacity: 0.7,
+  },
+  // Picker absolute overlay styles
+  pickerAbsoluteOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 1000,
+  },
+  pickerBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  pickerContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '60%',
+  },
+  pickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  pickerTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1f2937',
+  },
+  pickerClose: {
+    fontSize: 20,
+    color: '#6b7280',
+    padding: 4,
+  },
+  pickerList: {
+    padding: 8,
+  },
+  pickerOption: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  pickerOptionSelected: {
+    backgroundColor: '#eff6ff',
+  },
+  pickerOptionText: {
+    fontSize: 15,
+    color: '#1f2937',
+  },
+  pickerOptionTextSelected: {
+    color: '#2563eb',
+    fontWeight: '500',
+  },
+  pickerCheck: {
+    color: '#2563eb',
+    fontSize: 16,
+    fontWeight: 'bold',
   },
 });

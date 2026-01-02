@@ -1,36 +1,21 @@
 const Message = require('../models/Message');
 const User = require('../models/user_model');
 const mongoose = require('mongoose');
+const { resolveUserId, isValidObjectId } = require('../utils/userIdResolver');
 
 exports.sendMessage = async (req, res, next) => {
   try {
     const { sender, receiver, content, course } = req.body;
     
-    // Determine the sender ID
-    let senderId = sender;
+    // Resolve sender ID - handle 'admin' or invalid ObjectId
+    let senderId = await resolveUserId(sender || req.userId);
     
-    // Check if sender is a valid ObjectId
-    const isValidObjectId = (id) => {
-      return mongoose.Types.ObjectId.isValid(id) && String(new mongoose.Types.ObjectId(id)) === id;
-    };
-    
-    // If sender is 'admin' or not a valid ObjectId, find a system user to use as sender
-    if (!senderId || senderId === 'admin' || !isValidObjectId(senderId)) {
-      // Try to use req.userId if it's a valid ObjectId
-      if (req.userId && isValidObjectId(req.userId)) {
-        senderId = req.userId;
-      } else {
-        // Find the permanent admin user by email
-        let adminUser = await User.findOne({ email: 'aboodjamal684@gmail.com' });
-        if (!adminUser) {
-          return res.status(400).json({ message: 'Admin user not found. Please ensure the admin account exists.' });
-        }
-        senderId = adminUser._id;
-      }
+    if (!senderId) {
+      return res.status(400).json({ message: 'Could not resolve sender. Please ensure you are logged in.' });
     }
     
-    if (!senderId || !receiver || !content) {
-      return res.status(400).json({ message: 'Sender, receiver, and content are required' });
+    if (!receiver || !content) {
+      return res.status(400).json({ message: 'Receiver and content are required' });
     }
     
     const message = await Message.create({
@@ -49,7 +34,16 @@ exports.sendMessage = async (req, res, next) => {
 
 exports.getMessagesForUser = async (req, res, next) => {
   try {
-    const userId = req.params.userId;
+    let userId = req.params.userId;
+    
+    // Resolve 'admin' or invalid userId to real ObjectId
+    if (!isValidObjectId(userId)) {
+      userId = await resolveUserId(userId);
+      if (!userId) {
+        return res.json([]);
+      }
+    }
+    
     const messages = await Message.find({ $or: [{ sender: userId }, { receiver: userId }] })
       .sort({ createdAt: -1 })
       .populate('sender receiver');
@@ -76,7 +70,18 @@ exports.markAsRead = async (req, res, next) => {
 // Get conversation between two users
 exports.getConversation = async (req, res, next) => {
   try {
-    const { userId1, userId2 } = req.params;
+    let { userId1, userId2 } = req.params;
+    
+    // Resolve 'admin' or invalid userIds to real ObjectIds
+    if (!isValidObjectId(userId1)) {
+      userId1 = await resolveUserId(userId1);
+      if (!userId1) return res.json([]);
+    }
+    if (!isValidObjectId(userId2)) {
+      userId2 = await resolveUserId(userId2);
+      if (!userId2) return res.json([]);
+    }
+    
     const messages = await Message.find({
       $or: [
         { sender: userId1, receiver: userId2 },
@@ -94,11 +99,25 @@ exports.getConversation = async (req, res, next) => {
 // Get all conversations for a user (grouped by other participant)
 exports.getConversations = async (req, res, next) => {
   try {
-    const userId = req.params.userId;
+    let userId = req.params.userId;
+    console.log('[getConversations] Initial userId:', userId);
     
     if (!userId) {
       return res.json([]);
     }
+    
+    // Resolve 'admin' or invalid userId to real ObjectId
+    if (!isValidObjectId(userId)) {
+      userId = await resolveUserId(userId);
+      console.log('[getConversations] Resolved userId:', userId);
+      if (!userId) {
+        return res.json([]);
+      }
+    }
+    
+    // Ensure userId is a string for comparison
+    const userIdStr = userId.toString();
+    console.log('[getConversations] Using userIdStr:', userIdStr);
     
     // Get all messages involving this user
     const messages = await Message.find({
@@ -107,39 +126,52 @@ exports.getConversations = async (req, res, next) => {
       .sort({ createdAt: -1 })
       .populate('sender receiver', 'firstName lastName email role');
 
+    console.log('[getConversations] Found', messages.length, 'messages');
+
     // Group by conversation partner
     const conversationsMap = new Map();
     
-    messages.forEach(msg => {
-      // Skip messages with missing sender or receiver (deleted users)
-      if (!msg.sender || !msg.receiver || !msg.sender._id || !msg.receiver._id) {
-        return;
-      }
-      
-      const partnerId = msg.sender._id.toString() === userId 
-        ? msg.receiver._id.toString() 
-        : msg.sender._id.toString();
-      
-      if (!conversationsMap.has(partnerId)) {
-        const partner = msg.sender._id.toString() === userId ? msg.receiver : msg.sender;
-        conversationsMap.set(partnerId, {
-          partnerId,
-          partnerName: `${partner.firstName || ''} ${partner.lastName || ''}`.trim() || 'Unknown',
-          partnerEmail: partner.email || '',
-          partnerRole: partner.role || 'user',
-          lastMessage: msg.content,
-          lastMessageTime: msg.createdAt,
-          unreadCount: 0,
-        });
-      }
-      
-      // Count unread messages from partner
-      if (msg.receiver._id.toString() === userId && !msg.isRead) {
-        const conv = conversationsMap.get(partnerId);
-        if (conv) conv.unreadCount++;
-      }
-    });
+    try {
+      messages.forEach(msg => {
+        // Skip messages with missing sender or receiver (deleted users)
+        if (!msg.sender || !msg.receiver) {
+          console.log('[getConversations] Skipping message with missing sender/receiver');
+          return;
+        }
+        if (!msg.sender._id || !msg.receiver._id) {
+          console.log('[getConversations] Skipping message with missing sender/receiver _id');
+          return;
+        }
+        
+        const partnerId = msg.sender._id.toString() === userIdStr 
+          ? msg.receiver._id.toString() 
+          : msg.sender._id.toString();
+        
+        if (!conversationsMap.has(partnerId)) {
+          const partner = msg.sender._id.toString() === userIdStr ? msg.receiver : msg.sender;
+          conversationsMap.set(partnerId, {
+            partnerId,
+            partnerName: `${partner.firstName || ''} ${partner.lastName || ''}`.trim() || 'Unknown',
+            partnerEmail: partner.email || '',
+            partnerRole: partner.role || 'user',
+            lastMessage: msg.content,
+            lastMessageTime: msg.createdAt,
+            unreadCount: 0,
+          });
+        }
+        
+        // Count unread messages from partner
+        if (msg.receiver._id.toString() === userIdStr && !msg.isRead) {
+          const conv = conversationsMap.get(partnerId);
+          if (conv) conv.unreadCount++;
+        }
+      });
+    } catch (forEachErr) {
+      console.error('[getConversations] Error in forEach:', forEachErr);
+      throw forEachErr;
+    }
 
+    console.log('[getConversations] Returning', conversationsMap.size, 'conversations');
     res.json(Array.from(conversationsMap.values()));
   } catch (err) {
     console.error('getConversations error:', err);
@@ -161,7 +193,21 @@ exports.deleteMessage = async (req, res, next) => {
 // Mark all messages in a conversation as read
 exports.markConversationAsRead = async (req, res, next) => {
   try {
-    const { userId, partnerId } = req.params;
+    let { userId, partnerId } = req.params;
+    
+    // Resolve 'admin' or invalid userIds to real ObjectIds
+    if (!isValidObjectId(userId)) {
+      userId = await resolveUserId(userId);
+      if (!userId) {
+        return res.status(400).json({ message: 'Invalid user ID' });
+      }
+    }
+    if (!isValidObjectId(partnerId)) {
+      partnerId = await resolveUserId(partnerId);
+      if (!partnerId) {
+        return res.status(400).json({ message: 'Invalid partner ID' });
+      }
+    }
     
     // Mark all messages from partner to user as read
     const result = await Message.updateMany(

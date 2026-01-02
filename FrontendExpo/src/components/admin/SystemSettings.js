@@ -8,6 +8,8 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { systemSettingsAPI } from '../../services/api';
@@ -99,12 +101,17 @@ export default function SystemSettings() {
   }
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>System Settings</Text>
-        <Text style={styles.headerSubtitle}>Configure platform settings</Text>
-      </View>
+    <KeyboardAvoidingView 
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+    >
+      <ScrollView style={styles.container} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>System Settings</Text>
+          <Text style={styles.headerSubtitle}>Configure platform settings</Text>
+        </View>
 
       {/* General Settings */}
       <View style={styles.card}>
@@ -258,7 +265,8 @@ export default function SystemSettings() {
       </TouchableOpacity>
 
       <View style={{ height: 40 }} />
-    </ScrollView>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 

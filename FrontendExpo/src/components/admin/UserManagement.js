@@ -10,6 +10,8 @@ import {
   Alert,
   ActivityIndicator,
   RefreshControl,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { userAPI } from '../../services/api';
 
@@ -110,7 +112,11 @@ export default function UserManagement() {
   }
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView 
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+    >
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>User Management</Text>
@@ -289,7 +295,7 @@ export default function UserManagement() {
           </View>
         </View>
       </Modal>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

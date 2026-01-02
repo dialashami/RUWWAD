@@ -10,7 +10,8 @@ import {
   SafeAreaView,
   Image,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useDispatch } from 'react-redux';
+import { logoutUser } from '../store/authSlice';
 
 // Context Provider
 import { ParentProvider, useParent } from '../context/ParentContext';
@@ -24,6 +25,7 @@ import FeedbackStar from '../components/shared/FeedbackStar';
 
 // Inner component that uses context
 function ParentHomeContent({ navigation }) {
+  const dispatch = useDispatch();
   const [activePage, setActivePage] = useState('dashboard');
   const [sidebarVisible, setSidebarVisible] = useState(false);
 
@@ -98,8 +100,8 @@ function ParentHomeContent({ navigation }) {
   };
 
   const handleLogout = async () => {
-    // Clear storage and navigate to Welcome
-    await AsyncStorage.multiRemove(['token', 'user', 'userId']);
+    // Dispatch Redux logout action to clear storage and reset state
+    await dispatch(logoutUser());
     navigation.replace('Welcome');
   };
 

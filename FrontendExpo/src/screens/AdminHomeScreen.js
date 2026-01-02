@@ -10,23 +10,31 @@ import {
   SafeAreaView,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { messageAPI, notificationAPI } from '../services/api';
+import { useDispatch } from 'react-redux';
+import { logoutUser } from '../store/authSlice';
+import { notificationAPI } from '../services/api';
 
 // Import components
 import DashboardOverview from '../components/admin/DashboardOverview';
 import UserManagement from '../components/admin/UserManagement';
 import NotificationManagement from '../components/admin/NotificationManagement';
+import CommunicationCenter from '../components/admin/CommunicationCenter';
 import SystemSettings from '../components/admin/SystemSettings';
-import ChatCenter from '../components/shared/ChatCenter';
 import Settings from '../components/shared/Settings';
 import FeedbackStar from '../components/shared/FeedbackStar';
 
 export default function AdminHomeScreen({ navigation }) {
+  const dispatch = useDispatch();
   const [activePage, setActivePage] = useState('dashboard');
   const [sidebarVisible, setSidebarVisible] = useState(false);
-  const [unreadMessages, setUnreadMessages] = useState(0);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [userName, setUserName] = useState('Admin');
+
+  // Handle logout
+  const handleLogout = async () => {
+    await dispatch(logoutUser());
+    navigation.replace('Welcome');
+  };
 
   // Fetch unread counts
   const fetchUnreadCounts = useCallback(async () => {
@@ -36,11 +44,6 @@ export default function AdminHomeScreen({ navigation }) {
         const user = JSON.parse(userStr);
         setUserName(`${user.firstName || ''} ${user.lastName || ''}`.trim() || 'Admin');
       }
-
-      const msgResponse = await messageAPI.getConversations();
-      const conversations = msgResponse.data || [];
-      const totalUnreadMsgs = conversations.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
-      setUnreadMessages(totalUnreadMsgs);
 
       const notifResponse = await notificationAPI.getNotifications();
       const notifications = notifResponse.data?.notifications || notifResponse.data || [];
@@ -61,16 +64,14 @@ export default function AdminHomeScreen({ navigation }) {
     }
   }, [activePage, fetchUnreadCounts]);
 
-  const onMessagesRead = useCallback(() => setUnreadMessages(0), []);
   const onNotificationsRead = useCallback(() => setUnreadNotifications(0), []);
-  const decrementUnreadMessages = useCallback((count = 1) => setUnreadMessages(prev => Math.max(0, prev - count)), []);
   const decrementUnreadNotifications = useCallback((count = 1) => setUnreadNotifications(prev => Math.max(0, prev - count)), []);
 
   const getMenuItems = () => [
     { id: 'dashboard', title: 'Dashboard', icon: '📊', badge: 0 },
     { id: 'users', title: 'Users', icon: '👥', badge: 0 },
     { id: 'notifications', title: 'Notifications', icon: '🔔', badge: unreadNotifications },
-    { id: 'communication', title: 'Messages', icon: '💬', badge: unreadMessages },
+    { id: 'communication', title: 'Communication Center', icon: '📧', badge: 0 },
     { id: 'system-settings', title: 'System Settings', icon: '🛠️', badge: 0 },
     { id: 'settings', title: 'Profile Settings', icon: '⚙️', badge: 0 },
   ];
@@ -82,15 +83,9 @@ export default function AdminHomeScreen({ navigation }) {
       case 'users':
         return <UserManagement />;
       case 'notifications':
-        return <NotificationManagement />;
+        return <NotificationManagement onUnreadCountChange={fetchUnreadCounts} />;
       case 'communication':
-        return (
-          <ChatCenter 
-            currentRole="admin"
-            onMessagesRead={onMessagesRead}
-            decrementUnreadMessages={decrementUnreadMessages}
-          />
-        );
+        return <CommunicationCenter />;
       case 'system-settings':
         return <SystemSettings />;
       case 'settings':
@@ -133,17 +128,6 @@ export default function AdminHomeScreen({ navigation }) {
             {unreadNotifications > 0 && (
               <View style={styles.headerBadge}>
                 <Text style={styles.headerBadgeText}>{unreadNotifications > 9 ? '9+' : unreadNotifications}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={styles.headerIconContainer}
-            onPress={() => setActivePage('communication')}
-          >
-            <Text style={styles.headerIcon}>💬</Text>
-            {unreadMessages > 0 && (
-              <View style={styles.headerBadge}>
-                <Text style={styles.headerBadgeText}>{unreadMessages > 9 ? '9+' : unreadMessages}</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -215,7 +199,7 @@ export default function AdminHomeScreen({ navigation }) {
               style={styles.logoutButton}
               onPress={() => {
                 setSidebarVisible(false);
-                navigation.replace('Login');
+                handleLogout();
               }}
             >
               <Text style={styles.logoutIcon}>🚪</Text>
@@ -400,18 +384,22 @@ const styles = StyleSheet.create({
   logoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 20,
-    borderTopWidth: 1,
-    borderTopColor: '#f3f4f6',
-    marginTop: 10,
+    justifyContent: 'center',
+    padding: 16,
+    marginHorizontal: 16,
+    marginVertical: 20,
+    backgroundColor: '#fef2f2',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#fecaca',
   },
   logoutIcon: {
-    fontSize: 22,
-    marginRight: 16,
+    fontSize: 20,
+    marginRight: 10,
   },
   logoutText: {
     fontSize: 16,
     color: '#dc2626',
-    fontWeight: '500',
+    fontWeight: '600',
   },
 });

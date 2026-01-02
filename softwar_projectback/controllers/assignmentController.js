@@ -1,6 +1,7 @@
 const Assignment = require('../models/Assignment');
 const Notification = require('../models/Notification');
 const User = require('../models/user_model');
+const { resolveUserId, isValidObjectId } = require('../utils/userIdResolver');
 
 exports.createAssignment = async (req, res, next) => {
   try {
@@ -76,11 +77,17 @@ exports.createAssignment = async (req, res, next) => {
 // ?status=<status> - filter by status (active, upcoming, closed)
 exports.getAssignments = async (req, res, next) => {
   try {
-    const { teacher, course, grade, specialization, subject, status } = req.query;
+    let { teacher, course, grade, specialization, subject, status } = req.query;
     const filter = {};
 
+    // Resolve teacher ID if it's 'admin' or invalid ObjectId
     if (teacher) {
-      filter.teacher = teacher;
+      if (!isValidObjectId(teacher)) {
+        teacher = await resolveUserId(teacher);
+      }
+      if (teacher) {
+        filter.teacher = teacher;
+      }
     }
 
     if (course) {

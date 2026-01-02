@@ -1,11 +1,27 @@
 const AIConversation = require('../models/AIConversation');
+const { resolveUserId, isValidObjectId } = require('../utils/userIdResolver');
+
+// Helper to get resolved userId
+const getResolvedUserId = async (reqUserId) => {
+  if (!reqUserId) return null;
+  if (!isValidObjectId(reqUserId)) {
+    return await resolveUserId(reqUserId);
+  }
+  return reqUserId;
+};
 
 // Get all conversations for the authenticated user
 exports.getConversations = async (req, res, next) => {
   try {
-    const userId = req.userId;
+    let userId = req.userId;
     if (!userId) {
       return res.status(401).json({ message: 'Not authenticated' });
+    }
+
+    // Resolve 'admin' to real ObjectId
+    userId = await getResolvedUserId(userId);
+    if (!userId) {
+      return res.status(401).json({ message: 'User not found' });
     }
 
     const conversations = await AIConversation.find({ 
@@ -26,11 +42,17 @@ exports.getConversations = async (req, res, next) => {
 // Get a single conversation with all messages
 exports.getConversation = async (req, res, next) => {
   try {
-    const userId = req.userId;
+    let userId = req.userId;
     const { id } = req.params;
 
     if (!userId) {
       return res.status(401).json({ message: 'Not authenticated' });
+    }
+
+    // Resolve 'admin' to real ObjectId
+    userId = await getResolvedUserId(userId);
+    if (!userId) {
+      return res.status(401).json({ message: 'User not found' });
     }
 
     const conversation = await AIConversation.findOne({ 
@@ -53,9 +75,15 @@ exports.getConversation = async (req, res, next) => {
 // Create a new conversation
 exports.createConversation = async (req, res, next) => {
   try {
-    const userId = req.userId;
+    let userId = req.userId;
     if (!userId) {
       return res.status(401).json({ message: 'Not authenticated' });
+    }
+
+    // Resolve 'admin' to real ObjectId
+    userId = await getResolvedUserId(userId);
+    if (!userId) {
+      return res.status(401).json({ message: 'User not found' });
     }
 
     const { title, preview, messages } = req.body;
@@ -78,11 +106,17 @@ exports.createConversation = async (req, res, next) => {
 // Update a conversation (add messages)
 exports.updateConversation = async (req, res, next) => {
   try {
-    const userId = req.userId;
+    let userId = req.userId;
     const { id } = req.params;
 
     if (!userId) {
       return res.status(401).json({ message: 'Not authenticated' });
+    }
+
+    // Resolve 'admin' to real ObjectId
+    userId = await getResolvedUserId(userId);
+    if (!userId) {
+      return res.status(401).json({ message: 'User not found' });
     }
 
     const { title, preview, messages, messageCount } = req.body;
@@ -115,11 +149,17 @@ exports.updateConversation = async (req, res, next) => {
 // Delete a conversation (soft delete)
 exports.deleteConversation = async (req, res, next) => {
   try {
-    const userId = req.userId;
+    let userId = req.userId;
     const { id } = req.params;
 
     if (!userId) {
       return res.status(401).json({ message: 'Not authenticated' });
+    }
+
+    // Resolve 'admin' to real ObjectId
+    userId = await getResolvedUserId(userId);
+    if (!userId) {
+      return res.status(401).json({ message: 'User not found' });
     }
 
     const conversation = await AIConversation.findOneAndUpdate(
@@ -142,12 +182,18 @@ exports.deleteConversation = async (req, res, next) => {
 // Add a message to an existing conversation
 exports.addMessage = async (req, res, next) => {
   try {
-    const userId = req.userId;
+    let userId = req.userId;
     const { id } = req.params;
     const { type, text } = req.body;
 
     if (!userId) {
       return res.status(401).json({ message: 'Not authenticated' });
+    }
+
+    // Resolve 'admin' to real ObjectId
+    userId = await getResolvedUserId(userId);
+    if (!userId) {
+      return res.status(401).json({ message: 'User not found' });
     }
 
     if (!type || !text) {

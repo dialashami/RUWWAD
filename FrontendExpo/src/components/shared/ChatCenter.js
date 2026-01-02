@@ -9,6 +9,8 @@ import {
   FlatList,
   ActivityIndicator,
   RefreshControl,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { messageAPI, userAPI, adminDashboardAPI } from '../../services/api';
@@ -96,10 +98,10 @@ export default function ChatCenter({ currentRole, onMessagesRead, decrementUnrea
         console.log('No conversations yet:', convErr.message);
       }
       
-      // Create a map of unread counts by recipient ID
+      // Create a map of unread counts by partner ID
       const unreadMap = {};
       conversationsData.forEach(conv => {
-        const recipientId = conv._id || conv.id || conv.recipientId;
+        const recipientId = conv.partnerId || conv._id || conv.id || conv.recipientId;
         unreadMap[recipientId] = conv.unreadCount || 0;
       });
       
@@ -109,16 +111,22 @@ export default function ChatCenter({ currentRole, onMessagesRead, decrementUnrea
         return id !== userId && id !== currentUserId;
       });
       
-      const mappedUsers = filteredUsers.map((user, index) => ({
-        id: user._id || user.id || `user-${index}`,
-        name: user.name || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
-        email: user.email,
-        role: user.role || 'user',
-        lastMessage: conversationsData.find(c => c._id === user._id || c.recipientId === user._id)?.lastMessage || '',
-        time: conversationsData.find(c => c._id === user._id || c.recipientId === user._id)?.lastMessageTime || '',
-        unread: unreadMap[user._id || user.id] || 0,
-        avatar: getAvatarByRole(user.role),
-      }));
+      const mappedUsers = filteredUsers.map((user, index) => {
+        const usrId = user._id || user.id;
+        const convData = conversationsData.find(c => 
+          c.partnerId === usrId || c._id === usrId || c.recipientId === usrId
+        );
+        return {
+          id: usrId || `user-${index}`,
+          name: user.name || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
+          email: user.email,
+          role: user.role || 'user',
+          lastMessage: convData?.lastMessage || '',
+          time: convData?.lastMessageTime || '',
+          unread: unreadMap[usrId] || 0,
+          avatar: getAvatarByRole(user.role),
+        };
+      });
       
       setAllUsers(mappedUsers);
       setConversations(mappedUsers);
@@ -155,15 +163,22 @@ export default function ChatCenter({ currentRole, onMessagesRead, decrementUnrea
 
   const fetchMessages = async (recipientId) => {
     try {
+      const userId = await AsyncStorage.getItem('userId');
       const response = await messageAPI.getMessages(recipientId);
       const data = response.data || [];
       if (data.length > 0) {
-        setMessages(data.map((m, index) => ({
-          id: m._id || m.id || `msg-${index}`,
-          text: m.content || m.message,
-          sender: m.isFromMe || m.sender === currentUserId || m.senderId === currentUserId ? 'me' : 'other',
-          time: formatTime(m.createdAt),
-        })));
+        setMessages(data.map((m, index) => {
+          // Get the sender ID from the message - handle both populated and non-populated formats
+          const messageSenderId = m.sender?._id || m.sender || m.senderId;
+          const isFromMe = messageSenderId === userId || m.isFromMe === true;
+          
+          return {
+            id: m._id || m.id || `msg-${index}-${Date.now()}`,
+            text: m.content || m.message || m.text || '',
+            sender: isFromMe ? 'me' : 'other',
+            time: formatTime(m.createdAt),
+          };
+        }));
       } else {
         setMessages([]);
       }
@@ -231,20 +246,31 @@ export default function ChatCenter({ currentRole, onMessagesRead, decrementUnrea
 
   const sendMessage = async () => {
     if (messageText.trim() && selectedChat) {
-      const newMessage = {
-        id: Date.now(),
-        text: messageText,
+      const textToSend = messageText.trim();
+      setMessageText('');
+      
+      // Add optimistic message with temp ID
+      const tempId = `temp-${Date.now()}`;
+      const optimisticMessage = {
+        id: tempId,
+        text: textToSend,
         sender: 'me',
         time: new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+        pending: true,
       };
-      setMessages([...messages, newMessage]);
-      setMessageText('');
+      setMessages(prev => [...prev, optimisticMessage]);
 
       try {
         setSending(true);
-        await messageAPI.sendMessage(selectedChat, messageText);
+        await messageAPI.sendMessage(selectedChat, textToSend);
+        
+        // Refetch messages to get proper IDs and ensure consistency
+        await fetchMessages(selectedChat);
       } catch (err) {
         console.error('Error sending message:', err);
+        // Remove the optimistic message on error
+        setMessages(prev => prev.filter(m => m.id !== tempId));
+        setMessageText(textToSend); // Restore the message text
       } finally {
         setSending(false);
       }
@@ -263,15 +289,29 @@ export default function ChatCenter({ currentRole, onMessagesRead, decrementUnrea
   if (selectedChat) {
     const currentConversation = allUsers.find(c => c.id === selectedChat) || { name: 'Chat', avatar: '👤' };
     
+    const handleBackPress = () => {
+      setMessages([]); // Clear messages when leaving chat
+      setSelectedChat(null);
+    };
+    
     return (
-      <View style={styles.container}>
+      <KeyboardAvoidingView 
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      >
         {/* Chat Header */}
         <View style={styles.chatHeader}>
-          <TouchableOpacity onPress={() => setSelectedChat(null)} style={styles.backBtn}>
+          <TouchableOpacity onPress={handleBackPress} style={styles.backBtn}>
             <Text style={styles.backIcon}>←</Text>
           </TouchableOpacity>
-          <Text style={styles.chatAvatar}>{currentConversation.avatar}</Text>
-          <Text style={styles.chatName}>{currentConversation.name}</Text>
+          <View style={styles.chatHeaderAvatar}>
+            <Text style={styles.chatAvatarText}>{currentConversation.avatar}</Text>
+          </View>
+          <View style={styles.chatHeaderInfo}>
+            <Text style={styles.chatName}>{currentConversation.name}</Text>
+            <Text style={styles.chatStatus}>Online</Text>
+          </View>
         </View>
 
         {/* Messages */}
@@ -280,48 +320,76 @@ export default function ChatCenter({ currentRole, onMessagesRead, decrementUnrea
           data={messages}
           keyExtractor={(item) => item.id.toString()}
           style={styles.messagesList}
+          contentContainerStyle={styles.messagesContent}
           onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
-          renderItem={({ item }) => (
-            <View
-              style={[
-                styles.messageBubble,
-                item.sender === 'me' ? styles.myMessage : styles.theirMessage,
-              ]}
-            >
-              <Text style={[
-                styles.messageText,
-                item.sender === 'me' && styles.myMessageText,
-              ]}>
-                {item.text}
-              </Text>
-              <Text style={[
-                styles.messageTime,
-                item.sender === 'me' && styles.myMessageTime,
-              ]}>
-                {item.time}
-              </Text>
-            </View>
-          )}
+          renderItem={({ item, index }) => {
+            const isMe = item.sender === 'me';
+            const showAvatar = !isMe && (index === 0 || messages[index - 1]?.sender === 'me');
+            
+            return (
+              <View style={[styles.messageRow, isMe && styles.messageRowMe]}>
+                {/* Other person's avatar */}
+                {!isMe && (
+                  <View style={styles.messageAvatarContainer}>
+                    {showAvatar ? (
+                      <View style={styles.messageAvatar}>
+                        <Text style={styles.messageAvatarText}>{currentConversation.avatar}</Text>
+                      </View>
+                    ) : (
+                      <View style={styles.messageAvatarSpacer} />
+                    )}
+                  </View>
+                )}
+                
+                <View style={[
+                  styles.messageBubble,
+                  isMe ? styles.myMessage : styles.theirMessage,
+                ]}>
+                  <Text style={[
+                    styles.messageText,
+                    isMe && styles.myMessageText,
+                  ]}>
+                    {item.text}
+                  </Text>
+                  <View style={styles.messageFooter}>
+                    <Text style={[
+                      styles.messageTime,
+                      isMe && styles.myMessageTime,
+                    ]}>
+                      {item.time}
+                    </Text>
+                    {isMe && (
+                      <Text style={styles.messageStatus}>✓✓</Text>
+                    )}
+                  </View>
+                </View>
+              </View>
+            );
+          }}
         />
 
         {/* Input */}
         <View style={styles.inputContainer}>
+          <TouchableOpacity style={styles.attachBtn}>
+            <Text style={styles.attachIcon}>📎</Text>
+          </TouchableOpacity>
           <TextInput
             style={styles.input}
             placeholder="Type a message..."
-            placeholderTextColor="#999"
+            placeholderTextColor="#9ca3af"
             value={messageText}
             onChangeText={setMessageText}
+            multiline
           />
           <TouchableOpacity 
-            style={[styles.sendBtn, sending && styles.sendBtnDisabled]} 
+            style={[styles.sendBtn, (!messageText.trim() || sending) && styles.sendBtnDisabled]} 
             onPress={sendMessage}
-            disabled={sending}
+            disabled={!messageText.trim() || sending}
           >
             <Text style={styles.sendIcon}>{sending ? '⏳' : '📤'}</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     );
   }
 
@@ -592,93 +660,165 @@ const styles = StyleSheet.create({
     borderBottomColor: '#e5e7eb',
   },
   backBtn: {
-    padding: 5,
-    marginRight: 10,
+    padding: 8,
+    marginRight: 8,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 20,
   },
   backIcon: {
-    fontSize: 24,
+    fontSize: 20,
     color: '#1f2937',
   },
-  chatAvatar: {
-    fontSize: 24,
-    marginRight: 10,
+  chatHeaderAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#6366f1',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  chatAvatarText: {
+    fontSize: 22,
+  },
+  chatHeaderInfo: {
+    flex: 1,
   },
   chatName: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '600',
     color: '#1f2937',
-    flex: 1,
+  },
+  chatStatus: {
+    fontSize: 12,
+    color: '#22c55e',
+    marginTop: 2,
   },
   messagesList: {
     flex: 1,
-    padding: 15,
+    backgroundColor: '#f0f2f5',
+  },
+  messagesContent: {
+    padding: 12,
+    paddingBottom: 20,
+  },
+  messageRow: {
+    flexDirection: 'row',
+    marginBottom: 4,
+    alignItems: 'flex-end',
+  },
+  messageRowMe: {
+    flexDirection: 'row-reverse',
+  },
+  messageAvatarContainer: {
+    marginRight: 8,
+  },
+  messageAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#6366f1',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  messageAvatarText: {
+    fontSize: 16,
+  },
+  messageAvatarSpacer: {
+    width: 32,
   },
   messageBubble: {
-    maxWidth: '80%',
-    padding: 12,
-    borderRadius: 16,
-    marginBottom: 10,
+    maxWidth: '75%',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 18,
+    marginBottom: 2,
   },
   myMessage: {
-    alignSelf: 'flex-end',
-    backgroundColor: '#007bff',
+    backgroundColor: '#0084ff',
     borderBottomRightRadius: 4,
+    marginLeft: 40,
   },
   theirMessage: {
-    alignSelf: 'flex-start',
     backgroundColor: '#fff',
     borderBottomLeftRadius: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
   },
   messageText: {
-    fontSize: 16,
+    fontSize: 15,
     color: '#1f2937',
+    lineHeight: 20,
   },
   myMessageText: {
     color: '#fff',
   },
+  messageFooter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    marginTop: 4,
+    gap: 4,
+  },
   messageTime: {
     fontSize: 11,
     color: '#9ca3af',
-    marginTop: 4,
-    textAlign: 'right',
   },
   myMessageTime: {
     color: 'rgba(255,255,255,0.7)',
   },
+  messageStatus: {
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.7)',
+  },
   inputContainer: {
     flexDirection: 'row',
-    padding: 15,
+    alignItems: 'flex-end',
+    padding: 12,
+    paddingBottom: 16,
     backgroundColor: '#fff',
     borderTopWidth: 1,
     borderTopColor: '#e5e7eb',
-    gap: 10,
+    gap: 8,
+  },
+  attachBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#f3f4f6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  attachIcon: {
+    fontSize: 18,
   },
   input: {
     flex: 1,
-    backgroundColor: '#f5f7fa',
-    paddingHorizontal: 15,
-    paddingVertical: 12,
-    borderRadius: 25,
-    fontSize: 16,
+    backgroundColor: '#f3f4f6',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 20,
+    fontSize: 15,
+    maxHeight: 100,
+    color: '#1f2937',
   },
   sendBtn: {
-    width: 45,
-    height: 45,
-    borderRadius: 22.5,
-    backgroundColor: '#007bff',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#0084ff',
     justifyContent: 'center',
     alignItems: 'center',
   },
   sendBtnDisabled: {
-    opacity: 0.7,
+    backgroundColor: '#93c5fd',
   },
   sendIcon: {
-    fontSize: 20,
+    fontSize: 18,
+    color: '#fff',
   },
   loadingContainer: {
     flex: 1,

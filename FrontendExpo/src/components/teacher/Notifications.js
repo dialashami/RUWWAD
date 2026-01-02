@@ -9,6 +9,8 @@ import {
   ActivityIndicator,
   RefreshControl,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { notificationAPI } from '../../services/api';
 
@@ -17,28 +19,28 @@ const quickTemplates = [
     id: 1,
     title: 'Assignment Reminder',
     content: 'This is a reminder that your assignment is due soon. Please submit it on time.',
-    type: 'reminder',
+    type: 'assignment', // Valid enum: 'assignment' for reminders
     icon: '📝',
   },
   {
     id: 2,
     title: 'Class Cancellation',
     content: 'Your class has been cancelled. You will be notified of the rescheduled time.',
-    type: 'cancellation',
+    type: 'schedule', // Valid enum: 'schedule' for class-related
     icon: '❌',
   },
   {
     id: 3,
     title: 'Grade Posted',
     content: 'Your grades have been posted. Please check your gradebook.',
-    type: 'grade',
+    type: 'grade', // Valid enum: 'grade'
     icon: '📊',
   },
   {
     id: 4,
     title: 'Study Tips',
     content: 'Here are some helpful study tips for your upcoming exam.',
-    type: 'tip',
+    type: 'lesson', // Valid enum: 'lesson' for educational tips
     icon: '💡',
   },
 ];
@@ -123,8 +125,8 @@ export default function TeacherNotifications({ onNotificationsRead, decrementUnr
 
     setSending(true);
     try {
-      // Check if Assignment Reminder template is selected
-      if (selectedTemplate && selectedTemplate.type === 'reminder') {
+      // Check if Assignment Reminder template is selected (id=1)
+      if (selectedTemplate && selectedTemplate.id === 1) {
         const response = await notificationAPI.sendAssignmentReminder(message);
         const data = response.data;
 
@@ -132,7 +134,7 @@ export default function TeacherNotifications({ onNotificationsRead, decrementUnr
           id: Date.now(),
           title: 'Assignment Reminder',
           content: message,
-          type: 'reminder',
+          type: 'assignment',
           date: formatDate(new Date()),
           status: 'sent',
           studentsNotified: data?.studentsNotified || 0,
@@ -154,7 +156,7 @@ export default function TeacherNotifications({ onNotificationsRead, decrementUnr
       } else {
         // Send custom or other template notification
         const title = selectedTemplate?.title || 'Teacher Notification';
-        const type = selectedTemplate?.type || 'custom';
+        const type = selectedTemplate?.type || 'other'; // Use 'other' for custom notifications (valid enum)
 
         await notificationAPI.sendNotification({
           title,
@@ -299,7 +301,11 @@ export default function TeacherNotifications({ onNotificationsRead, decrementUnr
   );
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView 
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+    >
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.title}>Notifications</Text>
@@ -328,7 +334,7 @@ export default function TeacherNotifications({ onNotificationsRead, decrementUnr
 
       {/* Tab Content */}
       {activeTab === 'templates' ? renderTemplatesTab() : renderHistoryTab()}
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

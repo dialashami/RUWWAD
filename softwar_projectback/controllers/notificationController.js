@@ -3,20 +3,106 @@ const Assignment = require('../models/Assignment');
 const Course = require('../models/Course');
 const SentNotification = require('../models/SentNotification');
 const User = require('../models/user_model');
+const { resolveUserId, isValidObjectId } = require('../utils/userIdResolver');
 
+// Create notification - supports single user or broadcast to recipientType
 exports.createNotification = async (req, res, next) => {
   try {
-    const notification = await Notification.create(req.body);
+    console.log('[createNotification] Request body:', JSON.stringify(req.body, null, 2));
+    const { title, body, message, type, recipientType, user: targetUser } = req.body;
+    
+    // Validate type against enum
+    const validTypes = ['assignment', 'message', 'system', 'grade', 'lesson', 'quiz', 'schedule', 'achievement', 'deadline', 'course', 'enrollment', 'relationship', 'other'];
+    const notificationType = validTypes.includes(type) ? type : 'other';
+    console.log('[createNotification] Using type:', notificationType, '(original:', type, ')');
+    
+    // If a specific user is provided, create notification for that user
+    if (targetUser) {
+      const notification = await Notification.create({
+        user: targetUser,
+        title,
+        body: body || message,
+        message: message || body,
+        type: notificationType,
+      });
+      return res.status(201).json(notification);
+    }
+    
+    // If recipientType is provided, broadcast to multiple users
+    if (recipientType) {
+      console.log('[createNotification] Broadcasting to recipientType:', recipientType);
+      let query = {};
+      if (recipientType === 'students') {
+        query = { role: 'student' };
+      } else if (recipientType === 'teachers') {
+        query = { role: 'teacher' };
+      } else if (recipientType === 'parents') {
+        query = { role: 'parent' };
+      } else if (recipientType === 'all') {
+        query = { role: { $in: ['student', 'teacher', 'parent'] } };
+      } else {
+        return res.status(400).json({ message: 'Invalid recipientType' });
+      }
+      
+      const users = await User.find(query).select('_id');
+      console.log('[createNotification] Found', users.length, 'users for recipientType:', recipientType);
+      
+      if (users.length === 0) {
+        return res.status(200).json({ message: 'No users found for the specified recipient type', notificationsSent: 0 });
+      }
+      
+      // Create notifications for all matching users
+      const notifications = await Promise.all(
+        users.map(u => Notification.create({
+          user: u._id,
+          title,
+          body: body || message,
+          message: message || body,
+          type: notificationType,
+        }))
+      );
+      
+      console.log('[createNotification] Created', notifications.length, 'notifications');
+      return res.status(201).json({
+        message: `Notification sent to ${notifications.length} ${recipientType}`,
+        notificationsSent: notifications.length,
+        notifications,
+      });
+    }
+    
+    // Fallback: try to create with whatever is in req.body
+    console.log('[createNotification] Fallback - no targetUser or recipientType, checking req.user');
+    // If we have req.user from auth middleware, we need a target user
+    if (!req.body.user && !targetUser && !recipientType) {
+      return res.status(400).json({ message: 'Either user, recipientType, or target user is required' });
+    }
+    
+    const notification = await Notification.create({
+      ...req.body,
+      type: notificationType,
+    });
     res.status(201).json(notification);
   } catch (err) {
+    console.error('[createNotification] Error:', err.message);
+    console.error('[createNotification] Stack:', err.stack);
     next(err);
   }
 };
 
 exports.getNotificationsForUser = async (req, res, next) => {
   try {
-    const userId = req.params.userId;
+    let userId = req.params.userId;
     console.log('[getNotificationsForUser] Fetching notifications for userId:', userId);
+    
+    // Resolve 'admin' or invalid userId to real ObjectId
+    if (!isValidObjectId(userId)) {
+      userId = await resolveUserId(userId);
+      if (!userId) {
+        console.log('[getNotificationsForUser] Could not resolve userId');
+        return res.status(404).json({ message: 'User not found' });
+      }
+      console.log('[getNotificationsForUser] Resolved userId to:', userId);
+    }
     
     // Check if user is a parent
     const user = await User.findById(userId).select('role children').populate('children', 'firstName lastName email');
@@ -166,20 +252,16 @@ exports.deleteNotification = async (req, res, next) => {
 exports.getUnreadCount = async (req, res, next) => {
   try {
     const userId = req.userId;
-    const userPayload = req.User;
 
     if (!userId) {
       return res.status(401).json({ message: 'Not authenticated' });
     }
 
-    let targetUserId = userId;
-
-    // If this is the hardcoded admin (userId === 'admin'), resolve the real admin user id
-    if (userPayload && userPayload.role === 'admin' && userId === 'admin') {
-      const adminUser = await User.findOne({ email: 'aboodjamal684@gmail.com' }).select('_id');
-      if (adminUser) {
-        targetUserId = adminUser._id;
-      }
+    // Resolve 'admin' or invalid userId to real ObjectId
+    const targetUserId = await resolveUserId(userId);
+    
+    if (!targetUserId) {
+      return res.status(404).json({ message: 'User not found', count: 0 });
     }
 
     const count = await Notification.countDocuments({

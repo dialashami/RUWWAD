@@ -1,16 +1,16 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_CONFIG } from '../config/api.config';
 
-// Base URL for API - change this to your backend URL
-// For Android Emulator use: 'http://10.0.2.2:3000'
-// For iOS Simulator use: 'http://localhost:3000'
-// For physical device on same WiFi, use your computer's local IP: 'http://192.168.1.158:3000'
-// For devices on different networks (tunnel): 'https://olive-coats-report.loca.lt'
-const API_BASE_URL = 'https://olive-coats-report.loca.lt';
+// Base URL is now configured in src/config/api.config.js
+// Update LOCAL_IP in that file when your network IP changes
+// Set ENVIRONMENT to 'local' or 'tunnel' as needed
+
+console.log('🔗 API connecting to:', API_CONFIG.BASE_URL);
 
 const api = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 15000,
+  baseURL: API_CONFIG.BASE_URL,
+  timeout: API_CONFIG.TIMEOUT,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -70,6 +70,14 @@ export const userAPI = {
   getUserById: (id) => api.get(`/api/users/${id}`),
   updateUser: (id, data) => api.put(`/api/users/${id}`, data),
   deleteUser: (id) => api.delete(`/api/users/${id}`),
+  // Preferences
+  updatePreferences: (data) => api.put('/api/users/preferences', data),
+  // Password
+  changePassword: (data) => api.put('/api/users/change-password', data),
+  // Two-Factor Authentication
+  toggle2FA: (data) => api.put('/api/users/toggle-2fa', data),
+  // Account deletion
+  deleteAccount: () => api.delete('/api/users/account'),
 };
 
 // ========= Course API =========
@@ -115,7 +123,7 @@ export const messageAPI = {
     return api.get(`/api/messages/conversation/${userId}/${partnerId}`);
   },
   sendMessage: (recipientId, content) => 
-    api.post('/api/messages', { recipientId, content }),
+    api.post('/api/messages', { receiver: recipientId, content }),
   markAsRead: (messageId) => api.patch(`/api/messages/${messageId}/read`),
   markConversationAsRead: async (partnerId) => {
     const userId = await AsyncStorage.getItem('userId');
@@ -146,6 +154,8 @@ export const notificationAPI = {
   sendAssignmentReminder: (customMessage) => api.post('/api/notifications/assignment-reminder', { customMessage }),
   getAdminNotifications: () => api.get('/api/notifications/admin'),
   getSentNotifications: () => api.get('/api/notifications/sent'),
+  // Bulk email for Communication Center
+  sendBulkEmail: (data) => api.post('/api/notifications/bulk-email', data),
 };
 
 // ========= Feedback API =========
@@ -192,14 +202,14 @@ export const aiAPI = {
   // Create a new conversation and send message
   sendMessage: async (message, conversationId) => {
     if (conversationId) {
-      // Add message to existing conversation
-      return api.post(`/api/ai-conversations/${conversationId}/messages`, { message });
+      // Add message to existing conversation - backend expects { type, text }
+      return api.post(`/api/ai-conversations/${conversationId}/messages`, { type: 'user', text: message });
     } else {
       // Create new conversation
       const res = await api.post('/api/ai-conversations', { title: 'New Chat' });
       const newConvId = res.data._id;
-      // Then add the message
-      return api.post(`/api/ai-conversations/${newConvId}/messages`, { message });
+      // Then add the message - backend expects { type, text }
+      return api.post(`/api/ai-conversations/${newConvId}/messages`, { type: 'user', text: message });
     }
   },
   getConversations: () => api.get('/api/ai-conversations'),

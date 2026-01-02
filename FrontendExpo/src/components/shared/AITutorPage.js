@@ -8,6 +8,8 @@ import {
   TouchableOpacity,
   FlatList,
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { aiAPI } from '../../services/api';
 
@@ -94,7 +96,11 @@ export default function AITutorPage() {
   };
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView 
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+    >
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.headerIcon}>🤖</Text>
@@ -180,7 +186,7 @@ export default function AITutorPage() {
           <Text style={styles.sendIcon}>📤</Text>
         </TouchableOpacity>
       </View>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

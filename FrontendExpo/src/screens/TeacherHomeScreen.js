@@ -10,7 +10,8 @@ import {
   SafeAreaView,
   Image,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useDispatch } from 'react-redux';
+import { logoutUser } from '../store/authSlice';
 
 // Context Provider
 import { TeacherProvider, useTeacher } from '../context/TeacherContext';
@@ -22,11 +23,12 @@ import AssignmentManagement from '../components/teacher/AssignmentManagement';
 import ChatCenter from '../components/shared/ChatCenter';
 import TeacherNotifications from '../components/teacher/Notifications';
 import AITutorPage from '../components/shared/AITutorPage';
-import Settings from '../components/shared/Settings';
+import TeacherSettings from '../components/teacher/TeacherSettings';
 import FeedbackStar from '../components/shared/FeedbackStar';
 
 // Inner component that uses context
 function TeacherHomeContent({ navigation }) {
+  const dispatch = useDispatch();
   const [activePage, setActivePage] = useState('dashboard');
   const [sidebarVisible, setSidebarVisible] = useState(false);
 
@@ -97,7 +99,7 @@ function TeacherHomeContent({ navigation }) {
       case 'ai-tutor':
         return <AITutorPage />;
       case 'settings':
-        return <Settings navigation={navigation} />;
+        return <TeacherSettings navigation={navigation} />;
       default:
         return <Dashboard />;
     }
@@ -109,8 +111,8 @@ function TeacherHomeContent({ navigation }) {
   };
 
   const handleLogout = async () => {
-    // Clear storage and navigate to Welcome
-    await AsyncStorage.multiRemove(['token', 'user', 'userId']);
+    // Dispatch Redux logout action to clear storage and reset state
+    await dispatch(logoutUser());
     navigation.replace('Welcome');
   };
 
@@ -240,7 +242,13 @@ function TeacherHomeContent({ navigation }) {
             </ScrollView>
 
             {/* Logout Button */}
-            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+            <TouchableOpacity
+              style={styles.logoutButton}
+              onPress={() => {
+                setSidebarVisible(false);
+                handleLogout();
+              }}
+            >
               <Text style={styles.logoutIcon}>🚪</Text>
               <Text style={styles.logoutText}>Logout</Text>
             </TouchableOpacity>
@@ -470,18 +478,22 @@ const styles = StyleSheet.create({
   logoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 20,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.1)',
-    backgroundColor: '#1a1f36',
+    justifyContent: 'center',
+    padding: 16,
+    marginHorizontal: 16,
+    marginVertical: 20,
+    backgroundColor: '#fef2f2',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#fecaca',
   },
   logoutIcon: {
-    fontSize: 22,
-    marginRight: 16,
+    fontSize: 20,
+    marginRight: 10,
   },
   logoutText: {
     fontSize: 16,
     color: '#dc2626',
-    fontWeight: '500',
+    fontWeight: '600',
   },
 });
