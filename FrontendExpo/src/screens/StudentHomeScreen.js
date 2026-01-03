@@ -23,7 +23,7 @@ import ChatCenter from '../components/shared/ChatCenter';
 import ProgressPage from '../components/student/ProgressPage';
 import Notifications from '../components/shared/Notifications';
 import AITutorPage from '../components/shared/AITutorPage';
-import Settings from '../components/shared/Settings';
+import Settings from '../components/student/Settings';
 import FeedbackStar from '../components/shared/FeedbackStar';
 
 const { width } = Dimensions.get('window');
@@ -79,7 +79,7 @@ function StudentHomeContent({ navigation }) {
   const renderPage = () => {
     switch (activePage) {
       case 'dashboard':
-        return <Dashboard />;
+        return <Dashboard onNavigate={setActivePage} />;
       case 'lessons':
         return <MyLessons />;
       case 'assignments':
@@ -106,7 +106,7 @@ function StudentHomeContent({ navigation }) {
       case 'settings':
         return <Settings navigation={navigation} />;
       default:
-        return <Dashboard />;
+        return <Dashboard onNavigate={setActivePage} />;
     }
   };
 
@@ -118,7 +118,7 @@ function StudentHomeContent({ navigation }) {
   const handleLogout = async () => {
     // Dispatch Redux logout action to clear storage and reset state
     await dispatch(logoutUser());
-    navigation.replace('Welcome');
+    navigation.replace('Login');
   };
 
   return (
@@ -453,20 +453,23 @@ const styles = StyleSheet.create({
   logoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 15,
-    marginHorizontal: 10,
-    marginBottom: 30,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.1)',
+    justifyContent: 'center',
+    padding: 16,
+    marginHorizontal: 16,
+    marginVertical: 20,
+    backgroundColor: '#fef2f2',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#fecaca',
   },
   logoutIcon: {
     fontSize: 20,
-    marginRight: 15,
+    marginRight: 10,
   },
   logoutText: {
     fontSize: 16,
-    color: '#ff6b6b',
-    fontWeight: '500',
+    color: '#dc2626',
+    fontWeight: '600',
   },
   mainContent: {
     flex: 1,

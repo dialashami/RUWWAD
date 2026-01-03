@@ -7,7 +7,11 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  Modal,
+  Alert,
 } from 'react-native';
+import * as DocumentPicker from 'expo-document-picker';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useStudent } from '../../context/StudentContext';
 import { assignmentAPI } from '../../services/api';
 
@@ -62,6 +66,12 @@ export default function Assignments() {
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  
+  // Submit modal state
+  const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [selectedAssignment, setSelectedAssignment] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     fetchAssignments();
@@ -112,6 +122,92 @@ export default function Assignments() {
     setRefreshing(true);
     await refreshData();
     fetchAssignments();
+  };
+
+  // File picker handler
+  const handlePickFile = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: '*/*', // Allow all file types
+        copyToCacheDirectory: true,
+      });
+      
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const file = result.assets[0];
+        setSelectedFile({
+          name: file.name,
+          uri: file.uri,
+          size: file.size,
+          mimeType: file.mimeType,
+        });
+      }
+    } catch (err) {
+      console.error('Error picking file:', err);
+      Alert.alert('Error', 'Failed to pick file. Please try again.');
+    }
+  };
+
+  // Open submit modal
+  const handleOpenSubmit = (assignment) => {
+    setSelectedAssignment(assignment);
+    setSelectedFile(null);
+    setShowSubmitModal(true);
+  };
+
+  // Submit assignment handler
+  const handleSubmitAssignment = async () => {
+    if (!selectedFile) {
+      Alert.alert('No File Selected', 'Please select a file to submit.');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      // Get student ID
+      let studentId = student.id || student._id;
+      if (!studentId) {
+        const userStr = await AsyncStorage.getItem('user');
+        if (userStr) {
+          const userData = JSON.parse(userStr);
+          studentId = userData._id || userData.id;
+        }
+      }
+
+      // Submit the assignment
+      await assignmentAPI.submitAssignment(selectedAssignment.id, {
+        studentId,
+        file: selectedFile.uri,
+        fileName: selectedFile.name,
+      });
+
+      // Update local state
+      setAssignments(prev => prev.map(a => 
+        a.id === selectedAssignment.id 
+          ? { ...a, status: 'submitted' }
+          : a
+      ));
+
+      Alert.alert('Success', 'Assignment submitted successfully!');
+      setShowSubmitModal(false);
+      setSelectedFile(null);
+      setSelectedAssignment(null);
+      
+      // Refresh data
+      refreshData();
+    } catch (err) {
+      console.error('Error submitting assignment:', err);
+      Alert.alert('Error', err.response?.data?.message || 'Failed to submit assignment. Please try again.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  // Format file size
+  const formatFileSize = (bytes) => {
+    if (!bytes) return '';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
   const filters = [
@@ -243,7 +339,10 @@ export default function Assignments() {
                   <Text style={styles.submittedText}>✓ Submitted</Text>
                 </View>
               ) : (
-                <TouchableOpacity style={styles.submitBtn}>
+                <TouchableOpacity 
+                  style={styles.submitBtn}
+                  onPress={() => handleOpenSubmit(assignment)}
+                >
                   <Text style={styles.submitBtnText}>Submit</Text>
                 </TouchableOpacity>
               )}
@@ -251,6 +350,88 @@ export default function Assignments() {
           </TouchableOpacity>
         ))}
       </ScrollView>
+
+      {/* Submit Assignment Modal */}
+      <Modal
+        visible={showSubmitModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowSubmitModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Submit Assignment</Text>
+              <TouchableOpacity onPress={() => setShowSubmitModal(false)}>
+                <Text style={styles.modalClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            {selectedAssignment && (
+              <View style={styles.modalBody}>
+                <Text style={styles.assignmentInfo}>
+                  📚 {selectedAssignment.title}
+                </Text>
+                <Text style={styles.assignmentDue}>
+                  Due: {formatDate(selectedAssignment.dueDate)}
+                </Text>
+
+                {/* File Upload Area */}
+                <TouchableOpacity 
+                  style={styles.uploadArea}
+                  onPress={handlePickFile}
+                >
+                  {selectedFile ? (
+                    <View style={styles.fileSelected}>
+                      <Text style={styles.fileIcon}>📄</Text>
+                      <View style={styles.fileInfo}>
+                        <Text style={styles.fileName} numberOfLines={1}>
+                          {selectedFile.name}
+                        </Text>
+                        <Text style={styles.fileSize}>
+                          {formatFileSize(selectedFile.size)}
+                        </Text>
+                      </View>
+                      <TouchableOpacity 
+                        style={styles.removeFileBtn}
+                        onPress={() => setSelectedFile(null)}
+                      >
+                        <Text style={styles.removeFileBtnText}>✕</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : (
+                    <View style={styles.uploadPlaceholder}>
+                      <Text style={styles.uploadIcon}>📎</Text>
+                      <Text style={styles.uploadText}>Tap to select a file</Text>
+                      <Text style={styles.uploadHint}>
+                        PDF, DOC, DOCX, Images, etc.
+                      </Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+
+                {/* Submit Button */}
+                <TouchableOpacity
+                  style={[
+                    styles.submitAssignmentBtn,
+                    (!selectedFile || submitting) && styles.submitBtnDisabled,
+                  ]}
+                  onPress={handleSubmitAssignment}
+                  disabled={!selectedFile || submitting}
+                >
+                  {submitting ? (
+                    <ActivityIndicator color="#fff" size="small" />
+                  ) : (
+                    <Text style={styles.submitAssignmentBtnText}>
+                      📤 Submit Assignment
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -393,5 +574,129 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#f3f4f6',
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    width: '100%',
+    maxWidth: 400,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1f2937',
+  },
+  modalClose: {
+    fontSize: 20,
+    color: '#6b7280',
+    padding: 4,
+  },
+  modalBody: {
+    padding: 20,
+  },
+  assignmentInfo: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1f2937',
+    marginBottom: 4,
+  },
+  assignmentDue: {
+    fontSize: 14,
+    color: '#6b7280',
+    marginBottom: 20,
+  },
+  uploadArea: {
+    borderWidth: 2,
+    borderColor: '#e5e7eb',
+    borderStyle: 'dashed',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 20,
+  },
+  uploadPlaceholder: {
+    alignItems: 'center',
+  },
+  uploadIcon: {
+    fontSize: 40,
+    marginBottom: 10,
+  },
+  uploadText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#374151',
+    marginBottom: 4,
+  },
+  uploadHint: {
+    fontSize: 13,
+    color: '#9ca3af',
+  },
+  fileSelected: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  fileIcon: {
+    fontSize: 32,
+    marginRight: 12,
+  },
+  fileInfo: {
+    flex: 1,
+  },
+  fileName: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#1f2937',
+  },
+  fileSize: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginTop: 2,
+  },
+  removeFileBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#fee2e2',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  removeFileBtnText: {
+    color: '#dc2626',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  submitAssignmentBtn: {
+    backgroundColor: '#007bff',
+    paddingVertical: 14,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  submitBtnDisabled: {
+    backgroundColor: '#9ca3af',
+  },
+  submitAssignmentBtnText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

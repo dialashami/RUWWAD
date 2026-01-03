@@ -12,9 +12,22 @@ import {
   ScrollView,
 } from 'react-native';
 import { useDispatch, useSelector } from 'react-redux';
-import { loginUser, clearError } from '../store/authSlice';
+import { loginUser, clearError, setCredentials } from '../store/authSlice';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getUserRole } from '../utils/getUserRole';
+import * as WebBrowser from 'expo-web-browser';
+import * as Google from 'expo-auth-session/providers/google';
+import * as Facebook from 'expo-auth-session/providers/facebook';
+import { makeRedirectUri } from 'expo-auth-session';
+import { 
+  GOOGLE_WEB_CLIENT_ID, 
+  GOOGLE_ANDROID_CLIENT_ID, 
+  GOOGLE_IOS_CLIENT_ID,
+  FACEBOOK_APP_ID 
+} from '../config/firebase.config';
+
+// Required for web browser auth
+WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen({ navigation }) {
   const dispatch = useDispatch();
@@ -23,6 +36,44 @@ export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [socialLoading, setSocialLoading] = useState({ google: false, facebook: false });
+
+  // Google OAuth configuration
+  const [googleRequest, googleResponse, googlePromptAsync] = Google.useAuthRequest({
+    webClientId: GOOGLE_WEB_CLIENT_ID,
+    androidClientId: GOOGLE_ANDROID_CLIENT_ID,
+    iosClientId: GOOGLE_IOS_CLIENT_ID,
+    scopes: ['profile', 'email'],
+  });
+
+  // Facebook OAuth configuration
+  const [facebookRequest, facebookResponse, facebookPromptAsync] = Facebook.useAuthRequest({
+    clientId: FACEBOOK_APP_ID,
+    scopes: ['public_profile', 'email'],
+  });
+
+  // Handle Google OAuth response
+  useEffect(() => {
+    if (googleResponse?.type === 'success') {
+      handleGoogleAuthSuccess(googleResponse.authentication);
+    } else if (googleResponse?.type === 'error') {
+      setSocialLoading(prev => ({ ...prev, google: false }));
+      Alert.alert('Error', 'Google login failed. Please try again.');
+    } else if (googleResponse?.type === 'cancel' || googleResponse?.type === 'dismiss') {
+      setSocialLoading(prev => ({ ...prev, google: false }));
+    }
+  }, [googleResponse]);
+
+  // Handle Facebook OAuth response
+  useEffect(() => {
+    if (facebookResponse?.type === 'success') {
+      handleFacebookAuthSuccess(facebookResponse.authentication);
+    } else if (facebookResponse?.type === 'error') {
+      setSocialLoading(prev => ({ ...prev, facebook: false }));
+      Alert.alert('Error', 'Facebook login failed. Please try again.');
+    } else if (facebookResponse?.type === 'cancel' || facebookResponse?.type === 'dismiss') {
+      setSocialLoading(prev => ({ ...prev, facebook: false }));
+    }
+  }, [facebookResponse]);
 
   // Redirect based on role after login
   useEffect(() => {
@@ -85,26 +136,128 @@ export default function LoginScreen({ navigation }) {
     dispatch(loginUser({ email, password }));
   };
 
-  const handleGoogleLogin = async () => {
-    setSocialLoading(prev => ({ ...prev, google: true }));
+  // Handle successful Google authentication
+  const handleGoogleAuthSuccess = async (authentication) => {
     try {
-      // Google login would be implemented with expo-auth-session
-      Alert.alert('Info', 'Google login not implemented for mobile yet');
+      // Get user info from Google
+      const userInfoResponse = await fetch(
+        'https://www.googleapis.com/userinfo/v2/me',
+        { headers: { Authorization: `Bearer ${authentication.accessToken}` } }
+      );
+      const userInfo = await userInfoResponse.json();
+      
+      console.log('Google user info:', userInfo);
+
+      // Create/login user on our backend or store locally
+      await handleSocialLoginSuccess({
+        provider: 'google',
+        email: userInfo.email,
+        firstName: userInfo.given_name || userInfo.name?.split(' ')[0] || 'User',
+        lastName: userInfo.family_name || userInfo.name?.split(' ').slice(1).join(' ') || '',
+        providerId: userInfo.id,
+        accessToken: authentication.accessToken,
+      });
     } catch (error) {
-      Alert.alert('Error', 'Google login failed');
+      console.error('Error getting Google user info:', error);
+      Alert.alert('Error', 'Failed to get user information from Google');
     } finally {
       setSocialLoading(prev => ({ ...prev, google: false }));
     }
   };
 
+  // Handle successful Facebook authentication
+  const handleFacebookAuthSuccess = async (authentication) => {
+    try {
+      // Get user info from Facebook
+      const userInfoResponse = await fetch(
+        `https://graph.facebook.com/me?access_token=${authentication.accessToken}&fields=id,name,email,first_name,last_name,picture`
+      );
+      const userInfo = await userInfoResponse.json();
+      
+      console.log('Facebook user info:', userInfo);
+
+      await handleSocialLoginSuccess({
+        provider: 'facebook',
+        email: userInfo.email || `${userInfo.id}@facebook.com`,
+        firstName: userInfo.first_name || userInfo.name?.split(' ')[0] || 'User',
+        lastName: userInfo.last_name || userInfo.name?.split(' ').slice(1).join(' ') || '',
+        providerId: userInfo.id,
+        accessToken: authentication.accessToken,
+      });
+    } catch (error) {
+      console.error('Error getting Facebook user info:', error);
+      Alert.alert('Error', 'Failed to get user information from Facebook');
+    } finally {
+      setSocialLoading(prev => ({ ...prev, facebook: false }));
+    }
+  };
+
+  // Common handler for social login success
+  const handleSocialLoginSuccess = async (socialData) => {
+    try {
+      // For now, store user data locally and navigate
+      // In production, you'd call your backend to create/verify the user
+      const userData = {
+        _id: `${socialData.provider}_${socialData.providerId}`,
+        firstName: socialData.firstName,
+        lastName: socialData.lastName,
+        email: socialData.email,
+        role: 'student', // Default role for social login
+        provider: socialData.provider,
+      };
+
+      // Store authentication data
+      await AsyncStorage.setItem('token', socialData.accessToken);
+      await AsyncStorage.setItem('role', 'student');
+      await AsyncStorage.setItem('userId', userData._id);
+      await AsyncStorage.setItem('user', JSON.stringify(userData));
+
+      // Update Redux state
+      dispatch(setCredentials({
+        token: socialData.accessToken,
+        user: userData,
+      }));
+
+      // Navigate to student home (default for social login)
+      navigation.replace('StudentHome');
+    } catch (error) {
+      console.error('Error handling social login:', error);
+      Alert.alert('Error', 'Failed to complete login');
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    if (!googleRequest) {
+      Alert.alert(
+        'Configuration Required',
+        'Google login requires OAuth client IDs to be configured. Please set up Google OAuth credentials in firebase.config.js'
+      );
+      return;
+    }
+    setSocialLoading(prev => ({ ...prev, google: true }));
+    try {
+      await googlePromptAsync();
+    } catch (error) {
+      console.error('Google login error:', error);
+      Alert.alert('Error', 'Google login failed');
+      setSocialLoading(prev => ({ ...prev, google: false }));
+    }
+  };
+
   const handleFacebookLogin = async () => {
+    if (!facebookRequest) {
+      Alert.alert(
+        'Configuration Required',
+        'Facebook login requires App ID to be configured. Please set up Facebook OAuth credentials in firebase.config.js'
+      );
+      return;
+    }
     setSocialLoading(prev => ({ ...prev, facebook: true }));
     try {
-      // Facebook login would be implemented with expo-auth-session
-      Alert.alert('Info', 'Facebook login not implemented for mobile yet');
+      await facebookPromptAsync();
     } catch (error) {
+      console.error('Facebook login error:', error);
       Alert.alert('Error', 'Facebook login failed');
-    } finally {
       setSocialLoading(prev => ({ ...prev, facebook: false }));
     }
   };

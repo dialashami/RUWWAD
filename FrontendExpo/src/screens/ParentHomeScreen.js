@@ -102,7 +102,7 @@ function ParentHomeContent({ navigation }) {
   const handleLogout = async () => {
     // Dispatch Redux logout action to clear storage and reset state
     await dispatch(logoutUser());
-    navigation.replace('Welcome');
+    navigation.replace('Login');
   };
 
   const getActiveTitle = () => {
@@ -463,18 +463,22 @@ const styles = StyleSheet.create({
   logoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 20,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.1)',
-    backgroundColor: '#1a1f36',
+    justifyContent: 'center',
+    padding: 16,
+    marginHorizontal: 16,
+    marginVertical: 20,
+    backgroundColor: '#fef2f2',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#fecaca',
   },
   logoutIcon: {
-    fontSize: 22,
-    marginRight: 16,
+    fontSize: 20,
+    marginRight: 10,
   },
   logoutText: {
     fontSize: 16,
     color: '#dc2626',
-    fontWeight: '500',
+    fontWeight: '600',
   },
 });

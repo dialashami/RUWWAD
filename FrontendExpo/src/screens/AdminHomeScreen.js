@@ -33,7 +33,7 @@ export default function AdminHomeScreen({ navigation }) {
   // Handle logout
   const handleLogout = async () => {
     await dispatch(logoutUser());
-    navigation.replace('Welcome');
+    navigation.replace('Login');
   };
 
   // Fetch unread counts

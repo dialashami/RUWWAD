@@ -1,5 +1,13 @@
 const mongoose = require('mongoose');
 
+// Track video watch progress per student
+const videoProgressSchema = new mongoose.Schema({
+  student: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  watchedVideoUrls: [{ type: String }], // Array of watched video URLs
+  watchedUploadedVideos: [{ type: String }], // Array of watched uploaded video fileUrls
+  completedAt: { type: Date }, // When student completed all videos
+});
+
 const courseSchema = new mongoose.Schema(
   {
     title: { type: String, required: true, trim: true },
@@ -28,8 +36,39 @@ const courseSchema = new mongoose.Schema(
       fileName: { type: String, trim: true },
       fileUrl: { type: String, trim: true }
     }],
+    // Student video progress tracking
+    videoProgress: [videoProgressSchema],
   },
   { timestamps: true }
 );
+
+// Virtual to get total video count
+courseSchema.virtual('totalVideoCount').get(function () {
+  const urlCount = this.videoUrls ? this.videoUrls.length : 0;
+  const uploadedCount = this.uploadedVideos ? this.uploadedVideos.length : 0;
+  return urlCount + uploadedCount;
+});
+
+// Method to calculate student progress
+courseSchema.methods.getStudentProgress = function(studentId) {
+  const totalVideos = this.totalVideoCount;
+  if (totalVideos === 0) return 100; // No videos = course is complete
+
+  const studentProgress = this.videoProgress.find(
+    vp => vp.student.toString() === studentId.toString()
+  );
+
+  if (!studentProgress) return 0;
+
+  const watchedCount = 
+    (studentProgress.watchedVideoUrls?.length || 0) + 
+    (studentProgress.watchedUploadedVideos?.length || 0);
+
+  return Math.round((watchedCount / totalVideos) * 100);
+};
+
+// Ensure virtuals are included in JSON
+courseSchema.set('toJSON', { virtuals: true });
+courseSchema.set('toObject', { virtuals: true });
 
 module.exports = mongoose.model('Course', courseSchema);

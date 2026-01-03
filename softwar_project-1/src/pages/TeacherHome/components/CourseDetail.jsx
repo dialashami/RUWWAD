@@ -1,9 +1,27 @@
 // src/pages/TeacherHome/components/CourseDetail.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 function CourseDetail({ courseId, courseTitle, onClose, isTeacher = true }) {
   const [course, setCourse] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [watchedVideos, setWatchedVideos] = useState({ urls: [], uploaded: [] });
+  const [progress, setProgress] = useState(0);
+  const [isCompleted, setIsCompleted] = useState(false);
+  const [userId, setUserId] = useState(null);
+  const videoRefs = useRef({});
+
+  useEffect(() => {
+    // Get user ID from localStorage
+    try {
+      const userStr = localStorage.getItem('user');
+      if (userStr) {
+        const userData = JSON.parse(userStr);
+        setUserId(userData._id || userData.id);
+      }
+    } catch (e) {
+      console.error('Error getting user ID:', e);
+    }
+  }, []);
 
   useEffect(() => {
     const fetchCourse = async () => {
@@ -14,21 +32,55 @@ function CourseDetail({ courseId, courseTitle, onClose, isTeacher = true }) {
 
       try {
         const token = localStorage.getItem('token');
-        const res = await fetch(`http://localhost:3000/api/courses/${courseId}`, {
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        
+        // For students, fetch course with progress
+        if (!isTeacher && userId) {
+          const res = await fetch(`http://localhost:3000/api/courses/${courseId}/progress?studentId=${userId}`, {
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+          });
 
-        if (res.ok) {
-          const data = await res.json();
-          console.log('Course detail loaded:', data);
-          console.log('Course videoUrls:', data.videoUrls);
-          console.log('Course uploadedVideos:', data.uploadedVideos);
-          setCourse(data);
+          if (res.ok) {
+            const data = await res.json();
+            setCourse(data);
+            setProgress(data.progress || 0);
+            setIsCompleted(data.isCompleted || false);
+            if (data.studentVideoProgress) {
+              setWatchedVideos({
+                urls: data.studentVideoProgress.watchedVideoUrls || [],
+                uploaded: data.studentVideoProgress.watchedUploadedVideos || [],
+              });
+            }
+          } else {
+            // Fallback to regular fetch
+            const fallbackRes = await fetch(`http://localhost:3000/api/courses/${courseId}`, {
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`,
+              },
+            });
+            if (fallbackRes.ok) {
+              const data = await fallbackRes.json();
+              setCourse(data);
+            }
+          }
         } else {
-          console.error('Failed to fetch course:', res.status);
+          // Teacher view - just fetch course
+          const res = await fetch(`http://localhost:3000/api/courses/${courseId}`, {
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            setCourse(data);
+          } else {
+            console.error('Failed to fetch course:', res.status);
+          }
         }
       } catch (err) {
         console.error('Error fetching course:', err);
@@ -38,7 +90,7 @@ function CourseDetail({ courseId, courseTitle, onClose, isTeacher = true }) {
     };
 
     fetchCourse();
-  }, [courseId]);
+  }, [courseId, isTeacher, userId]);
 
   // Helper to get YouTube embed URL
   const getYouTubeEmbedUrl = (url) => {
@@ -52,6 +104,58 @@ function CourseDetail({ courseId, courseTitle, onClose, isTeacher = true }) {
       return null;
     } catch {
       return null;
+    }
+  };
+
+  // Check if video is watched
+  const isVideoWatched = (videoUrl, type) => {
+    if (type === 'url') {
+      return watchedVideos.urls.includes(videoUrl);
+    }
+    return watchedVideos.uploaded.includes(videoUrl);
+  };
+
+  // Mark video as watched
+  const markVideoWatched = async (videoUrl, videoType) => {
+    if (!userId || isTeacher) return;
+    
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(`http://localhost:3000/api/courses/${courseId}/watch-video`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          studentId: userId,
+          videoUrl,
+          videoType,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setWatchedVideos({
+          urls: data.watchedVideoUrls || [],
+          uploaded: data.watchedUploadedVideos || [],
+        });
+        setProgress(data.progress || 0);
+        
+        if (data.isCompleted && !isCompleted) {
+          setIsCompleted(true);
+          alert(`🎉 Congratulations! You have completed "${course?.title}"!`);
+        }
+      }
+    } catch (err) {
+      console.error('Error marking video as watched:', err);
+    }
+  };
+
+  // Handle video ended event
+  const handleVideoEnded = (videoUrl, videoType) => {
+    if (!isVideoWatched(videoUrl, videoType)) {
+      markVideoWatched(videoUrl, videoType);
     }
   };
 
@@ -122,6 +226,49 @@ function CourseDetail({ courseId, courseTitle, onClose, isTeacher = true }) {
           )}
         </div>
 
+        {/* Progress Bar - Only for students */}
+        {!isTeacher && (
+          <div style={{ 
+            marginBottom: '20px', 
+            padding: '16px', 
+            background: '#f9fafb', 
+            borderRadius: '12px',
+            border: '1px solid #e5e7eb'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+              <span style={{ fontSize: '0.95rem', fontWeight: 500, color: '#374151' }}>Course Progress</span>
+              <span style={{ fontSize: '0.95rem', fontWeight: 600, color: '#007bff' }}>{progress}%</span>
+            </div>
+            <div style={{ 
+              height: '10px', 
+              background: '#e5e7eb', 
+              borderRadius: '5px', 
+              overflow: 'hidden' 
+            }}>
+              <div style={{ 
+                width: `${progress}%`, 
+                height: '100%', 
+                background: isCompleted ? '#16a34a' : '#007bff',
+                borderRadius: '5px',
+                transition: 'width 0.3s ease'
+              }} />
+            </div>
+            {isCompleted && (
+              <div style={{ 
+                marginTop: '10px', 
+                padding: '8px 12px', 
+                background: '#dcfce7', 
+                borderRadius: '8px',
+                display: 'inline-block'
+              }}>
+                <span style={{ color: '#16a34a', fontWeight: 600, fontSize: '0.9rem' }}>
+                  ✓ Course Completed
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Description */}
         {course.description && (
           <div style={{ marginBottom: '20px', padding: '16px', background: '#f9fafb', borderRadius: '12px' }}>
@@ -178,6 +325,7 @@ function CourseDetail({ courseId, courseTitle, onClose, isTeacher = true }) {
                 <div style={{ marginBottom: '20px' }}>
                   {course.videoUrls.map((url, index) => {
                     const embedUrl = getYouTubeEmbedUrl(url);
+                    const watched = isVideoWatched(url, 'url');
                     return (
                       <div
                         key={index}
@@ -185,14 +333,42 @@ function CourseDetail({ courseId, courseTitle, onClose, isTeacher = true }) {
                           marginBottom: '16px',
                           padding: '16px',
                           borderRadius: '12px',
-                          border: '1px solid #e5e7eb',
-                          background: '#fff',
+                          border: watched ? '2px solid #16a34a' : '1px solid #e5e7eb',
+                          background: watched ? '#f0fdf4' : '#fff',
                         }}
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: embedUrl ? '12px' : 0 }}>
-                          <span style={{ fontSize: '0.95rem', fontWeight: 500, color: '#374151' }}>
-                            Video {index + 1}
-                          </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <span style={{ 
+                              width: '28px', 
+                              height: '28px', 
+                              borderRadius: '50%', 
+                              background: '#8b5cf6', 
+                              color: '#fff',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '0.85rem',
+                              fontWeight: 600
+                            }}>
+                              {index + 1}
+                            </span>
+                            <span style={{ fontSize: '0.95rem', fontWeight: 500, color: '#374151' }}>
+                              Video Lesson {index + 1}
+                            </span>
+                            {watched && (
+                              <span style={{ 
+                                background: '#dcfce7', 
+                                color: '#16a34a', 
+                                padding: '4px 10px', 
+                                borderRadius: '12px',
+                                fontSize: '0.75rem',
+                                fontWeight: 600
+                              }}>
+                                ✓ Watched
+                              </span>
+                            )}
+                          </div>
                           <a
                             href={url}
                             target="_blank"
@@ -214,6 +390,25 @@ function CourseDetail({ courseId, courseTitle, onClose, isTeacher = true }) {
                             style={{ borderRadius: '8px', border: 'none' }}
                           ></iframe>
                         )}
+                        {/* Mark as Watched button for students */}
+                        {!isTeacher && !watched && (
+                          <button
+                            onClick={() => markVideoWatched(url, 'url')}
+                            style={{
+                              marginTop: '12px',
+                              padding: '10px 20px',
+                              background: '#10b981',
+                              color: '#fff',
+                              border: 'none',
+                              borderRadius: '8px',
+                              cursor: 'pointer',
+                              fontSize: '0.9rem',
+                              fontWeight: 600,
+                            }}
+                          >
+                            ✓ Mark as Watched
+                          </button>
+                        )}
                       </div>
                     );
                   })}
@@ -223,22 +418,53 @@ function CourseDetail({ courseId, courseTitle, onClose, isTeacher = true }) {
               {/* Uploaded Videos */}
               {course.uploadedVideos && course.uploadedVideos.length > 0 && (
                 <div>
-                  {course.uploadedVideos.map((video, index) => (
+                  {course.uploadedVideos.map((video, index) => {
+                    const watched = isVideoWatched(video.fileUrl, 'uploaded');
+                    const videoIndex = (course.videoUrls?.length || 0) + index + 1;
+                    return (
                     <div
                       key={index}
                       style={{
                         marginBottom: '16px',
                         padding: '16px',
                         borderRadius: '12px',
-                        border: '1px solid #e5e7eb',
-                        background: '#faf5ff',
+                        border: watched ? '2px solid #16a34a' : '1px solid #e5e7eb',
+                        background: watched ? '#f0fdf4' : '#faf5ff',
                       }}
                     >
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                        <span style={{ fontSize: '0.95rem', fontWeight: 500, color: '#374151' }}>
-                          <i className="fas fa-file-video" style={{ marginRight: '8px', color: '#8b5cf6' }}></i>
-                          {video.fileName || `Uploaded Video ${index + 1}`}
-                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          <span style={{ 
+                            width: '28px', 
+                            height: '28px', 
+                            borderRadius: '50%', 
+                            background: '#8b5cf6', 
+                            color: '#fff',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '0.85rem',
+                            fontWeight: 600
+                          }}>
+                            {videoIndex}
+                          </span>
+                          <span style={{ fontSize: '0.95rem', fontWeight: 500, color: '#374151' }}>
+                            <i className="fas fa-file-video" style={{ marginRight: '8px', color: '#8b5cf6' }}></i>
+                            {video.fileName || `Uploaded Video ${index + 1}`}
+                          </span>
+                          {watched && (
+                            <span style={{ 
+                              background: '#dcfce7', 
+                              color: '#16a34a', 
+                              padding: '4px 10px', 
+                              borderRadius: '12px',
+                              fontSize: '0.75rem',
+                              fontWeight: 600
+                            }}>
+                              ✓ Watched
+                            </span>
+                          )}
+                        </div>
                       </div>
                       {video.fileUrl && (
                         <video
@@ -247,12 +473,32 @@ function CourseDetail({ courseId, courseTitle, onClose, isTeacher = true }) {
                           controls
                           src={video.fileUrl}
                           style={{ borderRadius: '8px' }}
+                          onEnded={() => handleVideoEnded(video.fileUrl, 'uploaded')}
                         >
                           Your browser does not support the video tag.
                         </video>
                       )}
+                      {/* Mark as Watched button for students */}
+                      {!isTeacher && !watched && (
+                        <button
+                          onClick={() => markVideoWatched(video.fileUrl, 'uploaded')}
+                          style={{
+                            marginTop: '12px',
+                            padding: '10px 20px',
+                            background: '#10b981',
+                            color: '#fff',
+                            border: 'none',
+                            borderRadius: '8px',
+                            cursor: 'pointer',
+                            fontSize: '0.9rem',
+                            fontWeight: 600,
+                          }}
+                        >
+                          ✓ Mark as Watched
+                        </button>
+                      )}
                     </div>
-                  ))}
+                  )})}
                 </div>
               )}
             </div>

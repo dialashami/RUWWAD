@@ -122,6 +122,15 @@ const authSlice = createSlice({
     clearRegistrationSuccess: (state) => {
       state.registrationSuccess = false;
     },
+    // For social login - set credentials directly
+    setCredentials: (state, action) => {
+      state.token = action.payload.token;
+      state.user = action.payload.user;
+      state.userId = action.payload.user?._id || action.payload.user?.id;
+      state.isLoggedIn = true;
+      state.loading = false;
+      state.error = null;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -187,5 +196,5 @@ const authSlice = createSlice({
   },
 });
 
-export const { clearError, clearRegistrationSuccess } = authSlice.actions;
+export const { clearError, clearRegistrationSuccess, setCredentials } = authSlice.actions;
 export default authSlice.reducer;

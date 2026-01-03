@@ -113,7 +113,7 @@ function TeacherHomeContent({ navigation }) {
   const handleLogout = async () => {
     // Dispatch Redux logout action to clear storage and reset state
     await dispatch(logoutUser());
-    navigation.replace('Welcome');
+    navigation.replace('Login');
   };
 
   const getActiveTitle = () => {

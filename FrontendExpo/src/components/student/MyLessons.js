@@ -7,50 +7,58 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  Modal,
+  Alert,
 } from 'react-native';
 import { useStudent } from '../../context/StudentContext';
 import { courseAPI } from '../../services/api';
+import CourseDetail from './CourseDetail';
 
 const defaultLessons = [
   {
-    id: 1,
+    id: 'demo-1',
     title: 'Introduction to Algebra',
     subject: 'Mathematics',
     progress: 100,
     duration: '45 min',
     completed: true,
+    isDemo: true, // Flag to identify demo lessons
   },
   {
-    id: 2,
+    id: 'demo-2',
     title: 'Newton\'s Laws of Motion',
     subject: 'Physics',
     progress: 75,
     duration: '60 min',
     completed: false,
+    isDemo: true,
   },
   {
-    id: 3,
+    id: 'demo-3',
     title: 'Essay Writing Techniques',
     subject: 'English',
     progress: 50,
     duration: '30 min',
     completed: false,
+    isDemo: true,
   },
   {
-    id: 4,
+    id: 'demo-4',
     title: 'Chemical Reactions',
     subject: 'Chemistry',
     progress: 0,
     duration: '50 min',
     completed: false,
+    isDemo: true,
   },
   {
-    id: 5,
+    id: 'demo-5',
     title: 'World War II History',
     subject: 'History',
     progress: 25,
     duration: '40 min',
     completed: false,
+    isDemo: true,
   },
 ];
 
@@ -62,6 +70,8 @@ export default function MyLessons() {
   const [lessons, setLessons] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedCourse, setSelectedCourse] = useState(null);
+  const [courseDetailVisible, setCourseDetailVisible] = useState(false);
 
   useEffect(() => {
     fetchLessons();
@@ -113,6 +123,34 @@ export default function MyLessons() {
   const onRefresh = async () => {
     setRefreshing(true);
     await refreshData();
+    fetchLessons();
+  };
+
+  // Open course detail modal
+  const handleOpenCourse = (lesson) => {
+    // Don't open detail modal for demo lessons
+    if (lesson.isDemo) {
+      Alert.alert(
+        'Demo Course',
+        'This is a demo course for preview. Enroll in real courses to access video content.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+    setSelectedCourse(lesson);
+    setCourseDetailVisible(true);
+  };
+
+  // Close course detail modal
+  const handleCloseCourse = () => {
+    setCourseDetailVisible(false);
+    setSelectedCourse(null);
+    // Refresh to get updated progress
+    fetchLessons();
+  };
+
+  // Handle course completion
+  const handleCourseComplete = () => {
     fetchLessons();
   };
 
@@ -182,7 +220,11 @@ export default function MyLessons() {
         }
       >
         {filteredLessons.map((lesson) => (
-          <TouchableOpacity key={lesson.id} style={styles.lessonCard}>
+          <TouchableOpacity 
+            key={lesson.id} 
+            style={styles.lessonCard}
+            onPress={() => handleOpenCourse(lesson)}
+          >
             <View style={styles.lessonHeader}>
               <View style={styles.subjectBadge}>
                 <Text style={styles.subjectText}>{lesson.subject}</Text>
@@ -219,6 +261,7 @@ export default function MyLessons() {
                 styles.actionBtn,
                 lesson.completed && styles.actionBtnCompleted,
               ]}
+              onPress={() => handleOpenCourse(lesson)}
             >
               <Text style={styles.actionBtnText}>
                 {lesson.completed ? 'Review' : lesson.progress > 0 ? 'Continue' : 'Start'}
@@ -227,6 +270,22 @@ export default function MyLessons() {
           </TouchableOpacity>
         ))}
       </ScrollView>
+
+      {/* Course Detail Modal */}
+      <Modal
+        visible={courseDetailVisible}
+        animationType="slide"
+        presentationStyle="pageSheet"
+        onRequestClose={handleCloseCourse}
+      >
+        {selectedCourse && (
+          <CourseDetail
+            course={selectedCourse}
+            onClose={handleCloseCourse}
+            onCourseComplete={handleCourseComplete}
+          />
+        )}
+      </Modal>
     </View>
   );
 }

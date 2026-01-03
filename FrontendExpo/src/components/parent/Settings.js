@@ -16,10 +16,14 @@ import {
   Image,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useDispatch } from 'react-redux';
+import { logoutUser } from '../../store/authSlice';
 import * as ImagePicker from 'expo-image-picker';
 import { userAPI, parentDashboardAPI } from '../../services/api';
 
 export default function ParentSettings({ navigation }) {
+  const dispatch = useDispatch();
+  
   // User data
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -382,8 +386,8 @@ export default function ParentSettings({ navigation }) {
           text: 'Logout',
           style: 'destructive',
           onPress: async () => {
-            await AsyncStorage.multiRemove(['token', 'user', 'userId']);
-            navigation.replace('Welcome');
+            await dispatch(logoutUser());
+            navigation.replace('Login');
           },
         },
       ]

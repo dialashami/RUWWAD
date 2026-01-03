@@ -15,11 +15,15 @@ import {
   Platform,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useDispatch } from 'react-redux';
+import { logoutUser } from '../../store/authSlice';
 import * as ImagePicker from 'expo-image-picker';
 import { userAPI } from '../../services/api';
 import API_CONFIG from '../../config/api.config';
 
 export default function TeacherSettings({ navigation }) {
+  const dispatch = useDispatch();
+  
   // Profile state
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -429,10 +433,8 @@ export default function TeacherSettings({ navigation }) {
           text: 'Logout',
           style: 'destructive',
           onPress: async () => {
-            await AsyncStorage.removeItem('token');
-            await AsyncStorage.removeItem('userId');
-            await AsyncStorage.removeItem('user');
-            navigation.replace('Welcome');
+            await dispatch(logoutUser());
+            navigation.replace('Login');
           },
         },
       ]

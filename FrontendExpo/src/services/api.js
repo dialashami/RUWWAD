@@ -84,11 +84,19 @@ export const userAPI = {
 export const courseAPI = {
   getCourses: () => api.get('/api/courses'),
   getCourse: (id) => api.get(`/api/courses/${id}`),
+  getCourseWithProgress: (id, studentId) => {
+    const url = studentId 
+      ? `/api/courses/${id}/progress?studentId=${studentId}`
+      : `/api/courses/${id}/progress`;
+    return api.get(url);
+  },
   createCourse: (data) => api.post('/api/courses', data),
   updateCourse: (id, data) => api.put(`/api/courses/${id}`, data),
   deleteCourse: (id) => api.delete(`/api/courses/${id}`),
   getMyCourses: () => api.get('/api/courses/my-courses'),
-  enrollCourse: (id) => api.post(`/api/courses/${id}/enroll`),
+  enrollCourse: (id, studentId) => api.post(`/api/courses/${id}/enroll`, { studentId }),
+  unenrollCourse: (id, studentId) => api.post(`/api/courses/${id}/unenroll`, { studentId }),
+  markVideoWatched: (id, data) => api.post(`/api/courses/${id}/watch-video`, data),
 };
 
 // ========= Assignment API =========

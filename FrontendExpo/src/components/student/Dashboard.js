@@ -11,7 +11,7 @@ import {
 import { useStudent } from '../../context/StudentContext';
 import { studentDashboardAPI } from '../../services/api';
 
-export default function Dashboard() {
+export default function Dashboard({ onNavigate }) {
   // Get data from context
   const {
     student,
@@ -201,11 +201,17 @@ export default function Dashboard() {
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Quick Actions</Text>
         <View style={styles.quickActions}>
-          <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#007bff' }]}>
+          <TouchableOpacity 
+            style={[styles.actionBtn, { backgroundColor: '#007bff' }]}
+            onPress={() => onNavigate && onNavigate('lessons')}
+          >
             <Text style={styles.actionIcon}>📚</Text>
             <Text style={styles.actionText}>Continue Learning</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#28a745' }]}>
+          <TouchableOpacity 
+            style={[styles.actionBtn, { backgroundColor: '#28a745' }]}
+            onPress={() => onNavigate && onNavigate('assignments')}
+          >
             <Text style={styles.actionIcon}>📝</Text>
             <Text style={styles.actionText}>View Assignments</Text>
           </TouchableOpacity>

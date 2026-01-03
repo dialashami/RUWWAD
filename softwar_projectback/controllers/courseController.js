@@ -236,3 +236,126 @@ exports.unenrollStudent = async (req, res, next) => {
     next(err);
   }
 };
+
+// Mark a video as watched (student)
+exports.markVideoWatched = async (req, res, next) => {
+  try {
+    const { studentId, videoUrl, videoType } = req.body; // videoType: 'url' or 'uploaded'
+    const course = await Course.findById(req.params.id);
+    if (!course) return res.status(404).json({ message: 'Course not found' });
+
+    // Find or create student's progress record
+    let studentProgress = course.videoProgress.find(
+      vp => vp.student.toString() === studentId
+    );
+
+    if (!studentProgress) {
+      course.videoProgress.push({
+        student: studentId,
+        watchedVideoUrls: [],
+        watchedUploadedVideos: [],
+      });
+      studentProgress = course.videoProgress[course.videoProgress.length - 1];
+    }
+
+    // Add video to watched list if not already watched
+    if (videoType === 'url') {
+      if (!studentProgress.watchedVideoUrls.includes(videoUrl)) {
+        studentProgress.watchedVideoUrls.push(videoUrl);
+      }
+    } else if (videoType === 'uploaded') {
+      if (!studentProgress.watchedUploadedVideos.includes(videoUrl)) {
+        studentProgress.watchedUploadedVideos.push(videoUrl);
+      }
+    }
+
+    // Calculate progress
+    const totalVideos = (course.videoUrls?.length || 0) + (course.uploadedVideos?.length || 0);
+    const watchedCount = 
+      (studentProgress.watchedVideoUrls?.length || 0) + 
+      (studentProgress.watchedUploadedVideos?.length || 0);
+    
+    const progressPercent = totalVideos > 0 ? Math.round((watchedCount / totalVideos) * 100) : 100;
+
+    // If all videos are watched, mark as completed
+    if (progressPercent >= 100 && !studentProgress.completedAt) {
+      studentProgress.completedAt = new Date();
+      
+      // Send notification to student
+      try {
+        const Notification = require('../models/Notification');
+        await Notification.create({
+          user: studentId,
+          title: 'Course Completed! 🎉',
+          message: `Congratulations! You have completed the course "${course.title}".`,
+          type: 'achievement',
+          isRead: false,
+        });
+      } catch (notifErr) {
+        console.error('Error creating completion notification:', notifErr);
+      }
+    }
+
+    await course.save();
+
+    res.json({
+      message: 'Video marked as watched',
+      progress: progressPercent,
+      isCompleted: progressPercent >= 100,
+      watchedVideoUrls: studentProgress.watchedVideoUrls,
+      watchedUploadedVideos: studentProgress.watchedUploadedVideos,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Get course with student's video progress
+exports.getCourseWithProgress = async (req, res, next) => {
+  try {
+    const { studentId } = req.query;
+    const course = await Course.findById(req.params.id)
+      .populate('teacher', 'firstName lastName email')
+      .populate('students', 'firstName lastName email');
+    
+    if (!course) return res.status(404).json({ message: 'Course not found' });
+
+    const courseObj = course.toObject();
+    
+    if (studentId) {
+      const studentProgress = course.videoProgress.find(
+        vp => vp.student.toString() === studentId
+      );
+      
+      const totalVideos = (course.videoUrls?.length || 0) + (course.uploadedVideos?.length || 0);
+      let progressPercent = 0;
+      
+      if (studentProgress) {
+        const watchedCount = 
+          (studentProgress.watchedVideoUrls?.length || 0) + 
+          (studentProgress.watchedUploadedVideos?.length || 0);
+        progressPercent = totalVideos > 0 ? Math.round((watchedCount / totalVideos) * 100) : 100;
+        
+        courseObj.studentVideoProgress = {
+          watchedVideoUrls: studentProgress.watchedVideoUrls || [],
+          watchedUploadedVideos: studentProgress.watchedUploadedVideos || [],
+          completedAt: studentProgress.completedAt,
+        };
+      } else {
+        courseObj.studentVideoProgress = {
+          watchedVideoUrls: [],
+          watchedUploadedVideos: [],
+          completedAt: null,
+        };
+      }
+      
+      courseObj.progress = progressPercent;
+      courseObj.isCompleted = progressPercent >= 100;
+      courseObj.totalVideoCount = totalVideos;
+    }
+    
+    res.json(courseObj);
+  } catch (err) {
+    next(err);
+  }
+};

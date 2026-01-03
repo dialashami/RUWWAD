@@ -71,6 +71,19 @@ export default function AssignmentManagement() {
   const [filter, setFilter] = useState('all');
   const [isCreating, setIsCreating] = useState(false);
 
+  // Submissions modal states
+  const [showSubmissionsModal, setShowSubmissionsModal] = useState(false);
+  const [selectedAssignment, setSelectedAssignment] = useState(null);
+  const [submissions, setSubmissions] = useState([]);
+  const [loadingSubmissions, setLoadingSubmissions] = useState(false);
+  
+  // Grading modal states
+  const [showGradeModal, setShowGradeModal] = useState(false);
+  const [selectedSubmission, setSelectedSubmission] = useState(null);
+  const [gradeValue, setGradeValue] = useState('');
+  const [feedbackValue, setFeedbackValue] = useState('');
+  const [isGrading, setIsGrading] = useState(false);
+
   // Picker modal states
   const [showSubjectPicker, setShowSubjectPicker] = useState(false);
   const [showGradePicker, setShowGradePicker] = useState(false);
@@ -288,6 +301,108 @@ export default function AssignmentManagement() {
     } finally {
       setIsCreating(false);
     }
+  };
+
+  // View submissions for an assignment
+  const handleViewSubmissions = async (assignment) => {
+    setSelectedAssignment(assignment);
+    setLoadingSubmissions(true);
+    setShowSubmissionsModal(true);
+    
+    try {
+      const response = await assignmentAPI.getAssignment(assignment.id);
+      if (response.data && response.data.submissions) {
+        setSubmissions(response.data.submissions.map(sub => ({
+          id: sub._id,
+          studentId: sub.student?._id || sub.student,
+          studentName: sub.student?.firstName && sub.student?.lastName 
+            ? `${sub.student.firstName} ${sub.student.lastName}`
+            : sub.student?.email || 'Unknown Student',
+          studentEmail: sub.student?.email || '',
+          file: sub.file,
+          fileName: sub.fileName || 'Submitted file',
+          submittedAt: sub.submittedAt,
+          grade: sub.grade,
+          feedback: sub.feedback,
+          isGraded: sub.isGraded || false,
+        })));
+      } else {
+        setSubmissions([]);
+      }
+    } catch (err) {
+      console.error('Error fetching submissions:', err);
+      Alert.alert('Error', 'Failed to load submissions.');
+      setSubmissions([]);
+    } finally {
+      setLoadingSubmissions(false);
+    }
+  };
+
+  // Open grade modal
+  const handleOpenGradeModal = (submission) => {
+    setSelectedSubmission(submission);
+    setGradeValue(submission.grade?.toString() || '');
+    setFeedbackValue(submission.feedback || '');
+    setShowGradeModal(true);
+  };
+
+  // Submit grade
+  const handleSubmitGrade = async () => {
+    if (!gradeValue || isNaN(parseInt(gradeValue))) {
+      Alert.alert('Error', 'Please enter a valid grade.');
+      return;
+    }
+
+    const grade = parseInt(gradeValue);
+    if (grade < 0 || grade > 100) {
+      Alert.alert('Error', 'Grade must be between 0 and 100.');
+      return;
+    }
+
+    setIsGrading(true);
+    try {
+      await assignmentAPI.gradeAssignment(selectedAssignment.id, {
+        submissionId: selectedSubmission.id,
+        grade,
+        feedback: feedbackValue,
+      });
+
+      // Update local submission state
+      setSubmissions(prev => prev.map(sub => 
+        sub.id === selectedSubmission.id 
+          ? { ...sub, grade, feedback: feedbackValue, isGraded: true }
+          : sub
+      ));
+
+      // Update assignment graded count
+      setAssignments(prev => prev.map(a => 
+        a.id === selectedAssignment.id 
+          ? { ...a, graded: (a.graded || 0) + 1 }
+          : a
+      ));
+
+      Alert.alert('Success', 'Grade submitted successfully!');
+      setShowGradeModal(false);
+      refreshData();
+    } catch (err) {
+      console.error('Error submitting grade:', err);
+      Alert.alert('Error', 'Failed to submit grade. Please try again.');
+    } finally {
+      setIsGrading(false);
+    }
+  };
+
+  // Format submission date
+  const formatSubmissionDate = (dateString) => {
+    if (!dateString) return 'Unknown';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
   };
 
   const getFilteredAssignments = () => {
@@ -575,8 +690,11 @@ export default function AssignmentManagement() {
                     <Text style={styles.scoreLabel}>Points: {assignment.maxScore}</Text>
                     <Text style={styles.scoreLabel}>Pass: {assignment.passingScore}</Text>
                   </View>
-                  <TouchableOpacity style={styles.viewButton}>
-                    <Text style={styles.viewButtonText}>View Details →</Text>
+                  <TouchableOpacity 
+                    style={styles.viewButton}
+                    onPress={() => handleViewSubmissions(assignment)}
+                  >
+                    <Text style={styles.viewButtonText}>View Submissions →</Text>
                   </TouchableOpacity>
                 </View>
               </TouchableOpacity>
@@ -801,6 +919,180 @@ export default function AssignmentManagement() {
             (val) => setFormData({ ...formData, status: val }), 'Select Status', true)}
           {showDatePicker && renderPickerModal(showDatePicker, setShowDatePicker, generateDateOptions(), formData.dueDate, 
             (val) => setFormData({ ...formData, dueDate: val }), 'Select Due Date', true)}
+        </View>
+      </Modal>
+
+      {/* Submissions Modal */}
+      <Modal
+        visible={showSubmissionsModal}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setShowSubmissionsModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.submissionsModalContent}>
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalTitle}>Submissions</Text>
+                {selectedAssignment && (
+                  <Text style={styles.submissionsSubtitle}>{selectedAssignment.title}</Text>
+                )}
+              </View>
+              <TouchableOpacity onPress={() => setShowSubmissionsModal(false)}>
+                <Text style={styles.modalCloseBtn}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            {loadingSubmissions ? (
+              <View style={styles.submissionsLoading}>
+                <ActivityIndicator size="large" color="#007bff" />
+                <Text style={styles.loadingText}>Loading submissions...</Text>
+              </View>
+            ) : submissions.length > 0 ? (
+              <ScrollView style={styles.submissionsList} showsVerticalScrollIndicator={false}>
+                {submissions.map((submission) => (
+                  <View key={submission.id} style={styles.submissionCard}>
+                    <View style={styles.submissionHeader}>
+                      <View style={styles.studentInfo}>
+                        <View style={styles.studentAvatar}>
+                          <Text style={styles.studentInitial}>
+                            {submission.studentName[0]?.toUpperCase() || '?'}
+                          </Text>
+                        </View>
+                        <View>
+                          <Text style={styles.studentName}>{submission.studentName}</Text>
+                          <Text style={styles.submissionDate}>
+                            Submitted: {formatSubmissionDate(submission.submittedAt)}
+                          </Text>
+                        </View>
+                      </View>
+                      {submission.isGraded && (
+                        <View style={styles.gradeBadge}>
+                          <Text style={styles.gradeBadgeText}>{submission.grade}%</Text>
+                        </View>
+                      )}
+                    </View>
+
+                    {/* File info */}
+                    <View style={styles.fileRow}>
+                      <Text style={styles.fileIcon}>📄</Text>
+                      <Text style={styles.fileName} numberOfLines={1}>
+                        {submission.fileName || 'Submitted file'}
+                      </Text>
+                    </View>
+
+                    {/* Feedback if graded */}
+                    {submission.isGraded && submission.feedback && (
+                      <View style={styles.feedbackRow}>
+                        <Text style={styles.feedbackLabel}>Feedback:</Text>
+                        <Text style={styles.feedbackText}>{submission.feedback}</Text>
+                      </View>
+                    )}
+
+                    {/* Grade button */}
+                    <TouchableOpacity
+                      style={[
+                        styles.gradeBtn,
+                        submission.isGraded && styles.gradeBtnGraded,
+                      ]}
+                      onPress={() => handleOpenGradeModal(submission)}
+                    >
+                      <Text style={[
+                        styles.gradeBtnText,
+                        submission.isGraded && styles.gradeBtnTextGraded,
+                      ]}>
+                        {submission.isGraded ? '✏️ Edit Grade' : '📝 Grade Submission'}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+                <View style={{ height: 20 }} />
+              </ScrollView>
+            ) : (
+              <View style={styles.emptySubmissions}>
+                <Text style={styles.emptyIcon}>📭</Text>
+                <Text style={styles.emptyTitle}>No Submissions Yet</Text>
+                <Text style={styles.emptySubtitle}>
+                  Students haven't submitted this assignment yet.
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Grade Modal */}
+      <Modal
+        visible={showGradeModal}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setShowGradeModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.gradeModalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Grade Submission</Text>
+              <TouchableOpacity onPress={() => setShowGradeModal(false)}>
+                <Text style={styles.modalCloseBtn}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            {selectedSubmission && (
+              <View style={styles.gradeModalBody}>
+                <View style={styles.gradeStudentInfo}>
+                  <Text style={styles.gradeStudentName}>{selectedSubmission.studentName}</Text>
+                  <Text style={styles.gradeStudentDate}>
+                    Submitted: {formatSubmissionDate(selectedSubmission.submittedAt)}
+                  </Text>
+                </View>
+
+                <View style={styles.gradeInputSection}>
+                  <Text style={styles.gradeLabel}>Grade (0-100)</Text>
+                  <TextInput
+                    style={styles.gradeInput}
+                    value={gradeValue}
+                    onChangeText={setGradeValue}
+                    keyboardType="numeric"
+                    placeholder="Enter grade"
+                    maxLength={3}
+                  />
+                </View>
+
+                <View style={styles.feedbackInputSection}>
+                  <Text style={styles.gradeLabel}>Feedback (Optional)</Text>
+                  <TextInput
+                    style={styles.feedbackInput}
+                    value={feedbackValue}
+                    onChangeText={setFeedbackValue}
+                    placeholder="Add feedback for the student..."
+                    multiline
+                    numberOfLines={4}
+                    textAlignVertical="top"
+                  />
+                </View>
+
+                <View style={styles.gradeModalButtons}>
+                  <TouchableOpacity
+                    style={styles.gradeCancelBtn}
+                    onPress={() => setShowGradeModal(false)}
+                  >
+                    <Text style={styles.gradeCancelBtnText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.gradeSubmitBtn, isGrading && styles.disabledButton]}
+                    onPress={handleSubmitGrade}
+                    disabled={isGrading}
+                  >
+                    {isGrading ? (
+                      <ActivityIndicator size="small" color="#fff" />
+                    ) : (
+                      <Text style={styles.gradeSubmitBtnText}>Submit Grade</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+          </View>
         </View>
       </Modal>
     </View>
@@ -1271,5 +1563,235 @@ const styles = StyleSheet.create({
     color: '#2563eb',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  // Submissions Modal Styles
+  submissionsModalContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '90%',
+    marginTop: 'auto',
+    paddingBottom: 20,
+  },
+  submissionsSubtitle: {
+    fontSize: 14,
+    color: '#6b7280',
+    marginTop: 4,
+  },
+  modalCloseBtn: {
+    fontSize: 22,
+    color: '#6b7280',
+    padding: 4,
+  },
+  submissionsLoading: {
+    padding: 40,
+    alignItems: 'center',
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#6b7280',
+  },
+  submissionsList: {
+    padding: 16,
+  },
+  submissionCard: {
+    backgroundColor: '#f9fafb',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  submissionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  studentInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  studentAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#e0f2fe',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  studentInitial: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#0369a1',
+  },
+  studentName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1f2937',
+  },
+  submissionDate: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginTop: 2,
+  },
+  gradeBadge: {
+    backgroundColor: '#dcfce7',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  gradeBadgeText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#16a34a',
+  },
+  fileRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  fileIcon: {
+    fontSize: 20,
+    marginRight: 10,
+  },
+  fileName: {
+    fontSize: 14,
+    color: '#4b5563',
+    flex: 1,
+  },
+  feedbackRow: {
+    backgroundColor: '#fef3c7',
+    padding: 10,
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  feedbackLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#92400e',
+    marginBottom: 4,
+  },
+  feedbackText: {
+    fontSize: 13,
+    color: '#78350f',
+  },
+  gradeBtn: {
+    backgroundColor: '#007bff',
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  gradeBtnGraded: {
+    backgroundColor: '#e5e7eb',
+  },
+  gradeBtnText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  gradeBtnTextGraded: {
+    color: '#374151',
+  },
+  emptySubmissions: {
+    padding: 40,
+    alignItems: 'center',
+  },
+  // Grade Modal Styles
+  gradeModalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    marginHorizontal: 20,
+    marginVertical: 'auto',
+    maxWidth: 400,
+    alignSelf: 'center',
+    width: '100%',
+  },
+  gradeModalBody: {
+    padding: 20,
+  },
+  gradeStudentInfo: {
+    marginBottom: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  gradeStudentName: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1f2937',
+  },
+  gradeStudentDate: {
+    fontSize: 13,
+    color: '#6b7280',
+    marginTop: 4,
+  },
+  gradeInputSection: {
+    marginBottom: 16,
+  },
+  gradeLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  gradeInput: {
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1f2937',
+    textAlign: 'center',
+  },
+  feedbackInputSection: {
+    marginBottom: 20,
+  },
+  feedbackInput: {
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 14,
+    color: '#1f2937',
+    minHeight: 100,
+  },
+  gradeModalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  gradeCancelBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    alignItems: 'center',
+  },
+  gradeCancelBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#4b5563',
+  },
+  gradeSubmitBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    backgroundColor: '#007bff',
+    alignItems: 'center',
+  },
+  gradeSubmitBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#fff',
   },
 });
