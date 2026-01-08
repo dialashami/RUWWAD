@@ -8,6 +8,7 @@ import {
   ScrollView,
   StatusBar,
   SafeAreaView,
+  Image,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useDispatch } from 'react-redux';
@@ -118,7 +119,9 @@ export default function AdminHomeScreen({ navigation }) {
         >
           <Text style={styles.menuIcon}>☰</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{getActiveTitle()}</Text>
+        <TouchableOpacity style={styles.headerTitleContainer} onPress={() => setActivePage('dashboard')}>
+          <Text style={styles.headerTitle}>RUWWAD</Text>
+        </TouchableOpacity>
         <View style={styles.headerRight}>
           <TouchableOpacity 
             style={styles.headerIconContainer}
@@ -150,13 +153,17 @@ export default function AdminHomeScreen({ navigation }) {
           <View style={styles.sidebar}>
             {/* Sidebar Header */}
             <View style={styles.sidebarHeader}>
+              <View style={styles.sidebarLogoContainer}>
+                <Image source={require('../../assets/logoRUWWAD2.png')} style={styles.sidebarLogoImage} />
+                <Text style={styles.sidebarLogo}>RUWWAD</Text>
+              </View>
               <View style={styles.profileSection}>
                 <View style={styles.avatar}>
                   <Text style={styles.avatarText}>👨‍💼</Text>
                 </View>
                 <View style={styles.profileInfo}>
                   <Text style={styles.profileName}>{userName}</Text>
-                  <Text style={styles.profileRole}>RUWWAD Administrator</Text>
+                  <Text style={styles.profileRole}>Administrator</Text>
                 </View>
               </View>
               <TouchableOpacity
@@ -230,25 +237,46 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#4f46e5',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    backgroundColor: '#2c3e50',
+    paddingTop: 50,
+    paddingBottom: 15,
+    paddingHorizontal: 15,
+    position: 'relative',
   },
   menuButton: {
     padding: 8,
+    zIndex: 1,
   },
   menuIcon: {
     fontSize: 24,
     color: '#fff',
   },
+  headerTitleContainer: {
+    position: 'absolute',
+    left: '30%',
+    right: '30%',
+    top: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 35,
+    zIndex: 0,
+  },
+  headerLogoImage: {
+    width: 28,
+    height: 28,
+    marginRight: 8,
+  },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#fff',
   },
   headerRight: {
     flexDirection: 'row',
-    gap: 16,
+    alignItems: 'center',
+    gap: 12,
+    zIndex: 1,
   },
   headerIcon: {
     fontSize: 22,
@@ -262,7 +290,7 @@ const styles = StyleSheet.create({
   },
   sidebar: {
     width: '75%',
-    backgroundColor: '#fff',
+    backgroundColor: '#2c3e50',
     shadowColor: '#000',
     shadowOffset: { width: 2, height: 0 },
     shadowOpacity: 0.25,
@@ -314,6 +342,21 @@ const styles = StyleSheet.create({
   closeIcon: {
     fontSize: 20,
     color: '#fff',
+  },
+  sidebarLogoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  sidebarLogoImage: {
+    width: 32,
+    height: 32,
+    marginRight: 10,
+  },
+  sidebarLogo: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#3498db',
   },
   menuContainer: {
     flex: 1,

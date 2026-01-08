@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { notificationAPI } from '../../services/api';
 
 const defaultNotifications = [
@@ -195,18 +196,28 @@ export default function Notifications({ onNotificationsRead, decrementUnreadNoti
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.title}>Notifications</Text>
-          <Text style={styles.subtitle}>{unreadCount} unread notifications</Text>
+      {/* Header Banner */}
+      <LinearGradient
+        colors={['#3498db', '#2c3e50']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.headerBanner}
+      >
+        <View style={styles.decorCircle1} />
+        <View style={styles.decorCircle2} />
+        <View style={styles.decorSquare} />
+        <View style={styles.bannerContent}>
+          <View style={styles.bannerTextContainer}>
+            <Text style={styles.bannerTitle}>Notifications</Text>
+            <Text style={styles.bannerSubtitle}>{unreadCount} unread notifications</Text>
+          </View>
+          {unreadCount > 0 && (
+            <TouchableOpacity style={styles.markAllBtn} onPress={markAllAsRead}>
+              <Text style={styles.markAllText}>Mark all read</Text>
+            </TouchableOpacity>
+          )}
         </View>
-        {unreadCount > 0 && (
-          <TouchableOpacity style={styles.markAllBtn} onPress={markAllAsRead}>
-            <Text style={styles.markAllText}>Mark all read</Text>
-          </TouchableOpacity>
-        )}
-      </View>
+      </LinearGradient>
 
       {/* Notifications List */}
       <ScrollView 
@@ -253,33 +264,76 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f5f7fa',
   },
-  header: {
+  headerBanner: {
+    margin: 15,
+    borderRadius: 24,
+    padding: 24,
+    backgroundColor: '#3498db',
+    overflow: 'hidden',
+    position: 'relative',
+    shadowColor: '#2c3e50',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
+  },
+  decorCircle1: {
+    position: 'absolute',
+    top: -20,
+    right: 60,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+  },
+  decorCircle2: {
+    position: 'absolute',
+    bottom: -30,
+    left: 40,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+  },
+  decorSquare: {
+    position: 'absolute',
+    top: '40%',
+    right: '25%',
+    width: 30,
+    height: 30,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    transform: [{ rotate: '45deg' }],
+  },
+  bannerContent: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 20,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    justifyContent: 'space-between',
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1f2937',
+  bannerTextContainer: {
+    flex: 1,
   },
-  subtitle: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginTop: 4,
+  bannerTitle: {
+    fontSize: 26,
+    fontWeight: '700',
+    color: '#fff',
+    marginBottom: 8,
+  },
+  bannerSubtitle: {
+    fontSize: 15,
+    color: 'rgba(255, 255, 255, 0.85)',
   },
   markAllBtn: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    backgroundColor: '#e0f2fe',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     borderRadius: 8,
   },
   markAllText: {
-    color: '#0369a1',
+    color: '#fff',
     fontSize: 13,
     fontWeight: '600',
   },

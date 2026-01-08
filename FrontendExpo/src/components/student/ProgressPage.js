@@ -7,8 +7,9 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useStudent } from '../../context/StudentContext';
-import { studentDashboardAPI } from '../../services/api';
+import { studentDashboardAPI, feedbackAPI } from '../../services/api';
 
 const defaultProgressData = {
   overallProgress: 75,
@@ -36,12 +37,28 @@ export default function ProgressPage() {
   const { student, progress: contextProgress, refreshData, loading: contextLoading } = useStudent();
 
   const [progressData, setProgressData] = useState(defaultProgressData);
+  const [feedback, setFeedback] = useState({ received: [], given: [] });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     fetchProgress();
+    fetchFeedback();
   }, [student.id, contextProgress]);
+
+  const fetchFeedback = async () => {
+    try {
+      const response = await feedbackAPI.getMyFeedback();
+      if (response.data) {
+        setFeedback({
+          received: response.data.received || [],
+          given: response.data.given || [],
+        });
+      }
+    } catch (err) {
+      console.error('Error fetching feedback:', err);
+    }
+  };
 
   const fetchProgress = async () => {
     try {
@@ -86,6 +103,7 @@ export default function ProgressPage() {
     setRefreshing(true);
     await refreshData();
     fetchProgress();
+    fetchFeedback();
   };
 
   const getProgressColor = (progress) => {
@@ -110,11 +128,23 @@ export default function ProgressPage() {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
       }
     >
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.title}>My Progress</Text>
-        <Text style={styles.subtitle}>Track your learning journey</Text>
-      </View>
+      {/* Header Banner */}
+      <LinearGradient
+        colors={['#3498db', '#2c3e50']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.headerBanner}
+      >
+        <View style={styles.decorCircle1} />
+        <View style={styles.decorCircle2} />
+        <View style={styles.decorSquare} />
+        <View style={styles.bannerContent}>
+          <View style={styles.bannerTextContainer}>
+            <Text style={styles.bannerTitle}>My Progress</Text>
+            <Text style={styles.bannerSubtitle}>Track your learning journey</Text>
+          </View>
+        </View>
+      </LinearGradient>
 
       {/* Overall Progress */}
       <View style={styles.overallCard}>
@@ -183,6 +213,56 @@ export default function ProgressPage() {
           ))}
         </View>
       </View>
+
+      {/* Feedback Section - Only show 4+ star feedback */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Teacher Feedback</Text>
+        {feedback.received.filter(item => item.rating >= 4).length > 0 ? (
+          feedback.received.filter(item => item.rating >= 4).map((item, index) => (
+            <View key={index} style={styles.feedbackCard}>
+              <View style={styles.feedbackHeader}>
+                <View style={styles.feedbackRating}>
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <Text 
+                      key={star} 
+                      style={[
+                        styles.feedbackStar,
+                        star <= (item.rating || 0) && styles.feedbackStarActive
+                      ]}
+                    >
+                      ★
+                    </Text>
+                  ))}
+                </View>
+                <Text style={styles.feedbackDate}>
+                  {new Date(item.createdAt).toLocaleDateString()}
+                </Text>
+              </View>
+              {item.comment && (
+                <Text style={styles.feedbackComment}>{item.comment}</Text>
+              )}
+              <View style={styles.feedbackMeta}>
+                <Text style={styles.feedbackFrom}>
+                  From: {item.author?.firstName} {item.author?.lastName}
+                </Text>
+                {item.course && (
+                  <Text style={styles.feedbackCourse}>
+                    {item.course.subject || item.course.title}
+                  </Text>
+                )}
+              </View>
+            </View>
+          ))
+        ) : (
+          <View style={styles.emptyFeedback}>
+            <Text style={styles.emptyFeedbackIcon}>💬</Text>
+            <Text style={styles.emptyFeedbackText}>No feedback received yet</Text>
+            <Text style={styles.emptyFeedbackSubtext}>
+              Keep working hard and you'll receive feedback soon!
+            </Text>
+          </View>
+        )}
+      </View>
     </ScrollView>
   );
 }
@@ -192,21 +272,67 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f5f7fa',
   },
-  header: {
-    padding: 20,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+  headerBanner: {
+    margin: 15,
+    borderRadius: 24,
+    padding: 24,
+    backgroundColor: '#3498db',
+    overflow: 'hidden',
+    position: 'relative',
+    shadowColor: '#2c3e50',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1f2937',
+  decorCircle1: {
+    position: 'absolute',
+    top: -20,
+    right: 60,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
   },
-  subtitle: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginTop: 4,
+  decorCircle2: {
+    position: 'absolute',
+    bottom: -30,
+    left: 40,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+  },
+  decorSquare: {
+    position: 'absolute',
+    top: '40%',
+    right: '25%',
+    width: 30,
+    height: 30,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    transform: [{ rotate: '45deg' }],
+  },
+  bannerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  bannerTextContainer: {
+    flex: 1,
+  },
+  bannerTitle: {
+    fontSize: 26,
+    fontWeight: '700',
+    color: '#fff',
+    marginBottom: 8,
+  },
+  bannerSubtitle: {
+    fontSize: 15,
+    color: 'rgba(255, 255, 255, 0.85)',
   },
   overallCard: {
     margin: 15,
@@ -370,5 +496,89 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#f3f4f6',
+  },
+  feedbackCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  feedbackHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  feedbackRating: {
+    flexDirection: 'row',
+  },
+  feedbackStar: {
+    fontSize: 16,
+    color: '#d1d5db',
+    marginRight: 2,
+  },
+  feedbackStarActive: {
+    color: '#fbbf24',
+  },
+  feedbackDate: {
+    fontSize: 12,
+    color: '#9ca3af',
+  },
+  feedbackComment: {
+    fontSize: 14,
+    color: '#374151',
+    lineHeight: 20,
+    marginBottom: 8,
+  },
+  feedbackMeta: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#f3f4f6',
+  },
+  feedbackFrom: {
+    fontSize: 12,
+    color: '#6b7280',
+  },
+  feedbackCourse: {
+    fontSize: 11,
+    color: '#3b82f6',
+    backgroundColor: '#eff6ff',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  emptyFeedback: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 32,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  emptyFeedbackIcon: {
+    fontSize: 48,
+    marginBottom: 12,
+  },
+  emptyFeedbackText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 4,
+  },
+  emptyFeedbackSubtext: {
+    fontSize: 13,
+    color: '#9ca3af',
+    textAlign: 'center',
   },
 });

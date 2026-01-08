@@ -131,7 +131,7 @@ function StudentHomeContent({ navigation }) {
         >
           <Text style={styles.menuIcon}>☰</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => setActivePage('dashboard')}>
+        <TouchableOpacity style={styles.navTitleContainer} onPress={() => setActivePage('dashboard')}>
           <Text style={styles.navTitle}>RUWWAD</Text>
         </TouchableOpacity>
         <View style={styles.navRight}>
@@ -181,7 +181,8 @@ function StudentHomeContent({ navigation }) {
           <View style={styles.sidebar}>
             {/* Sidebar Header with Logo */}
             <View style={styles.sidebarHeader}>
-              <TouchableOpacity onPress={() => { setActivePage('dashboard'); setSidebarVisible(false); }}>
+              <TouchableOpacity style={styles.sidebarLogoContainer} onPress={() => { setActivePage('dashboard'); setSidebarVisible(false); }}>
+                <Image source={require('../../assets/logoRUWWAD2.png')} style={styles.sidebarLogoImage} />
                 <Text style={styles.sidebarLogo}>RUWWAD</Text>
               </TouchableOpacity>
               <Text style={styles.sidebarSubtitle}>Student Portal</Text>
@@ -273,17 +274,35 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#007bff',
+    backgroundColor: '#2c3e50',
     paddingTop: 50,
     paddingBottom: 15,
     paddingHorizontal: 15,
+    position: 'relative',
   },
   menuButton: {
     padding: 8,
+    zIndex: 1,
   },
   menuIcon: {
     fontSize: 24,
     color: '#fff',
+  },
+  navTitleContainer: {
+    position: 'absolute',
+    left: '30%',
+    right: '30%',
+    top: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 35,
+    zIndex: 0,
+  },
+  navLogoImage: {
+    width: 28,
+    height: 28,
+    marginRight: 8,
   },
   navTitle: {
     fontSize: 20,
@@ -292,7 +311,9 @@ const styles = StyleSheet.create({
   },
   navRight: {
     flexDirection: 'row',
-    gap: 15,
+    alignItems: 'center',
+    gap: 12,
+    zIndex: 1,
   },
   navIcon: {
     padding: 5,
@@ -323,7 +344,7 @@ const styles = StyleSheet.create({
   },
   sidebar: {
     width: width * 0.75,
-    backgroundColor: '#1a1f36',
+    backgroundColor: '#2c3e50',
     height: '100%',
   },
   sidebarHeader: {
@@ -332,10 +353,20 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255,255,255,0.1)',
   },
+  sidebarLogoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  sidebarLogoImage: {
+    width: 32,
+    height: 32,
+    marginRight: 10,
+  },
   sidebarLogo: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#007bff',
+    color: '#3498db',
   },
   sidebarSubtitle: {
     fontSize: 12,

@@ -38,6 +38,56 @@ exports.getFeedbacks = async (req, res, next) => {
   }
 };
 
+// Get feedback received by the current user (for students to see their feedback)
+exports.getMyFeedback = async (req, res, next) => {
+  try {
+    const userId = req.userId;
+    console.log('getMyFeedback called with userId:', userId);
+    
+    // Check if userId exists
+    if (!userId) {
+      console.log('No userId found, returning empty arrays');
+      return res.json({
+        received: [],
+        given: [],
+      });
+    }
+    
+    // Check if userId is a valid ObjectId
+    const mongoose = require('mongoose');
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      console.log('Invalid ObjectId:', userId, '- returning empty arrays');
+      // Return empty arrays for invalid user IDs (like "admin" string)
+      return res.json({
+        received: [],
+        given: [],
+      });
+    }
+    
+    console.log('Fetching feedback for valid userId:', userId);
+    // Get feedback where the current user is the target (received feedback)
+    const receivedFeedback = await Feedback.find({ targetUser: userId })
+      .populate('author', 'firstName lastName role')
+      .populate('course', 'title subject')
+      .sort({ createdAt: -1 });
+    
+    // Get feedback created by the current user (given feedback)
+    const givenFeedback = await Feedback.find({ author: userId })
+      .populate('targetUser', 'firstName lastName role')
+      .populate('course', 'title subject')
+      .sort({ createdAt: -1 });
+    
+    console.log('Feedback fetched - received:', receivedFeedback.length, 'given:', givenFeedback.length);
+    res.json({
+      received: receivedFeedback,
+      given: givenFeedback,
+    });
+  } catch (err) {
+    console.error('Error in getMyFeedback:', err);
+    next(err);
+  }
+};
+
 exports.getFeedbackById = async (req, res, next) => {
   try {
     const feedback = await Feedback.findById(req.params.id)

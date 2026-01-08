@@ -21,14 +21,12 @@ module.exports = (req, res, next) => {
   try {
     decodedToken = jwt.verify(token, process.env.SECRET);
   } catch (err) {
-    err.statusCode = 500;
-    throw err;
+    console.error('JWT verification error:', err.message);
+    return res.status(401).json({ message: 'Invalid or expired token' });
   }
 
   if (!decodedToken) {
-    const error = new Error("Not authenticated");
-    error.statusCode = 401;
-    throw error;
+    return res.status(401).json({ message: 'Not authenticated' });
   }
 
   req.userId = decodedToken.userId;

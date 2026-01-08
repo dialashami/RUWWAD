@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { systemSettingsAPI } from '../../services/api';
 
@@ -107,11 +108,23 @@ export default function SystemSettings() {
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
       <ScrollView style={styles.container} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>System Settings</Text>
-          <Text style={styles.headerSubtitle}>Configure platform settings</Text>
-        </View>
+        {/* Header Banner */}
+        <LinearGradient
+          colors={['#3498db', '#2c3e50']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.headerBanner}
+        >
+          <View style={styles.decorCircle1} />
+          <View style={styles.decorCircle2} />
+          <View style={styles.decorSquare} />
+          <View style={styles.bannerContent}>
+            <View style={styles.bannerTextContainer}>
+              <Text style={styles.bannerTitle}>System Settings</Text>
+              <Text style={styles.bannerSubtitle}>Configure platform settings</Text>
+            </View>
+          </View>
+        </LinearGradient>
 
       {/* General Settings */}
       <View style={styles.card}>
@@ -281,21 +294,67 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#f3f4f6',
   },
-  header: {
-    padding: 20,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+  headerBanner: {
+    margin: 15,
+    borderRadius: 24,
+    padding: 24,
+    backgroundColor: '#3498db',
+    overflow: 'hidden',
+    position: 'relative',
+    shadowColor: '#2c3e50',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
   },
-  headerTitle: {
-    fontSize: 24,
+  decorCircle1: {
+    position: 'absolute',
+    top: -20,
+    right: 60,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+  },
+  decorCircle2: {
+    position: 'absolute',
+    bottom: -30,
+    left: 40,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+  },
+  decorSquare: {
+    position: 'absolute',
+    top: '40%',
+    right: '25%',
+    width: 30,
+    height: 30,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    transform: [{ rotate: '45deg' }],
+  },
+  bannerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  bannerTextContainer: {
+    flex: 1,
+  },
+  bannerTitle: {
+    fontSize: 26,
     fontWeight: '700',
-    color: '#1f2937',
+    color: '#fff',
+    marginBottom: 8,
   },
-  headerSubtitle: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginTop: 4,
+  bannerSubtitle: {
+    fontSize: 15,
+    color: 'rgba(255, 255, 255, 0.85)',
   },
   card: {
     backgroundColor: '#fff',

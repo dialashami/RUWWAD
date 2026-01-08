@@ -13,6 +13,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTeacher } from '../../context/TeacherContext';
 import { courseAPI } from '../../services/api';
@@ -308,11 +309,23 @@ export default function LessonManagement() {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Lesson Management</Text>
-        <Text style={styles.headerSubtitle}>Create, edit, and organize your lessons</Text>
-      </View>
+      {/* Header Banner */}
+      <LinearGradient
+        colors={['#3498db', '#2c3e50']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.headerBanner}
+      >
+        <View style={styles.decorCircle1} />
+        <View style={styles.decorCircle2} />
+        <View style={styles.decorSquare} />
+        <View style={styles.bannerContent}>
+          <View style={styles.bannerTextContainer}>
+            <Text style={styles.bannerTitle}>Lesson Management</Text>
+            <Text style={styles.bannerSubtitle}>Create, edit, and organize your lessons</Text>
+          </View>
+        </View>
+      </LinearGradient>
 
       {/* Stats */}
       <View style={styles.statsRow}>
@@ -609,18 +622,67 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     fontSize: 14,
   },
-  header: {
+  headerBanner: {
     marginBottom: 16,
+    borderRadius: 24,
+    padding: 24,
+    backgroundColor: '#3498db',
+    overflow: 'hidden',
+    position: 'relative',
+    shadowColor: '#2c3e50',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 16,
+    elevation: 8,
   },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1f2937',
+  decorCircle1: {
+    position: 'absolute',
+    top: -20,
+    right: 60,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
   },
-  headerSubtitle: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginTop: 4,
+  decorCircle2: {
+    position: 'absolute',
+    bottom: -30,
+    left: 40,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
+  },
+  decorSquare: {
+    position: 'absolute',
+    top: '40%',
+    right: '25%',
+    width: 30,
+    height: 30,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
+    transform: [{ rotate: '45deg' }],
+  },
+  bannerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  bannerTextContainer: {
+    flex: 1,
+  },
+  bannerTitle: {
+    fontSize: 26,
+    fontWeight: '700',
+    color: '#fff',
+    marginBottom: 8,
+  },
+  bannerSubtitle: {
+    fontSize: 15,
+    color: 'rgba(255, 255, 255, 0.85)',
   },
   statsRow: {
     flexDirection: 'row',

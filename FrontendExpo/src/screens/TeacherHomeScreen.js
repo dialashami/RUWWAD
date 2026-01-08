@@ -134,7 +134,7 @@ function TeacherHomeContent({ navigation }) {
         >
           <Text style={styles.menuIcon}>☰</Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={() => setActivePage('dashboard')}>
+        <TouchableOpacity style={styles.headerTitleContainer} onPress={() => setActivePage('dashboard')}>
           <Text style={styles.headerTitle}>RUWWAD</Text>
         </TouchableOpacity>
         <View style={styles.headerRight}>
@@ -189,7 +189,8 @@ function TeacherHomeContent({ navigation }) {
           <View style={styles.sidebar}>
             {/* Sidebar Header with Logo */}
             <View style={styles.sidebarHeader}>
-              <TouchableOpacity onPress={() => { setActivePage('dashboard'); setSidebarVisible(false); }}>
+              <TouchableOpacity style={styles.sidebarLogoContainer} onPress={() => { setActivePage('dashboard'); setSidebarVisible(false); }}>
+                <Image source={require('../../assets/logoRUWWAD2.png')} style={styles.sidebarLogoImage} />
                 <Text style={styles.sidebarLogo}>RUWWAD</Text>
               </TouchableOpacity>
               <Text style={styles.sidebarSubtitle}>Teacher Portal</Text>
@@ -286,25 +287,46 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#28a745',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    backgroundColor: '#2c3e50',
+    paddingTop: 50,
+    paddingBottom: 15,
+    paddingHorizontal: 15,
+    position: 'relative',
   },
   menuButton: {
     padding: 8,
+    zIndex: 1,
   },
   menuIcon: {
     fontSize: 24,
     color: '#fff',
   },
+  headerTitleContainer: {
+    position: 'absolute',
+    left: '30%',
+    right: '30%',
+    top: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 35,
+    zIndex: 0,
+  },
+  headerLogoImage: {
+    width: 28,
+    height: 28,
+    marginRight: 8,
+  },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#fff',
   },
   headerRight: {
     flexDirection: 'row',
-    gap: 16,
+    alignItems: 'center',
+    gap: 12,
+    zIndex: 1,
   },
   headerIcon: {
     fontSize: 22,
@@ -318,7 +340,7 @@ const styles = StyleSheet.create({
   },
   sidebar: {
     width: '75%',
-    backgroundColor: '#1a1f36',
+    backgroundColor: '#2c3e50',
     height: '100%',
   },
   overlayClose: {
@@ -332,10 +354,20 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(255,255,255,0.1)',
     backgroundColor: '#1a1f36',
   },
+  sidebarLogoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  sidebarLogoImage: {
+    width: 32,
+    height: 32,
+    marginRight: 10,
+  },
   sidebarLogo: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#28a745',
+    color: '#3498db',
   },
   sidebarSubtitle: {
     fontSize: 12,
