@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useStudent } from '../../context/StudentContext';
 import { studentDashboardAPI } from '../../services/api';
 
@@ -70,9 +71,19 @@ export default function Dashboard({ onNavigate }) {
 
   // Fetch progress data
   useEffect(() => {
+    const isMountedRef = { current: true };
+    
     const fetchProgressData = async () => {
+      // Check if token exists to prevent 401 errors after logout
+      const token = await AsyncStorage.getItem('token');
+      if (!token || !isMountedRef.current) {
+        return;
+      }
+
       try {
         const response = await studentDashboardAPI.getProgress();
+        if (!isMountedRef.current) return;
+        
         if (response.data?.subjectProgress) {
           const progressObj = {};
           response.data.subjectProgress.forEach(subject => {
@@ -87,10 +98,17 @@ export default function Dashboard({ onNavigate }) {
           setProgressData(progressObj);
         }
       } catch (err) {
-        console.log('Progress data error:', err);
+        // Only log if not a 401 (user logged out)
+        if (err.response?.status !== 401) {
+          console.log('Progress data error:', err);
+        }
       }
     };
     fetchProgressData();
+
+    return () => {
+      isMountedRef.current = false;
+    };
   }, [student.id]);
 
   const onRefresh = async () => {

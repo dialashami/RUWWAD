@@ -362,11 +362,8 @@ export default function StudentSettings({ navigation }) {
                 await userAPI.deleteAccount();
                 Alert.alert('Account Deleted', 'Your account has been permanently deleted.');
                 handleCloseModal();
-                dispatch(logoutUser());
-                navigation.reset({
-                  index: 0,
-                  routes: [{ name: 'Login' }],
-                });
+                await dispatch(logoutUser());
+                navigation.replace('Login');
               } catch (err) {
                 console.error('Error deleting account:', err);
                 Alert.alert('Error', 'Failed to delete account. Please try again.');
@@ -383,7 +380,7 @@ export default function StudentSettings({ navigation }) {
   };
 
   // Logout handler
-  const handleLogout = () => {
+  const handleLogout = async () => {
     Alert.alert(
       'Logout',
       'Are you sure you want to logout?',
@@ -393,11 +390,8 @@ export default function StudentSettings({ navigation }) {
           text: 'Logout',
           style: 'destructive',
           onPress: async () => {
-            dispatch(logoutUser());
-            navigation.reset({
-              index: 0,
-              routes: [{ name: 'Login' }],
-            });
+            await dispatch(logoutUser());
+            navigation.replace('Login');
           },
         },
       ]

@@ -10,9 +10,12 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useDispatch } from 'react-redux';
+import { logoutUser } from '../../store/authSlice';
 import { userAPI } from '../../services/api';
 
 export default function Settings({ navigation }) {
+  const dispatch = useDispatch();
   const [notifications, setNotifications] = useState(true);
   const [emailAlerts, setEmailAlerts] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
@@ -66,10 +69,8 @@ export default function Settings({ navigation }) {
           text: 'Logout',
           style: 'destructive',
           onPress: async () => {
-            await AsyncStorage.removeItem('token');
-            await AsyncStorage.removeItem('userId');
-            await AsyncStorage.removeItem('user');
-            navigation.replace('Welcome');
+            await dispatch(logoutUser());
+            navigation.replace('Login');
           },
         },
       ]

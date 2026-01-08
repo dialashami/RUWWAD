@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   Modal,
   Alert,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useStudent } from '../../context/StudentContext';
 import { courseAPI } from '../../services/api';
 import CourseDetail from './CourseDetail';
@@ -72,15 +73,28 @@ export default function MyLessons() {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [courseDetailVisible, setCourseDetailVisible] = useState(false);
+  const isMountedRef = useRef(true);
 
   useEffect(() => {
+    isMountedRef.current = true;
     fetchLessons();
+    return () => {
+      isMountedRef.current = false;
+    };
   }, [student.id, student.grade, contextCourses]);
 
   const fetchLessons = async () => {
+    // Check token to prevent 401 errors after logout
+    const token = await AsyncStorage.getItem('token');
+    if (!token || !isMountedRef.current) {
+      setLoading(false);
+      return;
+    }
+
     try {
       // First try context courses
       if (contextCourses && contextCourses.length > 0) {
+        if (!isMountedRef.current) return;
         setLessons(contextCourses.map(c => ({
           id: c._id || c.id,
           title: c.title || 'Untitled Course',
@@ -97,6 +111,8 @@ export default function MyLessons() {
 
       // Fallback to API call
       const response = await courseAPI.getMyCourses();
+      if (!isMountedRef.current) return;
+      
       const data = response.data || [];
       if (data.length > 0) {
         setLessons(data.map(c => ({
@@ -112,11 +128,18 @@ export default function MyLessons() {
         setLessons(defaultLessons);
       }
     } catch (err) {
-      console.error('Error fetching lessons:', err);
-      setLessons(defaultLessons);
+      // Only log if not a 401 (user logged out)
+      if (err.response?.status !== 401) {
+        console.error('Error fetching lessons:', err);
+      }
+      if (isMountedRef.current) {
+        setLessons(defaultLessons);
+      }
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   };
 

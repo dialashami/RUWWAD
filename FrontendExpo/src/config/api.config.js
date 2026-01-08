@@ -1,15 +1,13 @@
 // API Configuration
 // This file centralizes all API configuration settings
+// IP is now AUTO-DETECTED from Expo - no manual configuration needed!
 
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
 
 // ============================================
-// CONFIGURATION - Update these values as needed
+// CONFIGURATION
 // ============================================
-
-// Your computer's local IP address (find with 'ipconfig' on Windows or 'ifconfig' on Mac/Linux)
-// Update this when your IP changes
-const LOCAL_IP = '192.168.1.115';
 
 // Backend server port
 const PORT = 3000;
@@ -17,56 +15,106 @@ const PORT = 3000;
 // Localtunnel URL (if using tunnel for external access)
 const TUNNEL_URL = 'https://olive-coats-report.loca.lt';
 
+// Production API URL (update this when you deploy your backend)
+const PRODUCTION_URL = 'https://your-production-api.com';
+
 // ============================================
 // Environment Detection
 // ============================================
 
-// Set to 'local' for local development, 'tunnel' for localtunnel access
-// 'local' - Uses your computer's IP (works when phone/emulator is on same WiFi)
+// Set to 'local' for local development, 'tunnel' for localtunnel access, 'production' for deployed backend
+// 'local' - Auto-detects your computer's IP from Expo (works when phone/emulator is on same WiFi)
 // 'tunnel' - Uses localtunnel URL (works from anywhere but may be slower)
-const ENVIRONMENT = 'local'; // Change to 'tunnel' if you need external access
+// 'production' - Uses production URL
+const ENVIRONMENT = 'local';
+
+// ============================================
+// Auto-detect IP from Expo
+// ============================================
+
+const getExpoHostIP = () => {
+  try {
+    // Method 1: Get from debuggerHost (most reliable in Expo Go)
+    const debuggerHost = Constants.expoConfig?.hostUri || Constants.manifest?.debuggerHost;
+    if (debuggerHost) {
+      const ip = debuggerHost.split(':')[0];
+      if (ip && ip !== 'localhost') {
+        console.log('🔍 Auto-detected IP from Expo:', ip);
+        return ip;
+      }
+    }
+
+    // Method 2: Try manifest2 for newer Expo versions
+    const manifest2Host = Constants.manifest2?.extra?.expoGo?.debuggerHost;
+    if (manifest2Host) {
+      const ip = manifest2Host.split(':')[0];
+      if (ip && ip !== 'localhost') {
+        console.log('🔍 Auto-detected IP from manifest2:', ip);
+        return ip;
+      }
+    }
+
+    // Method 3: Try expoConfig.extra if set
+    const extraHost = Constants.expoConfig?.extra?.apiHost;
+    if (extraHost) {
+      console.log('🔍 Using configured API host:', extraHost);
+      return extraHost;
+    }
+
+    console.log('⚠️ Could not auto-detect IP, using localhost');
+    return 'localhost';
+  } catch (error) {
+    console.log('⚠️ Error detecting IP:', error.message);
+    return 'localhost';
+  }
+};
 
 // ============================================
 // URL Generation
 // ============================================
 
 const getBaseUrl = () => {
+  if (ENVIRONMENT === 'production') {
+    return PRODUCTION_URL;
+  }
+
   if (ENVIRONMENT === 'tunnel') {
     return TUNNEL_URL;
   }
-  
-  // For local development
-  if (Platform.OS === 'android') {
-    // Check if running on emulator or physical device
-    // For Android Emulator, 10.0.2.2 points to host machine's localhost
-    // For physical devices, use the local IP
-    return __DEV__ 
-      ? `http://${LOCAL_IP}:${PORT}` // Use local IP for both (works on physical devices)
-      : `http://${LOCAL_IP}:${PORT}`;
+
+  // For local development - auto-detect IP
+  if (__DEV__) {
+    const detectedIP = getExpoHostIP();
+    
+    if (Platform.OS === 'web') {
+      // Web can use localhost
+      return `http://localhost:${PORT}`;
+    }
+    
+    // For Android/iOS physical devices and emulators
+    return `http://${detectedIP}:${PORT}`;
   }
-  
-  if (Platform.OS === 'ios') {
-    // iOS Simulator can use localhost, physical devices need IP
-    return __DEV__
-      ? `http://${LOCAL_IP}:${PORT}` // Use local IP for consistency
-      : `http://${LOCAL_IP}:${PORT}`;
-  }
-  
-  // Web
-  return `http://localhost:${PORT}`;
+
+  // Fallback for non-dev builds
+  return PRODUCTION_URL;
 };
+
+// Get the base URL once at startup
+const BASE_URL = getBaseUrl();
 
 // ============================================
 // Exports
 // ============================================
 
 export const API_CONFIG = {
-  BASE_URL: getBaseUrl(),
+  BASE_URL,
   TIMEOUT: 15000,
-  LOCAL_IP,
   PORT,
   TUNNEL_URL,
+  PRODUCTION_URL,
   ENVIRONMENT,
+  // Expose the detection function for debugging
+  getExpoHostIP,
 };
 
 export default API_CONFIG;

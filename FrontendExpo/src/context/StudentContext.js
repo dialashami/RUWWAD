@@ -1,10 +1,12 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { studentDashboardAPI, notificationAPI, messageAPI, courseAPI, assignmentAPI } from '../services/api';
 
 const StudentContext = createContext(null);
 
 export function StudentProvider({ children }) {
+  // Track if component is mounted to prevent state updates after unmount
+  const isMountedRef = useRef(true);
   // Student profile info
   const [student, setStudent] = useState({
     id: null,
@@ -72,6 +74,12 @@ export function StudentProvider({ children }) {
 
   // Load student data from AsyncStorage and backend
   const loadStudentData = useCallback(async () => {
+    // Check if token exists before making API calls
+    const token = await AsyncStorage.getItem('token');
+    if (!token || !isMountedRef.current) {
+      return; // User logged out or component unmounted
+    }
+
     setLoading(true);
     setError(null);
 
@@ -100,9 +108,9 @@ export function StudentProvider({ children }) {
         });
       }
 
-      // Then fetch from backend for latest data
-      const token = await AsyncStorage.getItem('token');
-      if (!token) {
+      // Verify token still exists (user might have logged out)
+      const currentToken = await AsyncStorage.getItem('token');
+      if (!currentToken || !isMountedRef.current) {
         setLoading(false);
         return;
       }
@@ -161,16 +169,27 @@ export function StudentProvider({ children }) {
 
   // Load progress data
   const loadProgressData = useCallback(async () => {
+    // Check if token exists before making API calls
+    const token = await AsyncStorage.getItem('token');
+    if (!token || !isMountedRef.current) {
+      return; // User logged out or component unmounted
+    }
+
     try {
       const progressRes = await studentDashboardAPI.getProgress();
+      if (!isMountedRef.current) return; // Check again after async call
+      
       const data = progressRes.data;
       if (data) {
         setProgress(data);
       }
     } catch (err) {
-      console.log('Progress data error:', err);
-      // Fallback to calculated progress
-      calculateProgressFromData();
+      // Only log errors if still mounted and not a 401 (logout)
+      if (isMountedRef.current && err.response?.status !== 401) {
+        console.log('Progress data error:', err);
+        // Fallback to calculated progress
+        calculateProgressFromData();
+      }
     }
   }, []);
 
@@ -243,10 +262,15 @@ export function StudentProvider({ children }) {
     await Promise.all([loadStudentData(), loadProgressData()]);
   }, [loadStudentData, loadProgressData]);
 
-  // Load data on mount
+  // Load data on mount and cleanup on unmount
   useEffect(() => {
+    isMountedRef.current = true;
     loadStudentData();
     loadProgressData();
+
+    return () => {
+      isMountedRef.current = false;
+    };
   }, []);
 
   const contextValue = {

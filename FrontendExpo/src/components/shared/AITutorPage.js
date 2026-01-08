@@ -11,6 +11,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { aiAPI } from '../../services/api';
 
 const suggestedQuestions = [
@@ -50,6 +51,21 @@ export default function AITutorPage() {
     setIsLoading(true);
 
     try {
+      // Check if user is still logged in before making API call
+      const token = await AsyncStorage.getItem('token');
+      if (!token) {
+        // User logged out, use local response
+        const aiResponse = {
+          id: Date.now() + 1,
+          text: getAIResponse(text),
+          sender: 'ai',
+          time: 'Now',
+        };
+        setMessages((prev) => [...prev, aiResponse]);
+        setIsLoading(false);
+        return;
+      }
+
       // Try to call the AI API
       const response = await aiAPI.sendMessage(text, conversationId);
       const aiText = response.data?.message || response.data?.response || getAIResponse(text);
@@ -66,7 +82,10 @@ export default function AITutorPage() {
       };
       setMessages((prev) => [...prev, aiResponse]);
     } catch (error) {
-      console.error('AI API Error:', error);
+      // Only log if not a 401 (user logged out)
+      if (error.response?.status !== 401) {
+        console.error('AI API Error:', error);
+      }
       // Fall back to local responses
       const aiResponse = {
         id: Date.now() + 1,
