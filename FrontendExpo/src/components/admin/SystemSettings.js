@@ -13,6 +13,8 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useDispatch } from 'react-redux';
+import { logoutUser } from '../../store/authSlice';
 import { systemSettingsAPI } from '../../services/api';
 
 const timezones = [
@@ -29,7 +31,8 @@ const languages = [
   { label: 'Arabic', value: 'ar' },
 ];
 
-export default function SystemSettings() {
+export default function SystemSettings({ navigation }) {
+  const dispatch = useDispatch();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [settings, setSettings] = useState({
@@ -81,6 +84,24 @@ export default function SystemSettings() {
 
   const handleChange = (key, value) => {
     setSettings(prev => ({ ...prev, [key]: value }));
+  };
+
+  const handleLogout = async () => {
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Logout',
+          style: 'destructive',
+          onPress: async () => {
+            await dispatch(logoutUser());
+            navigation.replace('Login');
+          },
+        },
+      ]
+    );
   };
 
   const getLanguageLabel = () => {
@@ -277,6 +298,12 @@ export default function SystemSettings() {
         )}
       </TouchableOpacity>
 
+      {/* Logout Button */}
+      <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+        <Text style={styles.logoutIcon}>🚪</Text>
+        <Text style={styles.logoutText}>Logout</Text>
+      </TouchableOpacity>
+
       <View style={{ height: 40 }} />
       </ScrollView>
     </KeyboardAvoidingView>
@@ -458,5 +485,24 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
+  },
+  logoutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fee2e2',
+    marginHorizontal: 15,
+    marginTop: 15,
+    padding: 15,
+    borderRadius: 12,
+    gap: 10,
+  },
+  logoutIcon: {
+    fontSize: 20,
+  },
+  logoutText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#dc2626',
   },
 });

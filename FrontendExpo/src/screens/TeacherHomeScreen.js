@@ -6,8 +6,6 @@ import {
   TouchableOpacity,
   Modal,
   ScrollView,
-  StatusBar,
-  SafeAreaView,
   Image,
 } from 'react-native';
 import { useDispatch } from 'react-redux';
@@ -125,40 +123,38 @@ function TeacherHomeContent({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={[styles.container, isDarkMode && { backgroundColor: theme.background }]}>
-      <StatusBar barStyle="light-content" backgroundColor="#28a745" />
-      
-      {/* Header */}
-      <View style={[styles.header, isDarkMode && { backgroundColor: theme.surface }]}>
+    <View style={[styles.container, isDarkMode && { backgroundColor: theme.background }]}>
+      {/* Top Navigation Bar */}
+      <View style={[styles.navbar, isDarkMode && { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
         <TouchableOpacity
           style={styles.menuButton}
           onPress={() => setSidebarVisible(true)}
         >
-          <Text style={styles.menuIcon}>☰</Text>
+          <Text style={[styles.menuIcon, isDarkMode && { color: theme.text }]}>☰</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.headerTitleContainer} onPress={() => setActivePage('dashboard')}>
-          <Text style={styles.headerTitle}>RUWWAD</Text>
+        <TouchableOpacity style={styles.navTitleContainer} onPress={() => setActivePage('dashboard')}>
+          <Text style={[styles.navTitle, isDarkMode && { color: theme.primary }]}>RUWWAD</Text>
         </TouchableOpacity>
-        <View style={styles.headerRight}>
+        <View style={styles.navRight}>
           <TouchableOpacity 
-            style={styles.headerIconContainer}
+            style={styles.navIcon}
             onPress={() => { setActivePage('notifications'); setSidebarVisible(false); }}
           >
-            <Text style={styles.headerIcon}>🔔</Text>
+            <Text>🔔</Text>
             {stats.unreadNotifications > 0 && (
-              <View style={styles.headerBadge}>
-                <Text style={styles.headerBadgeText}>{stats.unreadNotifications > 9 ? '9+' : stats.unreadNotifications}</Text>
+              <View style={styles.navBadge}>
+                <Text style={styles.navBadgeText}>{stats.unreadNotifications > 9 ? '9+' : stats.unreadNotifications}</Text>
               </View>
             )}
           </TouchableOpacity>
           <TouchableOpacity 
-            style={styles.headerIconContainer}
+            style={styles.navIcon}
             onPress={() => { setActivePage('chat'); setSidebarVisible(false); }}
           >
-            <Text style={styles.headerIcon}>💬</Text>
+            <Text>💬</Text>
             {stats.unreadMessages > 0 && (
-              <View style={styles.headerBadge}>
-                <Text style={styles.headerBadgeText}>{stats.unreadMessages > 9 ? '9+' : stats.unreadMessages}</Text>
+              <View style={styles.navBadge}>
+                <Text style={styles.navBadgeText}>{stats.unreadMessages > 9 ? '9+' : stats.unreadMessages}</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -267,7 +263,7 @@ function TeacherHomeContent({ navigation }) {
 
       {/* Feedback Star - Only on Dashboard */}
       {activePage === 'dashboard' && <FeedbackStar />}
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -285,7 +281,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f5f7fa',
   },
-  header: {
+  navbar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -303,7 +299,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     color: '#fff',
   },
-  headerTitleContainer: {
+  navTitleContainer: {
     position: 'absolute',
     left: '30%',
     right: '30%',
@@ -314,30 +310,43 @@ const styles = StyleSheet.create({
     paddingTop: 35,
     zIndex: 0,
   },
-  headerLogoImage: {
-    width: 28,
-    height: 28,
-    marginRight: 8,
-  },
-  headerTitle: {
+  navTitle: {
     fontSize: 20,
     fontWeight: 'bold',
     color: '#fff',
   },
-  headerRight: {
+  navRight: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     zIndex: 1,
   },
-  headerIcon: {
-    fontSize: 22,
+  navIcon: {
+    padding: 5,
+  },
+  navBadge: {
+    position: 'absolute',
+    top: -5,
+    right: -8,
+    backgroundColor: '#ef4444',
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  navBadgeText: {
+    color: '#fff',
+    fontSize: 9,
+    fontWeight: '700',
   },
   mainContent: {
     flex: 1,
   },
   modalOverlay: {
     flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     flexDirection: 'row',
   },
   sidebar: {
@@ -345,16 +354,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#2c3e50',
     height: '100%',
   },
-  overlayClose: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
   sidebarHeader: {
     padding: 20,
     paddingTop: 50,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255,255,255,0.1)',
-    backgroundColor: '#1a1f36',
   },
   sidebarLogoContainer: {
     flexDirection: 'row',
@@ -391,13 +395,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255,255,255,0.1)',
-    backgroundColor: '#1a1f36',
   },
   avatar: {
     width: 70,
     height: 70,
     borderRadius: 35,
-    backgroundColor: '#28a745',
+    backgroundColor: '#007bff',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 12,
@@ -445,7 +448,6 @@ const styles = StyleSheet.create({
   menuContainer: {
     flex: 1,
     paddingTop: 10,
-    backgroundColor: '#1a1f36',
   },
   menuItem: {
     flexDirection: 'row',
@@ -457,7 +459,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   menuItemActive: {
-    backgroundColor: 'rgba(40, 167, 69, 0.2)',
+    backgroundColor: 'rgba(0, 123, 255, 0.2)',
   },
   menuItemIcon: {
     fontSize: 22,
@@ -471,7 +473,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   menuItemTextActive: {
-    color: '#28a745',
+    color: '#007bff',
     fontWeight: '600',
   },
   menuBadge: {
@@ -486,27 +488,6 @@ const styles = StyleSheet.create({
   menuBadgeText: {
     color: '#fff',
     fontSize: 11,
-    fontWeight: '700',
-  },
-  headerIconContainer: {
-    position: 'relative',
-    marginLeft: 12,
-  },
-  headerBadge: {
-    position: 'absolute',
-    top: -5,
-    right: -8,
-    backgroundColor: '#ef4444',
-    borderRadius: 8,
-    minWidth: 16,
-    height: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 4,
-  },
-  headerBadgeText: {
-    color: '#fff',
-    fontSize: 9,
     fontWeight: '700',
   },
   logoutButton: {

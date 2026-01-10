@@ -6,8 +6,6 @@ import {
   TouchableOpacity,
   Modal,
   ScrollView,
-  StatusBar,
-  SafeAreaView,
   Image,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -15,17 +13,20 @@ import { useDispatch } from 'react-redux';
 import { logoutUser } from '../store/authSlice';
 import { notificationAPI } from '../services/api';
 
+// Context
+import { useTheme } from '../context/ThemeContext';
+
 // Import components
 import DashboardOverview from '../components/admin/DashboardOverview';
 import UserManagement from '../components/admin/UserManagement';
 import NotificationManagement from '../components/admin/NotificationManagement';
 import CommunicationCenter from '../components/admin/CommunicationCenter';
 import SystemSettings from '../components/admin/SystemSettings';
-import Settings from '../components/shared/Settings';
 import FeedbackStar from '../components/shared/FeedbackStar';
 
 export default function AdminHomeScreen({ navigation }) {
   const dispatch = useDispatch();
+  const { isDarkMode, theme } = useTheme();
   const [activePage, setActivePage] = useState('dashboard');
   const [sidebarVisible, setSidebarVisible] = useState(false);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
@@ -74,7 +75,6 @@ export default function AdminHomeScreen({ navigation }) {
     { id: 'notifications', title: 'Notifications', icon: '🔔', badge: unreadNotifications },
     { id: 'communication', title: 'Communication Center', icon: '📧', badge: 0 },
     { id: 'system-settings', title: 'System Settings', icon: '🛠️', badge: 0 },
-    { id: 'settings', title: 'Profile Settings', icon: '⚙️', badge: 0 },
   ];
 
   const renderPage = () => {
@@ -88,9 +88,7 @@ export default function AdminHomeScreen({ navigation }) {
       case 'communication':
         return <CommunicationCenter />;
       case 'system-settings':
-        return <SystemSettings />;
-      case 'settings':
-        return <Settings navigation={navigation} />;
+        return <SystemSettings navigation={navigation} />;
       default:
         return <DashboardOverview />;
     }
@@ -108,29 +106,27 @@ export default function AdminHomeScreen({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#4f46e5" />
-      
-      {/* Header */}
-      <View style={styles.header}>
+    <View style={[styles.container, isDarkMode && { backgroundColor: theme.background }]}>
+      {/* Top Navigation Bar */}
+      <View style={[styles.navbar, isDarkMode && { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
         <TouchableOpacity
           style={styles.menuButton}
           onPress={() => setSidebarVisible(true)}
         >
-          <Text style={styles.menuIcon}>☰</Text>
+          <Text style={[styles.menuIcon, isDarkMode && { color: theme.text }]}>☰</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.headerTitleContainer} onPress={() => setActivePage('dashboard')}>
-          <Text style={styles.headerTitle}>RUWWAD</Text>
+        <TouchableOpacity style={styles.navTitleContainer} onPress={() => setActivePage('dashboard')}>
+          <Text style={[styles.navTitle, isDarkMode && { color: theme.primary }]}>RUWWAD</Text>
         </TouchableOpacity>
-        <View style={styles.headerRight}>
+        <View style={styles.navRight}>
           <TouchableOpacity 
-            style={styles.headerIconContainer}
+            style={styles.navIcon}
             onPress={() => setActivePage('notifications')}
           >
-            <Text style={styles.headerIcon}>🔔</Text>
+            <Text>🔔</Text>
             {unreadNotifications > 0 && (
-              <View style={styles.headerBadge}>
-                <Text style={styles.headerBadgeText}>{unreadNotifications > 9 ? '9+' : unreadNotifications}</Text>
+              <View style={styles.navBadge}>
+                <Text style={styles.navBadgeText}>{unreadNotifications > 9 ? '9+' : unreadNotifications}</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -138,7 +134,7 @@ export default function AdminHomeScreen({ navigation }) {
       </View>
 
       {/* Main Content */}
-      <View style={styles.mainContent}>
+      <View style={[styles.mainContent, isDarkMode && { backgroundColor: theme.background }]}>
         {renderPage()}
       </View>
 
@@ -150,28 +146,29 @@ export default function AdminHomeScreen({ navigation }) {
         onRequestClose={() => setSidebarVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.sidebar}>
-            {/* Sidebar Header */}
+          <View style={[styles.sidebar, isDarkMode && { backgroundColor: theme.surface }]}>
+            {/* Sidebar Header with Logo */}
             <View style={styles.sidebarHeader}>
-              <View style={styles.sidebarLogoContainer}>
+              <TouchableOpacity style={styles.sidebarLogoContainer} onPress={() => { setActivePage('dashboard'); setSidebarVisible(false); }}>
                 <Image source={require('../../assets/logoRUWWAD2.png')} style={styles.sidebarLogoImage} />
                 <Text style={styles.sidebarLogo}>RUWWAD</Text>
-              </View>
-              <View style={styles.profileSection}>
-                <View style={styles.avatar}>
-                  <Text style={styles.avatarText}>👨‍💼</Text>
-                </View>
-                <View style={styles.profileInfo}>
-                  <Text style={styles.profileName}>{userName}</Text>
-                  <Text style={styles.profileRole}>Administrator</Text>
-                </View>
-              </View>
+              </TouchableOpacity>
+              <Text style={styles.sidebarSubtitle}>Admin Portal</Text>
               <TouchableOpacity
                 style={styles.closeButton}
                 onPress={() => setSidebarVisible(false)}
               >
                 <Text style={styles.closeIcon}>✕</Text>
               </TouchableOpacity>
+            </View>
+
+            {/* User Profile Section */}
+            <View style={styles.userInfo}>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarInitials}>👨‍💼</Text>
+              </View>
+              <Text style={styles.userName}>{userName}</Text>
+              <Text style={styles.userRole}>Administrator</Text>
             </View>
 
             {/* Menu Items */}
@@ -224,7 +221,7 @@ export default function AdminHomeScreen({ navigation }) {
 
       {/* Feedback Star - Only on Dashboard */}
       {activePage === 'dashboard' && <FeedbackStar />}
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -233,7 +230,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f5f7fa',
   },
-  header: {
+  navbar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -251,7 +248,7 @@ const styles = StyleSheet.create({
     fontSize: 24,
     color: '#fff',
   },
-  headerTitleContainer: {
+  navTitleContainer: {
     position: 'absolute',
     left: '30%',
     right: '30%',
@@ -262,24 +259,36 @@ const styles = StyleSheet.create({
     paddingTop: 35,
     zIndex: 0,
   },
-  headerLogoImage: {
-    width: 28,
-    height: 28,
-    marginRight: 8,
-  },
-  headerTitle: {
+  navTitle: {
     fontSize: 20,
     fontWeight: 'bold',
     color: '#fff',
   },
-  headerRight: {
+  navRight: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     zIndex: 1,
   },
-  headerIcon: {
-    fontSize: 22,
+  navIcon: {
+    padding: 5,
+  },
+  navBadge: {
+    position: 'absolute',
+    top: -5,
+    right: -8,
+    backgroundColor: '#ef4444',
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  navBadgeText: {
+    color: '#fff',
+    fontSize: 9,
+    fontWeight: '700',
   },
   mainContent: {
     flex: 1,
@@ -287,61 +296,18 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     flexDirection: 'row',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   sidebar: {
     width: '75%',
     backgroundColor: '#2c3e50',
-    shadowColor: '#000',
-    shadowOffset: { width: 2, height: 0 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 10,
-  },
-  overlayClose: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    height: '100%',
   },
   sidebarHeader: {
-    backgroundColor: '#4f46e5',
     padding: 20,
     paddingTop: 50,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  profileSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  avatarText: {
-    fontSize: 28,
-  },
-  profileInfo: {},
-  profileName: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  profileRole: {
-    fontSize: 13,
-    color: 'rgba(255, 255, 255, 0.8)',
-    marginTop: 2,
-  },
-  closeButton: {
-    padding: 8,
-  },
-  closeIcon: {
-    fontSize: 20,
-    color: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
   },
   sidebarLogoContainer: {
     flexDirection: 'row',
@@ -358,6 +324,49 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#3498db',
   },
+  sidebarSubtitle: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.6)',
+    marginTop: 4,
+  },
+  closeButton: {
+    position: 'absolute',
+    top: 50,
+    right: 15,
+    padding: 5,
+  },
+  closeIcon: {
+    fontSize: 20,
+    color: '#fff',
+  },
+  userInfo: {
+    padding: 20,
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+  },
+  avatar: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    backgroundColor: '#007bff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  avatarInitials: {
+    fontSize: 28,
+  },
+  userName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+    marginBottom: 4,
+  },
+  userRole: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.6)',
+  },
   menuContainer: {
     flex: 1,
     paddingTop: 10,
@@ -372,7 +381,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
   },
   menuItemActive: {
-    backgroundColor: '#eef2ff',
+    backgroundColor: 'rgba(0, 123, 255, 0.2)',
   },
   menuItemIcon: {
     fontSize: 22,
@@ -382,11 +391,11 @@ const styles = StyleSheet.create({
   },
   menuItemText: {
     fontSize: 16,
-    color: '#374151',
+    color: 'rgba(255,255,255,0.8)',
     flex: 1,
   },
   menuItemTextActive: {
-    color: '#4f46e5',
+    color: '#007bff',
     fontWeight: '600',
   },
   menuBadge: {
@@ -401,27 +410,6 @@ const styles = StyleSheet.create({
   menuBadgeText: {
     color: '#fff',
     fontSize: 11,
-    fontWeight: '700',
-  },
-  headerIconContainer: {
-    position: 'relative',
-    marginLeft: 12,
-  },
-  headerBadge: {
-    position: 'absolute',
-    top: -5,
-    right: -8,
-    backgroundColor: '#ef4444',
-    borderRadius: 8,
-    minWidth: 16,
-    height: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 4,
-  },
-  headerBadgeText: {
-    color: '#fff',
-    fontSize: 9,
     fontWeight: '700',
   },
   logoutButton: {
