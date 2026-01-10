@@ -26,7 +26,7 @@ const PRODUCTION_URL = 'https://your-production-api.com';
 // 'local' - Auto-detects your computer's IP from Expo (works when phone/emulator is on same WiFi)
 // 'tunnel' - Uses localtunnel URL (works from anywhere but may be slower)
 // 'production' - Uses production URL
-const ENVIRONMENT = 'local';
+const ENVIRONMENT = 'local'; // Change to 'tunnel' or 'production' as needed
 
 // ============================================
 // Auto-detect IP from Expo
@@ -35,36 +35,50 @@ const ENVIRONMENT = 'local';
 const getExpoHostIP = () => {
   try {
     // Method 1: Get from debuggerHost (most reliable in Expo Go)
+    // Works on both Expo Go and Eas/Prebuild
     const debuggerHost = Constants.expoConfig?.hostUri || Constants.manifest?.debuggerHost;
     if (debuggerHost) {
       const ip = debuggerHost.split(':')[0];
-      if (ip && ip !== 'localhost') {
-        console.log('🔍 Auto-detected IP from Expo:', ip);
+      if (ip && ip !== 'localhost' && ip.trim()) {
+        console.log('✅ Auto-detected IP from Expo debuggerHost:', ip);
         return ip;
       }
     }
 
-    // Method 2: Try manifest2 for newer Expo versions
+    // Method 2: Try manifest2 for newer Expo versions (SDK 51+)
     const manifest2Host = Constants.manifest2?.extra?.expoGo?.debuggerHost;
     if (manifest2Host) {
       const ip = manifest2Host.split(':')[0];
-      if (ip && ip !== 'localhost') {
-        console.log('🔍 Auto-detected IP from manifest2:', ip);
+      if (ip && ip !== 'localhost' && ip.trim()) {
+        console.log('✅ Auto-detected IP from manifest2:', ip);
         return ip;
       }
     }
 
-    // Method 3: Try expoConfig.extra if set
+    // Method 3: Try Constants.deviceName for Expo Go
+    if (Constants.sessionId) {
+      console.log('📱 Detected Expo Go session, attempting auto-detection...');
+    }
+
+    // Method 4: Try expoConfig.extra if manually set
     const extraHost = Constants.expoConfig?.extra?.apiHost;
     if (extraHost) {
-      console.log('🔍 Using configured API host:', extraHost);
+      console.log('✅ Using manually configured API host:', extraHost);
       return extraHost;
     }
 
-    console.log('⚠️ Could not auto-detect IP, using localhost');
+    console.warn('⚠️ Could not auto-detect IP from Expo');
+    console.warn('   Falling back to localhost');
+    console.warn('   If running on physical device, ensure WiFi is enabled');
+    console.warn('   Detected Constants:', {
+      hostUri: Constants.expoConfig?.hostUri,
+      debuggerHost: Constants.manifest?.debuggerHost,
+      sessionId: Constants.sessionId ? 'Present' : 'Not found',
+    });
     return 'localhost';
   } catch (error) {
-    console.log('⚠️ Error detecting IP:', error.message);
+    console.error('❌ Error detecting IP:', error.message);
+    console.error('   Falling back to localhost');
     return 'localhost';
   }
 };
@@ -74,28 +88,42 @@ const getExpoHostIP = () => {
 // ============================================
 
 const getBaseUrl = () => {
+  console.log('🔧 Building API base URL...');
+  console.log(`   Environment: ${ENVIRONMENT}`);
+  console.log(`   Platform: ${Platform.OS}`);
+  
   if (ENVIRONMENT === 'production') {
+    console.log(`   Using PRODUCTION_URL: ${PRODUCTION_URL}`);
     return PRODUCTION_URL;
   }
 
   if (ENVIRONMENT === 'tunnel') {
+    console.log(`   Using TUNNEL_URL: ${TUNNEL_URL}`);
     return TUNNEL_URL;
   }
 
   // For local development - auto-detect IP
-  if (__DEV__) {
+  // Check if we're in development mode
+  const isDev = typeof __DEV__ !== 'undefined' ? __DEV__ : true;
+  
+  if (isDev || ENVIRONMENT === 'local') {
     const detectedIP = getExpoHostIP();
     
     if (Platform.OS === 'web') {
       // Web can use localhost
-      return `http://localhost:${PORT}`;
+      const url = `http://localhost:${PORT}`;
+      console.log(`   Using Web localhost: ${url}`);
+      return url;
     }
     
     // For Android/iOS physical devices and emulators
-    return `http://${detectedIP}:${PORT}`;
+    const url = `http://${detectedIP}:${PORT}`;
+    console.log(`   Using local IP: ${url}`);
+    return url;
   }
 
-  // Fallback for non-dev builds
+  // Fallback for production builds
+  console.warn('   Falling back to PRODUCTION_URL');
   return PRODUCTION_URL;
 };
 
