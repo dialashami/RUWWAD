@@ -48,7 +48,7 @@ export const ChatCenter = ({ currentRole = "student" }) => {
     try {
       const token = localStorage.getItem('token');
       if (!token || !currentUserId) {
-        setTeachers(FALLBACK_TEACHERS);
+  setContacts({ teachers: FALLBACK_TEACHERS, admin: [] });
         setLoading(false);
         return;
       }
@@ -62,7 +62,7 @@ export const ChatCenter = ({ currentRole = "student" }) => {
       });
 
       if (!res.ok) {
-        setTeachers(FALLBACK_TEACHERS);
+  setContacts({ teachers: FALLBACK_TEACHERS, admin: [] });
         setLoading(false);
         return;
       }

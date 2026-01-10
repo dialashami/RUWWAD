@@ -206,24 +206,149 @@ export const adminDashboardAPI = {
 };
 
 // ========= AI Conversation API =========
-export const aiAPI = {
-  // Create a new conversation and send message
+// export const aiAPI = {
+//   // Create a new conversation and send message
+//   sendMessage: async (message, conversationId) => {
+//     if (conversationId) {
+//       // Add message to existing conversation - backend expects { type, text }
+//       return api.post(`/api/ai-conversations/${conversationId}/messages`, { type: 'user', text: message });
+//     } else {
+//       // Create new conversation
+//       const res = await api.post('/api/ai-conversations', { title: 'New Chat' });
+//       const newConvId = res.data._id;
+//       // Then add the message - backend expects { type, text }
+//       return api.post(`/api/ai-conversations/${newConvId}/messages`, { type: 'user', text: message });
+//     }
+//   },
+//   getConversations: () => api.get('/api/ai-conversations'),
+//   getConversation: (id) => api.get(`/api/ai-conversations/${id}`),
+//   deleteConversation: (id) => api.delete(`/api/ai-conversations/${id}`),
+// };
+
+// // ========= AI Conversation API =========
+// export const aiAPI = {
+//   // Send a message (create conversation if needed) and RETURN { conversationId, message }
+//   sendMessage: async (message, conversationId) => {
+//     let convId = conversationId;
+
+//     // 1) Create conversation if doesn't exist
+//     if (!convId) {
+//       const res = await api.post('/api/ai-conversations', { title: 'New Chat' });
+//       convId = res.data?._id || res.data?.id; // دعم لأي شكل
+//     }
+
+//     // 2) Add message to conversation
+//     const msgRes = await api.post(`/api/ai-conversations/${convId}/messages`, {
+//       type: 'user',
+//       text: message,
+//     });
+
+//     // بعض الباكندات بترجع { message: {..} } أو بترجع الرسالة مباشرة
+//     const returnedMessage = msgRes.data?.message || msgRes.data;
+
+//     return {
+//       conversationId: convId,
+//       message: returnedMessage,
+//     };
+//   },
+
+//   getConversations: () => api.get('/api/ai-conversations'),
+//   getConversation: (id) => api.get(`/api/ai-conversations/${id}`),
+//   deleteConversation: (id) => api.delete(`/api/ai-conversations/${id}`),
+// };
+
+
+
+
+// ========= AI Conversation API =========
+// export const aiAPI = {
+//   // Send a message (create conversation if needed)
+//   sendMessage: async (message, conversationId) => {
+//     if (conversationId) {
+//       // Add message to existing conversation
+//       const response = await api.post(`/ai/conversations/${conversationId}/messages`, {
+//         type: 'user',
+//         text: message
+//       });
+//       return response.data;
+//     } else {
+//       // Create new conversation with first message
+//       const response = await api.post('/ai/conversations', {
+//         messages: [{ type: 'user', text: message }],
+//         title: message.substring(0, 30) + '...',
+//         preview: message.length > 50 ? message.substring(0, 50) + '...' : message
+//       });
+//       return response.data;
+//     }
+//   },
+
+//   // Get conversation details
+//   getConversation: (id) => api.get(`/ai/conversations/${id}`),
+  
+//   // Get all conversations
+//   getConversations: () => api.get('/ai/conversations'),
+  
+//   // Delete conversation
+//   deleteConversation: (id) => api.delete(`/ai/conversations/${id}`),
+  
+//   // Update conversation (optional)
+//   updateConversation: (id, data) => api.put(`/ai/conversations/${id}`, data),
+// };
+
+
+// export const aiAPI = {
+//   sendMessage: async (message, conversationId) => {
+//     if (conversationId) {
+//       const response = await api.post(`/api/ai-conversations/${conversationId}/messages`, {
+//         type: 'user',
+//         text: message
+//       });
+//       return response.data;
+//     } else {
+//       const response = await api.post('/api/ai-conversations', {
+//         messages: [{ type: 'user', text: message }],
+//         title: message.substring(0, 30) + '...',
+//         preview: message.length > 50 ? message.substring(0, 50) + '...' : message
+//       });
+//       return response.data;
+//     }
+//   },
+
+//   getConversation: (id) => api.get(`/api/ai-conversations/${id}`),
+//   getConversations: () => api.get('/api/ai-conversations'),
+//   deleteConversation: (id) => api.delete(`/api/ai-conversations/${id}`),
+// };
+
+
+ export const aiAPI = {
   sendMessage: async (message, conversationId) => {
-    if (conversationId) {
-      // Add message to existing conversation - backend expects { type, text }
-      return api.post(`/api/ai-conversations/${conversationId}/messages`, { type: 'user', text: message });
-    } else {
-      // Create new conversation
-      const res = await api.post('/api/ai-conversations', { title: 'New Chat' });
-      const newConvId = res.data._id;
-      // Then add the message - backend expects { type, text }
-      return api.post(`/api/ai-conversations/${newConvId}/messages`, { type: 'user', text: message });
+    let convId = conversationId;
+
+    // 1) create if needed
+    if (!convId) {
+      const createRes = await api.post('/api/ai-conversations', {
+        title: 'New Chat',
+        preview: message.length > 50 ? message.substring(0, 50) + '...' : message,
+        messages: [],
+      });
+
+      convId = createRes.data?._id || createRes.data?.id;
     }
+
+    // 2) add message (this generates AI reply in your backend)
+    const msgRes = await api.post(`/api/ai-conversations/${convId}/messages`, {
+      type: 'user',
+      text: message,
+    });
+
+    return msgRes.data; // { conversationId, message, conversation }
   },
-  getConversations: () => api.get('/api/ai-conversations'),
+
   getConversation: (id) => api.get(`/api/ai-conversations/${id}`),
+  getConversations: () => api.get('/api/ai-conversations'),
   deleteConversation: (id) => api.delete(`/api/ai-conversations/${id}`),
 };
+
 
 // ========= System Settings API (Admin) =========
 export const systemSettingsAPI = {
