@@ -21,9 +21,11 @@ import { useDispatch } from 'react-redux';
 import { logoutUser } from '../../store/authSlice';
 import * as ImagePicker from 'expo-image-picker';
 import { userAPI, parentDashboardAPI } from '../../services/api';
+import { useTheme } from '../../context/ThemeContext';
 
 export default function ParentSettings({ navigation }) {
   const dispatch = useDispatch();
+  const { isDarkMode, setDarkMode, theme, profileImage, saveProfileImage } = useTheme();
   
   // User data
   const [user, setUser] = useState(null);
@@ -46,9 +48,6 @@ export default function ParentSettings({ navigation }) {
   const [gradeNotifications, setGradeNotifications] = useState(true);
   const [savingNotifications, setSavingNotifications] = useState(false);
   const [notifSaveSuccess, setNotifSaveSuccess] = useState(false);
-  
-  // Appearance
-  const [darkMode, setDarkMode] = useState(false);
   
   // Children management
   const [children, setChildren] = useState([]);
@@ -173,12 +172,17 @@ export default function ParentSettings({ navigation }) {
     });
 
     if (!result.canceled && result.assets[0]) {
-      setAvatarUrl(result.assets[0].uri);
+      const imageUri = result.assets[0].uri;
+      setAvatarUrl(imageUri);
+      // Save to ThemeContext for persistence
+      await saveProfileImage(imageUri);
     }
   };
 
-  const handleRemoveAvatar = () => {
+  const handleRemoveAvatar = async () => {
     setAvatarUrl(null);
+    // Remove from ThemeContext as well
+    await saveProfileImage(null);
   };
 
   // Save profile changes
@@ -403,8 +407,8 @@ export default function ParentSettings({ navigation }) {
           <Text style={styles.toggleIcon}>{icon}</Text>
         </View>
         <View style={styles.toggleTextContainer}>
-          <Text style={styles.toggleTitle}>{title}</Text>
-          <Text style={styles.toggleDescription}>{description}</Text>
+          <Text style={[styles.toggleTitle, isDarkMode && { color: theme.text }]}>{title}</Text>
+          <Text style={[styles.toggleDescription, isDarkMode && { color: theme.textSecondary }]}>{description}</Text>
         </View>
       </View>
       <Switch
@@ -426,10 +430,10 @@ export default function ParentSettings({ navigation }) {
         <Text style={styles.actionIcon}>{icon}</Text>
       </View>
       <View style={styles.actionTextContainer}>
-        <Text style={[styles.actionTitle, danger && styles.actionTitleDanger]}>{title}</Text>
-        {subtitle && <Text style={styles.actionSubtitle}>{subtitle}</Text>}
+        <Text style={[styles.actionTitle, danger && styles.actionTitleDanger, !danger && isDarkMode && { color: theme.text }]}>{title}</Text>
+        {subtitle && <Text style={[styles.actionSubtitle, isDarkMode && { color: theme.textSecondary }]}>{subtitle}</Text>}
       </View>
-      <Text style={styles.actionArrow}>›</Text>
+      <Text style={[styles.actionArrow, isDarkMode && { color: theme.textSecondary }]}>›</Text>
     </TouchableOpacity>
   );
 
@@ -446,12 +450,12 @@ export default function ParentSettings({ navigation }) {
 
   return (
     <KeyboardAvoidingView 
-      style={{ flex: 1 }}
+      style={{ flex: 1, backgroundColor: isDarkMode ? theme.background : '#f5f5f5' }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
       <ScrollView 
-        style={styles.container} 
+        style={[styles.container, isDarkMode && { backgroundColor: theme.background }]} 
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         refreshControl={
@@ -478,8 +482,8 @@ export default function ParentSettings({ navigation }) {
 
         {/* Profile Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>👤 Profile Information</Text>
-          <View style={styles.card}>
+          <Text style={[styles.sectionTitle, isDarkMode && { color: theme.text }]}>👤 Profile Information</Text>
+          <View style={[styles.card, isDarkMode && { backgroundColor: theme.card }]}>
             {/* Avatar Row */}
             <View style={styles.avatarRow}>
               <View style={styles.avatarContainer}>
@@ -492,7 +496,7 @@ export default function ParentSettings({ navigation }) {
                 )}
               </View>
               <View style={styles.avatarInfo}>
-                <Text style={styles.avatarName}>{userName}</Text>
+                <Text style={[styles.avatarName, isDarkMode && { color: theme.text }]}>{userName}</Text>
                 <View style={styles.avatarActions}>
                   <TouchableOpacity style={styles.avatarBtn} onPress={handleChangeAvatar}>
                     <Text style={styles.avatarBtnText}>📷 Change Photo</Text>
@@ -510,60 +514,60 @@ export default function ParentSettings({ navigation }) {
             <View style={styles.formSection}>
               <View style={styles.formRow}>
                 <View style={styles.formField}>
-                  <Text style={styles.formLabel}>First Name</Text>
+                  <Text style={[styles.formLabel, isDarkMode && { color: theme.text }]}>First Name</Text>
                   <TextInput
-                    style={styles.formInput}
+                    style={[styles.formInput, isDarkMode && { backgroundColor: theme.inputBackground, color: theme.text, borderColor: theme.border }]}
                     value={firstName}
                     onChangeText={setFirstName}
                     placeholder="Enter first name"
-                    placeholderTextColor="#9ca3af"
+                    placeholderTextColor={isDarkMode ? theme.textSecondary : "#9ca3af"}
                   />
                 </View>
                 <View style={styles.formField}>
-                  <Text style={styles.formLabel}>Last Name</Text>
+                  <Text style={[styles.formLabel, isDarkMode && { color: theme.text }]}>Last Name</Text>
                   <TextInput
-                    style={styles.formInput}
+                    style={[styles.formInput, isDarkMode && { backgroundColor: theme.inputBackground, color: theme.text, borderColor: theme.border }]}
                     value={lastName}
                     onChangeText={setLastName}
                     placeholder="Enter last name"
-                    placeholderTextColor="#9ca3af"
+                    placeholderTextColor={isDarkMode ? theme.textSecondary : "#9ca3af"}
                   />
                 </View>
               </View>
 
               <View style={styles.formFieldFull}>
-                <Text style={styles.formLabel}>Email</Text>
+                <Text style={[styles.formLabel, isDarkMode && { color: theme.text }]}>Email</Text>
                 <TextInput
-                  style={styles.formInput}
+                  style={[styles.formInput, isDarkMode && { backgroundColor: theme.inputBackground, color: theme.text, borderColor: theme.border }]}
                   value={email}
                   onChangeText={setEmail}
                   placeholder="Enter email"
-                  placeholderTextColor="#9ca3af"
+                  placeholderTextColor={isDarkMode ? theme.textSecondary : "#9ca3af"}
                   keyboardType="email-address"
                   autoCapitalize="none"
                 />
               </View>
 
               <View style={styles.formFieldFull}>
-                <Text style={styles.formLabel}>Phone Number</Text>
+                <Text style={[styles.formLabel, isDarkMode && { color: theme.text }]}>Phone Number</Text>
                 <TextInput
-                  style={styles.formInput}
+                  style={[styles.formInput, isDarkMode && { backgroundColor: theme.inputBackground, color: theme.text, borderColor: theme.border }]}
                   value={phone}
                   onChangeText={setPhone}
                   placeholder="Enter phone number"
-                  placeholderTextColor="#9ca3af"
+                  placeholderTextColor={isDarkMode ? theme.textSecondary : "#9ca3af"}
                   keyboardType="phone-pad"
                 />
               </View>
 
               <View style={styles.formFieldFull}>
-                <Text style={styles.formLabel}>Bio</Text>
+                <Text style={[styles.formLabel, isDarkMode && { color: theme.text }]}>Bio</Text>
                 <TextInput
-                  style={[styles.formInput, styles.formTextArea]}
+                  style={[styles.formInput, styles.formTextArea, isDarkMode && { backgroundColor: theme.inputBackground, color: theme.text, borderColor: theme.border }]}
                   value={bio}
                   onChangeText={setBio}
                   placeholder="Tell us about yourself"
-                  placeholderTextColor="#9ca3af"
+                  placeholderTextColor={isDarkMode ? theme.textSecondary : "#9ca3af"}
                   multiline
                   numberOfLines={3}
                 />
@@ -593,9 +597,9 @@ export default function ParentSettings({ navigation }) {
 
         {/* My Children Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>👨‍👩‍👧‍👦 My Children</Text>
-          <View style={styles.card}>
-            <Text style={styles.cardDescription}>
+          <Text style={[styles.sectionTitle, isDarkMode && { color: theme.text }]}>👨‍👩‍👧‍👦 My Children</Text>
+          <View style={[styles.card, isDarkMode && { backgroundColor: theme.card }]}>
+            <Text style={[styles.cardDescription, isDarkMode && { color: theme.textSecondary }]}>
               Link your children's accounts to view their academic progress, courses, and grades.
             </Text>
 
@@ -603,17 +607,17 @@ export default function ParentSettings({ navigation }) {
             {children.length > 0 && (
               <View style={styles.childrenList}>
                 {children.map((child) => (
-                  <View key={child._id} style={styles.childItem}>
+                  <View key={child._id} style={[styles.childItem, isDarkMode && { backgroundColor: theme.surface, borderColor: theme.border }]}>
                     <View style={styles.childAvatar}>
                       <Text style={styles.childInitials}>
                         {child.firstName?.charAt(0)}{child.lastName?.charAt(0)}
                       </Text>
                     </View>
                     <View style={styles.childInfo}>
-                      <Text style={styles.childName}>
+                      <Text style={[styles.childName, isDarkMode && { color: theme.text }]}>
                         {child.firstName} {child.lastName}
                       </Text>
-                      <Text style={styles.childEmail}>{child.email}</Text>
+                      <Text style={[styles.childEmail, isDarkMode && { color: theme.textSecondary }]}>{child.email}</Text>
                     </View>
                     <TouchableOpacity
                       style={styles.removeBtn}
@@ -627,21 +631,21 @@ export default function ParentSettings({ navigation }) {
             )}
 
             {children.length === 0 && (
-              <View style={styles.noChildrenBox}>
+              <View style={[styles.noChildrenBox, isDarkMode && { backgroundColor: theme.surface }]}>
                 <Text style={styles.noChildrenIcon}>👶</Text>
-                <Text style={styles.noChildrenText}>No children linked yet</Text>
-                <Text style={styles.noChildrenSubtext}>Add your child's email below to get started</Text>
+                <Text style={[styles.noChildrenText, isDarkMode && { color: theme.text }]}>No children linked yet</Text>
+                <Text style={[styles.noChildrenSubtext, isDarkMode && { color: theme.textSecondary }]}>Add your child's email below to get started</Text>
               </View>
             )}
 
             {/* Add new child */}
             <View style={styles.addChildSection}>
-              <Text style={styles.addChildLabel}>Add Child by Email</Text>
+              <Text style={[styles.addChildLabel, isDarkMode && { color: theme.text }]}>Add Child by Email</Text>
               <View style={styles.addChildRow}>
                 <TextInput
-                  style={styles.addChildInput}
+                  style={[styles.addChildInput, isDarkMode && { backgroundColor: theme.inputBackground, color: theme.text, borderColor: theme.border }]}
                   placeholder="Enter child's email address"
-                  placeholderTextColor="#9ca3af"
+                  placeholderTextColor={isDarkMode ? theme.textSecondary : "#9ca3af"}
                   value={newChildEmail}
                   onChangeText={(text) => {
                     setNewChildEmail(text);
@@ -671,8 +675,8 @@ export default function ParentSettings({ navigation }) {
 
         {/* Notification Settings */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🔔 Notification Preferences</Text>
-          <View style={styles.card}>
+          <Text style={[styles.sectionTitle, isDarkMode && { color: theme.text }]}>🔔 Notification Preferences</Text>
+          <View style={[styles.card, isDarkMode && { backgroundColor: theme.card }]}>
             <ToggleRow
               icon="📧"
               title="Email Notifications"
@@ -728,13 +732,13 @@ export default function ParentSettings({ navigation }) {
 
         {/* Appearance */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🎨 Appearance</Text>
-          <View style={styles.card}>
+          <Text style={[styles.sectionTitle, isDarkMode && { color: theme.text }]}>🎨 Appearance</Text>
+          <View style={[styles.card, isDarkMode && { backgroundColor: theme.card }]}>
             <ToggleRow
-              icon={darkMode ? '🌙' : '☀️'}
+              icon={isDarkMode ? '🌙' : '☀️'}
               title="Dark Mode"
               description="Switch to dark theme for comfortable viewing"
-              value={darkMode}
+              value={isDarkMode}
               onToggle={setDarkMode}
             />
           </View>
@@ -742,8 +746,8 @@ export default function ParentSettings({ navigation }) {
 
         {/* Privacy & Security */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>🔐 Privacy & Security</Text>
-          <View style={styles.card}>
+          <Text style={[styles.sectionTitle, isDarkMode && { color: theme.text }]}>🔐 Privacy & Security</Text>
+          <View style={[styles.card, isDarkMode && { backgroundColor: theme.card }]}>
             <ActionButton
               icon="🔒"
               title="Change Password"
@@ -759,15 +763,15 @@ export default function ParentSettings({ navigation }) {
                 <Text style={styles.actionIcon}>🛡️</Text>
               </View>
               <View style={styles.actionTextContainer}>
-                <Text style={styles.actionTitle}>Two-Factor Authentication</Text>
-                <Text style={styles.actionSubtitle}>Add extra security to your account</Text>
+                <Text style={[styles.actionTitle, isDarkMode && { color: theme.text }]}>Two-Factor Authentication</Text>
+                <Text style={[styles.actionSubtitle, isDarkMode && { color: theme.textSecondary }]}>Add extra security to your account</Text>
               </View>
               {twoFAEnabled && (
                 <View style={styles.badge2FA}>
                   <Text style={styles.badge2FAText}>ON</Text>
                 </View>
               )}
-              <Text style={styles.actionArrow}>›</Text>
+              <Text style={[styles.actionArrow, isDarkMode && { color: theme.textSecondary }]}>›</Text>
             </TouchableOpacity>
             <View style={styles.divider} />
             <ActionButton
@@ -797,14 +801,14 @@ export default function ParentSettings({ navigation }) {
         onRequestClose={handleCloseModal}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, modalType === 'delete' && styles.modalCardDanger]}>
+          <View style={[styles.modalCard, isDarkMode && { backgroundColor: theme.card }, modalType === 'delete' && styles.modalCardDanger]}>
             {/* Modal Header */}
             <View style={styles.modalHeader}>
               <View style={styles.modalHeaderLeft}>
                 <Text style={styles.modalIcon}>
                   {modalType === 'password' ? '🔒' : modalType === '2fa' ? '🛡️' : '⚠️'}
                 </Text>
-                <Text style={[styles.modalTitle, modalType === 'delete' && styles.modalTitleDanger]}>
+                <Text style={[styles.modalTitle, isDarkMode && { color: theme.text }, modalType === 'delete' && styles.modalTitleDanger]}>
                   {modalType === 'password' ? 'Change Password' : 
                    modalType === '2fa' ? 'Two-Factor Authentication' : 
                    'Delete Account'}
@@ -820,36 +824,36 @@ export default function ParentSettings({ navigation }) {
               {modalType === 'password' && (
                 <>
                   <View style={styles.modalField}>
-                    <Text style={styles.modalLabel}>Current Password</Text>
+                    <Text style={[styles.modalLabel, isDarkMode && { color: theme.text }]}>Current Password</Text>
                     <TextInput
-                      style={styles.modalInput}
+                      style={[styles.modalInput, isDarkMode && { backgroundColor: theme.inputBackground, color: theme.text, borderColor: theme.border }]}
                       secureTextEntry
                       value={currentPass}
                       onChangeText={setCurrentPass}
                       placeholder="Enter current password"
-                      placeholderTextColor="#9ca3af"
+                      placeholderTextColor={isDarkMode ? theme.textSecondary : "#9ca3af"}
                     />
                   </View>
                   <View style={styles.modalField}>
-                    <Text style={styles.modalLabel}>New Password</Text>
+                    <Text style={[styles.modalLabel, isDarkMode && { color: theme.text }]}>New Password</Text>
                     <TextInput
-                      style={styles.modalInput}
+                      style={[styles.modalInput, isDarkMode && { backgroundColor: theme.inputBackground, color: theme.text, borderColor: theme.border }]}
                       secureTextEntry
                       value={newPass}
                       onChangeText={setNewPass}
                       placeholder="Enter new password"
-                      placeholderTextColor="#9ca3af"
+                      placeholderTextColor={isDarkMode ? theme.textSecondary : "#9ca3af"}
                     />
                   </View>
                   <View style={styles.modalField}>
-                    <Text style={styles.modalLabel}>Confirm New Password</Text>
+                    <Text style={[styles.modalLabel, isDarkMode && { color: theme.text }]}>Confirm New Password</Text>
                     <TextInput
-                      style={styles.modalInput}
+                      style={[styles.modalInput, isDarkMode && { backgroundColor: theme.inputBackground, color: theme.text, borderColor: theme.border }]}
                       secureTextEntry
                       value={confirmPass}
                       onChangeText={setConfirmPass}
                       placeholder="Confirm new password"
-                      placeholderTextColor="#9ca3af"
+                      placeholderTextColor={isDarkMode ? theme.textSecondary : "#9ca3af"}
                     />
                   </View>
                 </>
@@ -857,7 +861,7 @@ export default function ParentSettings({ navigation }) {
 
               {modalType === '2fa' && (
                 <View style={styles.modalInfo}>
-                  <Text style={styles.modalInfoText}>
+                  <Text style={[styles.modalInfoText, isDarkMode && { color: theme.textSecondary }]}>
                     {twoFAEnabled 
                       ? 'Two-factor authentication is currently enabled. Disabling it will make your account less secure.'
                       : 'Enable two-factor authentication to add an extra layer of security to your account.'}

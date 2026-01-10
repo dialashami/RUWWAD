@@ -13,6 +13,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useStudent } from '../../context/StudentContext';
+import { useTheme } from '../../context/ThemeContext';
 import { courseAPI } from '../../services/api';
 import CourseDetail from './CourseDetail';
 
@@ -67,6 +68,7 @@ const defaultLessons = [
 export default function MyLessons() {
   // Get data from student context
   const { student, courses: contextCourses, refreshData, loading: contextLoading } = useStudent();
+  const { isDarkMode, theme } = useTheme();
 
   const [activeFilter, setActiveFilter] = useState('all');
   const [lessons, setLessons] = useState([]);
@@ -82,7 +84,7 @@ export default function MyLessons() {
     return () => {
       isMountedRef.current = false;
     };
-  }, [student.id, student.grade, contextCourses]);
+  }, [student.id, student.grade]);
 
   const fetchLessons = async () => {
     // Check token to prevent 401 errors after logout
@@ -93,32 +95,32 @@ export default function MyLessons() {
     }
 
     try {
-      // First try context courses
-      if (contextCourses && contextCourses.length > 0) {
-        if (!isMountedRef.current) return;
-        setLessons(contextCourses.map(c => ({
-          id: c._id || c.id,
-          title: c.title || 'Untitled Course',
-          subject: c.subject || 'Course',
-          progress: c.progress || 0,
-          duration: c.duration || '30 min',
-          completed: c.progress === 100,
-          status: c.progress >= 100 ? 'completed' : c.progress > 0 ? 'in-progress' : 'not-started',
-        })));
-        setLoading(false);
-        setRefreshing(false);
-        return;
-      }
-
-      // Fallback to API call
+      // Always fetch from API to get accurate progress data
       const response = await courseAPI.getMyCourses();
       if (!isMountedRef.current) return;
       
       const data = response.data || [];
       if (data.length > 0) {
         setLessons(data.map(c => ({
-          id: c._id,
+          id: c._id || c.id,
+          _id: c._id || c.id,
           title: c.title,
+          subject: c.subject || 'Course',
+          progress: c.progress || 0,
+          duration: c.duration || (c.totalVideos ? `${c.totalVideos} video${c.totalVideos !== 1 ? 's' : ''}` : '30 min'),
+          completed: c.isCompleted || c.progress >= 100,
+          status: c.progress >= 100 ? 'completed' : c.progress > 0 ? 'in-progress' : 'not-started',
+          totalVideos: c.totalVideos || 0,
+          watchedVideos: c.watchedVideos || 0,
+          videoUrls: c.videoUrls || [],
+          uploadedVideos: c.uploadedVideos || [],
+        })));
+      } else if (contextCourses && contextCourses.length > 0) {
+        // Fallback to context courses if API returns empty
+        setLessons(contextCourses.map(c => ({
+          id: c._id || c.id,
+          _id: c._id || c.id,
+          title: c.title || 'Untitled Course',
           subject: c.subject || 'Course',
           progress: c.progress || 0,
           duration: c.duration || '30 min',
@@ -134,7 +136,21 @@ export default function MyLessons() {
         console.error('Error fetching lessons:', err);
       }
       if (isMountedRef.current) {
-        setLessons(defaultLessons);
+        // Fallback to context courses on error
+        if (contextCourses && contextCourses.length > 0) {
+          setLessons(contextCourses.map(c => ({
+            id: c._id || c.id,
+            _id: c._id || c.id,
+            title: c.title || 'Untitled Course',
+            subject: c.subject || 'Course',
+            progress: c.progress || 0,
+            duration: c.duration || '30 min',
+            completed: c.progress === 100,
+            status: c.progress >= 100 ? 'completed' : c.progress > 0 ? 'in-progress' : 'not-started',
+          })));
+        } else {
+          setLessons(defaultLessons);
+        }
       }
     } finally {
       if (isMountedRef.current) {
@@ -198,14 +214,14 @@ export default function MyLessons() {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007bff" />
+      <View style={[styles.loadingContainer, isDarkMode && { backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={theme.primary} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isDarkMode && { backgroundColor: theme.background }]}>
       {/* Header Banner */}
       <LinearGradient
         colors={['#3498db', '#2c3e50']}
@@ -225,13 +241,14 @@ export default function MyLessons() {
       </LinearGradient>
 
       {/* Filters */}
-      <View style={styles.filters}>
+      <View style={[styles.filters, isDarkMode && { backgroundColor: theme.surface }]}>
         {filters.map((filter) => (
           <TouchableOpacity
             key={filter.id}
             style={[
               styles.filterBtn,
               activeFilter === filter.id && styles.filterBtnActive,
+              isDarkMode && activeFilter !== filter.id && { backgroundColor: theme.card },
             ]}
             onPress={() => setActiveFilter(filter.id)}
           >
@@ -239,6 +256,7 @@ export default function MyLessons() {
               style={[
                 styles.filterText,
                 activeFilter === filter.id && styles.filterTextActive,
+                isDarkMode && activeFilter !== filter.id && { color: theme.textSecondary },
               ]}
             >
               {filter.label}
@@ -258,7 +276,7 @@ export default function MyLessons() {
         {filteredLessons.map((lesson) => (
           <TouchableOpacity 
             key={lesson.id} 
-            style={styles.lessonCard}
+            style={[styles.lessonCard, isDarkMode && { backgroundColor: theme.card }]}
             onPress={() => handleOpenCourse(lesson)}
           >
             <View style={styles.lessonHeader}>
@@ -272,12 +290,17 @@ export default function MyLessons() {
               )}
             </View>
 
-            <Text style={styles.lessonTitle}>{lesson.title}</Text>
+            <Text style={[styles.lessonTitle, isDarkMode && { color: theme.text }]}>{lesson.title}</Text>
 
             <View style={styles.lessonFooter}>
-              <Text style={styles.duration}>⏱️ {lesson.duration}</Text>
+              <Text style={[styles.duration, isDarkMode && { color: theme.textSecondary }]}>
+                {lesson.totalVideos > 0 
+                  ? `📹 ${lesson.watchedVideos || 0}/${lesson.totalVideos} videos`
+                  : `⏱️ ${lesson.duration}`
+                }
+              </Text>
               <View style={styles.progressContainer}>
-                <View style={styles.progressBar}>
+                <View style={[styles.progressBar, isDarkMode && { backgroundColor: theme.border }]}>
                   <View
                     style={[
                       styles.progressFill,
@@ -288,7 +311,7 @@ export default function MyLessons() {
                     ]}
                   />
                 </View>
-                <Text style={styles.progressText}>{lesson.progress}%</Text>
+                <Text style={[styles.progressText, isDarkMode && { color: theme.text }]}>{lesson.progress}%</Text>
               </View>
             </View>
 

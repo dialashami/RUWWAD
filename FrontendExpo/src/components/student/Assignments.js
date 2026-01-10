@@ -14,6 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as DocumentPicker from 'expo-document-picker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useStudent } from '../../context/StudentContext';
+import { useTheme } from '../../context/ThemeContext';
 import { assignmentAPI } from '../../services/api';
 
 const defaultAssignments = [
@@ -62,6 +63,7 @@ const defaultAssignments = [
 export default function Assignments() {
   // Get data from student context
   const { student, assignments: contextAssignments, refreshData, loading: contextLoading } = useStudent();
+  const { isDarkMode, theme } = useTheme();
 
   const [activeFilter, setActiveFilter] = useState('all');
   const [assignments, setAssignments] = useState([]);
@@ -78,18 +80,36 @@ export default function Assignments() {
     fetchAssignments();
   }, [student.id, contextAssignments]);
 
+  // Helper to find the student's submission in an assignment
+  const getStudentSubmission = (assignment) => {
+    if (!assignment.submissions || !student.id) return null;
+    return assignment.submissions.find(s => 
+      s.student?._id === student.id || s.student === student.id
+    );
+  };
+
   const fetchAssignments = async () => {
     try {
       // First try context assignments
       if (contextAssignments && contextAssignments.length > 0) {
-        setAssignments(contextAssignments.map(a => ({
-          id: a._id || a.id,
-          title: a.title || 'Untitled Assignment',
-          subject: a.subject || a.course?.name || 'Course',
-          dueDate: a.dueDate,
-          status: a.status || 'pending',
-          priority: a.priority || 'medium',
-        })));
+        setAssignments(contextAssignments.map(a => {
+          const submission = getStudentSubmission(a);
+          let status = 'pending';
+          if (submission) {
+            status = submission.isGraded ? 'graded' : 'submitted';
+          }
+          return {
+            id: a._id || a.id,
+            title: a.title || 'Untitled Assignment',
+            subject: a.subject || a.course?.name || 'Course',
+            dueDate: a.dueDate,
+            status: status,
+            priority: a.priority || 'medium',
+            grade: submission?.grade,
+            feedback: submission?.feedback,
+            isGraded: submission?.isGraded || false,
+          };
+        }));
         setLoading(false);
         setRefreshing(false);
         return;
@@ -99,14 +119,24 @@ export default function Assignments() {
       const response = await assignmentAPI.getMyAssignments();
       const data = response.data || [];
       if (data.length > 0) {
-        setAssignments(data.map(a => ({
-          id: a._id,
-          title: a.title,
-          subject: a.subject || a.course?.name || 'Course',
-          dueDate: a.dueDate,
-          status: a.status || 'pending',
-          priority: a.priority || 'medium',
-        })));
+        setAssignments(data.map(a => {
+          const submission = getStudentSubmission(a);
+          let status = 'pending';
+          if (submission) {
+            status = submission.isGraded ? 'graded' : 'submitted';
+          }
+          return {
+            id: a._id,
+            title: a.title,
+            subject: a.subject || a.course?.name || 'Course',
+            dueDate: a.dueDate,
+            status: status,
+            priority: a.priority || 'medium',
+            grade: submission?.grade,
+            feedback: submission?.feedback,
+            isGraded: submission?.isGraded || false,
+          };
+        }));
       } else {
         setAssignments(defaultAssignments);
       }
@@ -215,11 +245,13 @@ export default function Assignments() {
     { id: 'all', label: 'All' },
     { id: 'pending', label: 'Pending' },
     { id: 'submitted', label: 'Submitted' },
+    { id: 'graded', label: 'Graded' },
   ];
 
   const filteredAssignments = assignments.filter((assignment) => {
     if (activeFilter === 'pending') return assignment.status === 'pending';
     if (activeFilter === 'submitted') return assignment.status === 'submitted';
+    if (activeFilter === 'graded') return assignment.status === 'graded' || assignment.isGraded;
     return true;
   });
 
@@ -248,14 +280,14 @@ export default function Assignments() {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007bff" />
+      <View style={[styles.loadingContainer, isDarkMode && { backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={theme.primary} />
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isDarkMode && { backgroundColor: theme.background }]}>
       {/* Header Banner */}
       <LinearGradient
         colors={['#3498db', '#2c3e50']}
@@ -277,13 +309,14 @@ export default function Assignments() {
       </LinearGradient>
 
       {/* Filters */}
-      <View style={styles.filters}>
+      <View style={[styles.filters, isDarkMode && { backgroundColor: theme.surface }]}>
         {filters.map((filter) => (
           <TouchableOpacity
             key={filter.id}
             style={[
               styles.filterBtn,
               activeFilter === filter.id && styles.filterBtnActive,
+              isDarkMode && activeFilter !== filter.id && { backgroundColor: theme.card },
             ]}
             onPress={() => setActiveFilter(filter.id)}
           >
@@ -291,6 +324,7 @@ export default function Assignments() {
               style={[
                 styles.filterText,
                 activeFilter === filter.id && styles.filterTextActive,
+                isDarkMode && activeFilter !== filter.id && { color: theme.textSecondary },
               ]}
             >
               {filter.label}
@@ -308,7 +342,7 @@ export default function Assignments() {
         }
       >
         {filteredAssignments.map((assignment) => (
-          <TouchableOpacity key={assignment.id} style={styles.assignmentCard}>
+          <TouchableOpacity key={assignment.id} style={[styles.assignmentCard, isDarkMode && { backgroundColor: theme.card }]}>
             <View style={styles.cardHeader}>
               <View style={styles.subjectBadge}>
                 <Text style={styles.subjectText}>{assignment.subject}</Text>
@@ -330,7 +364,7 @@ export default function Assignments() {
               </View>
             </View>
 
-            <Text style={styles.assignmentTitle}>{assignment.title}</Text>
+            <Text style={[styles.assignmentTitle, isDarkMode && { color: theme.text }]}>{assignment.title}</Text>
 
             <View style={styles.cardFooter}>
               <View style={styles.dateContainer}>
@@ -338,6 +372,7 @@ export default function Assignments() {
                 <Text
                   style={[
                     styles.dateText,
+                    isDarkMode && { color: theme.textSecondary },
                     assignment.status === 'pending' &&
                       isOverdue(assignment.dueDate) &&
                       styles.overdueText,
@@ -347,7 +382,11 @@ export default function Assignments() {
                 </Text>
               </View>
 
-              {assignment.status === 'submitted' ? (
+              {assignment.status === 'graded' || assignment.isGraded ? (
+                <View style={styles.gradedBadge}>
+                  <Text style={styles.gradedText}>✓ Grade: {assignment.grade}%</Text>
+                </View>
+              ) : assignment.status === 'submitted' ? (
                 <View style={styles.submittedBadge}>
                   <Text style={styles.submittedText}>✓ Submitted</Text>
                 </View>
@@ -360,6 +399,14 @@ export default function Assignments() {
                 </TouchableOpacity>
               )}
             </View>
+
+            {/* Show feedback if graded */}
+            {assignment.isGraded && assignment.feedback && (
+              <View style={[styles.feedbackContainer, isDarkMode && { backgroundColor: theme.inputBackground }]}>
+                <Text style={[styles.feedbackLabel, isDarkMode && { color: theme.textSecondary }]}>💬 Teacher Feedback:</Text>
+                <Text style={[styles.feedbackText, isDarkMode && { color: theme.text }]}>{assignment.feedback}</Text>
+              </View>
+            )}
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -372,26 +419,26 @@ export default function Assignments() {
         onRequestClose={() => setShowSubmitModal(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
+          <View style={[styles.modalContent, isDarkMode && { backgroundColor: theme.card }]}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Submit Assignment</Text>
+              <Text style={[styles.modalTitle, isDarkMode && { color: theme.text }]}>Submit Assignment</Text>
               <TouchableOpacity onPress={() => setShowSubmitModal(false)}>
-                <Text style={styles.modalClose}>✕</Text>
+                <Text style={[styles.modalClose, isDarkMode && { color: theme.textSecondary }]}>✕</Text>
               </TouchableOpacity>
             </View>
 
             {selectedAssignment && (
               <View style={styles.modalBody}>
-                <Text style={styles.assignmentInfo}>
+                <Text style={[styles.assignmentInfo, isDarkMode && { color: theme.text }]}>
                   📚 {selectedAssignment.title}
                 </Text>
-                <Text style={styles.assignmentDue}>
+                <Text style={[styles.assignmentDue, isDarkMode && { color: theme.textSecondary }]}>
                   Due: {formatDate(selectedAssignment.dueDate)}
                 </Text>
 
                 {/* File Upload Area */}
                 <TouchableOpacity 
-                  style={styles.uploadArea}
+                  style={[styles.uploadArea, isDarkMode && { borderColor: theme.border, backgroundColor: theme.inputBackground }]}
                   onPress={handlePickFile}
                 >
                   {selectedFile ? (
@@ -616,6 +663,36 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#16a34a',
     fontWeight: '600',
+  },
+  gradedBadge: {
+    backgroundColor: '#dbeafe',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  gradedText: {
+    fontSize: 13,
+    color: '#1d4ed8',
+    fontWeight: '600',
+  },
+  feedbackContainer: {
+    marginTop: 12,
+    padding: 12,
+    backgroundColor: '#f3f4f6',
+    borderRadius: 8,
+    borderLeftWidth: 3,
+    borderLeftColor: '#3b82f6',
+  },
+  feedbackLabel: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginBottom: 4,
+    fontWeight: '500',
+  },
+  feedbackText: {
+    fontSize: 13,
+    color: '#374151',
+    lineHeight: 18,
   },
   submitBtn: {
     backgroundColor: '#007bff',

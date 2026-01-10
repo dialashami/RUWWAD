@@ -210,6 +210,9 @@ exports.gradeSubmission = async (req, res, next) => {
     
     // Create notification for the student about their grade
     try {
+      const student = await User.findById(submission.student).select('firstName lastName parentEmail');
+      const studentName = student ? `${student.firstName} ${student.lastName}` : 'Your child';
+      
       await Notification.create({
         user: submission.student,
         title: 'Assignment Graded',
@@ -217,6 +220,20 @@ exports.gradeSubmission = async (req, res, next) => {
         type: 'grade',
         isRead: false,
       });
+      
+      // Notify the parent if they exist
+      if (student && student.parentEmail) {
+        const parent = await User.findOne({ email: student.parentEmail, role: 'parent' }).select('_id');
+        if (parent) {
+          await Notification.create({
+            user: parent._id,
+            title: 'Child\'s Assignment Graded',
+            message: `${studentName}'s assignment "${assignment.title}" has been graded. Grade: ${grade}%.${feedback ? ` Feedback: ${feedback}` : ''}`,
+            type: 'grade',
+            isRead: false,
+          });
+        }
+      }
     } catch (notifErr) {
       console.error('Error creating grade notification:', notifErr);
     }

@@ -11,6 +11,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useStudent } from '../../context/StudentContext';
+import { useTheme } from '../../context/ThemeContext';
 import { studentDashboardAPI } from '../../services/api';
 
 export default function Dashboard({ onNavigate }) {
@@ -25,6 +26,8 @@ export default function Dashboard({ onNavigate }) {
     loading: contextLoading,
     refreshData,
   } = useStudent();
+  
+  const { isDarkMode, theme } = useTheme();
 
   const [refreshing, setRefreshing] = useState(false);
   const [progressData, setProgressData] = useState({});
@@ -157,16 +160,16 @@ export default function Dashboard({ onNavigate }) {
 
   if (contextLoading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007bff" />
-        <Text style={styles.loadingText}>Loading dashboard...</Text>
+      <View style={[styles.loadingContainer, isDarkMode && { backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={theme.primary} />
+        <Text style={[styles.loadingText, isDarkMode && { color: theme.text }]}>Loading dashboard...</Text>
       </View>
     );
   }
 
   return (
     <ScrollView 
-      style={styles.container} 
+      style={[styles.container, isDarkMode && { backgroundColor: theme.background }]} 
       showsVerticalScrollIndicator={false}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#3498db']} />
@@ -195,25 +198,25 @@ export default function Dashboard({ onNavigate }) {
       {/* Stats Cards */}
       <View style={styles.statsContainer}>
         {stats.map((stat, index) => (
-          <View key={index} style={[styles.statCard, { borderLeftColor: stat.color }]}>
+          <View key={index} style={[styles.statCard, { borderLeftColor: stat.color }, isDarkMode && { backgroundColor: theme.card }]}>
             <Text style={styles.statIcon}>{stat.icon}</Text>
-            <Text style={styles.statValue}>{stat.value}</Text>
-            <Text style={styles.statLabel}>{stat.label}</Text>
+            <Text style={[styles.statValue, isDarkMode && { color: theme.text }]}>{stat.value}</Text>
+            <Text style={[styles.statLabel, isDarkMode && { color: theme.textSecondary }]}>{stat.label}</Text>
           </View>
         ))}
       </View>
 
       {/* Today's Schedule */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Today's Schedule</Text>
+        <Text style={[styles.sectionTitle, isDarkMode && { color: theme.text }]}>Today's Schedule</Text>
         {upcomingClasses.map((cls, index) => (
-          <View key={index} style={styles.scheduleCard}>
+          <View key={index} style={[styles.scheduleCard, isDarkMode && { backgroundColor: theme.card }]}>
             <View style={styles.scheduleTime}>
-              <Text style={styles.timeText}>{cls.time}</Text>
+              <Text style={[styles.timeText, isDarkMode && { color: theme.primary }]}>{cls.time}</Text>
             </View>
             <View style={styles.scheduleInfo}>
-              <Text style={styles.subjectText}>{cls.subject}</Text>
-              <Text style={styles.roomText}>{cls.room}</Text>
+              <Text style={[styles.subjectText, isDarkMode && { color: theme.text }]}>{cls.subject}</Text>
+              <Text style={[styles.roomText, isDarkMode && { color: theme.textSecondary }]}>{cls.room}</Text>
             </View>
           </View>
         ))}
@@ -221,18 +224,18 @@ export default function Dashboard({ onNavigate }) {
 
       {/* Recent Activity */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Recent Activity</Text>
+        <Text style={[styles.sectionTitle, isDarkMode && { color: theme.text }]}>Recent Activity</Text>
         {recentActivity.map((activity, index) => (
-          <View key={index} style={styles.activityCard}>
-            <Text style={styles.activityText}>{activity.text}</Text>
-            <Text style={styles.activityTime}>{activity.time}</Text>
+          <View key={index} style={[styles.activityCard, isDarkMode && { backgroundColor: theme.card }]}>
+            <Text style={[styles.activityText, isDarkMode && { color: theme.text }]}>{activity.text}</Text>
+            <Text style={[styles.activityTime, isDarkMode && { color: theme.textSecondary }]}>{activity.time}</Text>
           </View>
         ))}
       </View>
 
       {/* Quick Actions */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Quick Actions</Text>
+        <Text style={[styles.sectionTitle, isDarkMode && { color: theme.text }]}>Quick Actions</Text>
         <View style={styles.quickActions}>
           <TouchableOpacity 
             style={[styles.actionBtn, { backgroundColor: '#007bff' }]}

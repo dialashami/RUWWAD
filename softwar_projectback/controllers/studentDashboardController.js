@@ -138,6 +138,19 @@ exports.getProgress = async (req, res, next) => {
     const userId = req.userId;
     const userPayload = req.User;
 
+    // Check if userId is a valid ObjectId
+    const mongoose = require('mongoose');
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.json({
+        overallProgress: 0,
+        subjectProgress: [],
+        weeklyStats: { lessonsCompleted: 0, assignmentsSubmitted: 0, hoursSpent: 0 },
+        achievements: [],
+        coursesCount: 0,
+        assignmentsCount: 0,
+      });
+    }
+
     if (!userId || !userPayload || userPayload.role !== 'student') {
       return res.status(403).json({ message: 'Student access required' });
     }
@@ -171,8 +184,10 @@ exports.getProgress = async (req, res, next) => {
         .sort({ dueDate: 1 }),
     ]);
 
-    // Calculate subject progress
+    // Calculate subject progress based on VIDEO PROGRESS
     const subjectMap = {};
+    let totalWatchedVideos = 0;
+    let totalVideos = 0;
     
     courses.forEach(course => {
       const subject = course.subject || course.title || 'General';
@@ -180,17 +195,32 @@ exports.getProgress = async (req, res, next) => {
         subjectMap[subject] = {
           name: subject,
           progress: 0,
-          lessons: 0,
-          quizzes: 0,
+          totalVideos: 0,
+          watchedVideos: 0,
+          coursesCount: 0,
           grade: '-',
           colorClass: getSubjectColorClass(subject),
-          trend: '+0%',
-          totalLessons: 0,
-          completedLessons: 0,
         };
       }
-      subjectMap[subject].totalLessons += course.lessons?.length || 1;
-      subjectMap[subject].lessons = subjectMap[subject].totalLessons;
+      
+      // Count videos in this course
+      const courseVideoCount = (course.videoUrls?.length || 0) + (course.uploadedVideos?.length || 0);
+      subjectMap[subject].totalVideos += courseVideoCount;
+      subjectMap[subject].coursesCount += 1;
+      totalVideos += courseVideoCount;
+      
+      // Find student's video progress for this course
+      const studentProgress = course.videoProgress?.find(
+        vp => vp.student && vp.student.toString() === userId
+      );
+      
+      if (studentProgress) {
+        const watchedCount = 
+          (studentProgress.watchedVideoUrls?.length || 0) + 
+          (studentProgress.watchedUploadedVideos?.length || 0);
+        subjectMap[subject].watchedVideos += watchedCount;
+        totalWatchedVideos += watchedCount;
+      }
     });
 
     // Calculate completion based on assignments
@@ -199,8 +229,6 @@ exports.getProgress = async (req, res, next) => {
     let totalScore = 0;
 
     assignments.forEach(assignment => {
-      const courseName = assignment.course?.subject || assignment.course?.title || 'General';
-      
       // Check if student has submitted
       const studentSubmission = assignment.submissions?.find(
         s => s.student?.toString() === userId
@@ -209,22 +237,17 @@ exports.getProgress = async (req, res, next) => {
       if (studentSubmission) {
         totalSubmitted++;
         
-        if (subjectMap[courseName]) {
-          subjectMap[courseName].completedLessons += 1;
-          subjectMap[courseName].quizzes += 1;
-        }
-        
-        if (studentSubmission.isGraded && studentSubmission.grade) {
+        if (studentSubmission.isGraded && studentSubmission.grade !== undefined) {
           totalGraded++;
           totalScore += studentSubmission.grade;
         }
       }
     });
 
-    // Calculate percentages and grades
+    // Calculate percentages and grades for each subject
     Object.values(subjectMap).forEach(subject => {
-      if (subject.totalLessons > 0) {
-        subject.progress = Math.round((subject.completedLessons / subject.totalLessons) * 100);
+      if (subject.totalVideos > 0) {
+        subject.progress = Math.round((subject.watchedVideos / subject.totalVideos) * 100);
       }
       
       // Assign grade based on progress
@@ -233,41 +256,44 @@ exports.getProgress = async (req, res, next) => {
       else if (subject.progress >= 70) subject.grade = 'B+';
       else if (subject.progress >= 60) subject.grade = 'B';
       else if (subject.progress >= 50) subject.grade = 'C';
+      else if (subject.progress > 0) subject.grade = 'D';
       else subject.grade = '-';
     });
 
     const subjectProgress = Object.values(subjectMap);
     
-    // Calculate overall progress
-    const overallProgress = subjectProgress.length > 0
-      ? Math.round(subjectProgress.reduce((sum, s) => sum + s.progress, 0) / subjectProgress.length)
+    // Calculate overall progress based on videos watched
+    const overallProgress = totalVideos > 0
+      ? Math.round((totalWatchedVideos / totalVideos) * 100)
       : 0;
 
     // Calculate achievements
     const achievements = calculateAchievements(courses, assignments, totalSubmitted, userId);
 
-    // Weekly activity (placeholder - would need activity tracking)
-    const weeklyActivity = [
-      { day: 'Mon', hours: Math.random() * 3 + 1 },
-      { day: 'Tue', hours: Math.random() * 3 + 1 },
-      { day: 'Wed', hours: Math.random() * 3 + 1 },
-      { day: 'Thu', hours: Math.random() * 3 + 1 },
-      { day: 'Fri', hours: Math.random() * 3 + 1 },
-      { day: 'Sat', hours: Math.random() * 4 + 2 },
-      { day: 'Sun', hours: Math.random() * 4 + 2 },
-    ].map(d => ({ ...d, hours: Math.round(d.hours * 10) / 10 }));
+    // Weekly stats
+    const weeklyStats = {
+      lessonsCompleted: totalWatchedVideos,
+      assignmentsSubmitted: totalSubmitted,
+      hoursSpent: Math.round(totalWatchedVideos * 0.5), // Estimate 30 min per video
+    };
 
     return res.json({
       overallProgress,
       subjectProgress,
-      weeklyActivity,
-      achievements,
-      lessonsCompleted: totalSubmitted,
-      quizzesPassed: totalGraded,
-      totalAchievements: achievements.filter(a => a.earned).length,
+      weeklyStats,
+      achievements: achievements.filter(a => a.earned).map(a => ({
+        title: a.title,
+        icon: a.icon,
+        date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+      })),
+      coursesCount: courses.length,
+      assignmentsCount: assignments.length,
+      totalVideos,
+      totalWatchedVideos,
       averageScore: totalGraded > 0 ? Math.round(totalScore / totalGraded) : 0,
     });
   } catch (err) {
+    console.error('Error in getProgress:', err);
     next(err);
   }
 };

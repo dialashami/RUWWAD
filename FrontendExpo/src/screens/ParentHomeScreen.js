@@ -15,6 +15,7 @@ import { logoutUser } from '../store/authSlice';
 
 // Context Provider
 import { ParentProvider, useParent } from '../context/ParentContext';
+import { useTheme } from '../context/ThemeContext';
 
 // Import components
 import Dashboard from '../components/parent/Dashboard';
@@ -28,6 +29,7 @@ function ParentHomeContent({ navigation }) {
   const dispatch = useDispatch();
   const [activePage, setActivePage] = useState('dashboard');
   const [sidebarVisible, setSidebarVisible] = useState(false);
+  const { isDarkMode, theme, profileImage } = useTheme();
 
   // Get data from context
   const {
@@ -112,11 +114,11 @@ function ParentHomeContent({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, isDarkMode && { backgroundColor: theme.background }]}>
       <StatusBar barStyle="light-content" backgroundColor="#9333ea" />
       
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, isDarkMode && { backgroundColor: theme.surface }]}>
         <TouchableOpacity
           style={styles.menuButton}
           onPress={() => setSidebarVisible(true)}
@@ -153,8 +155,8 @@ function ParentHomeContent({ navigation }) {
             style={styles.profileIcon}
             onPress={() => setActivePage('settings')}
           >
-            {parent.profilePicture ? (
-              <Image source={{ uri: parent.profilePicture }} style={styles.profileImage} />
+            {(profileImage || parent.profilePicture) ? (
+              <Image source={{ uri: profileImage || parent.profilePicture }} style={styles.profileImage} />
             ) : (
               <Text style={styles.profileInitials}>{getInitials()}</Text>
             )}
@@ -163,7 +165,7 @@ function ParentHomeContent({ navigation }) {
       </View>
 
       {/* Main Content */}
-      <View style={styles.mainContent}>
+      <View style={[styles.mainContent, isDarkMode && { backgroundColor: theme.background }]}>
         {renderPage()}
       </View>
 
@@ -175,7 +177,7 @@ function ParentHomeContent({ navigation }) {
         onRequestClose={() => setSidebarVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.sidebar}>
+          <View style={[styles.sidebar, isDarkMode && { backgroundColor: theme.surface }]}>
             {/* Sidebar Header with Logo */}
             <View style={styles.sidebarHeader}>
               <TouchableOpacity style={styles.sidebarLogoContainer} onPress={() => { setActivePage('dashboard'); setSidebarVisible(false); }}>
@@ -193,8 +195,8 @@ function ParentHomeContent({ navigation }) {
 
             {/* User Profile Section - Dynamic from Context */}
             <View style={styles.userInfo}>
-              {parent.profilePicture ? (
-                <Image source={{ uri: parent.profilePicture }} style={styles.avatarImage} />
+              {(profileImage || parent.profilePicture) ? (
+                <Image source={{ uri: profileImage || parent.profilePicture }} style={styles.avatarImage} />
               ) : (
                 <View style={styles.avatar}>
                   <Text style={styles.avatarInitials}>{getInitials()}</Text>

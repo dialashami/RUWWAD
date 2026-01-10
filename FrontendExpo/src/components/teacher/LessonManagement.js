@@ -65,6 +65,11 @@ export default function LessonManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   
+  // Course Details Modal States
+  const [showCourseDetails, setShowCourseDetails] = useState(false);
+  const [selectedCourse, setSelectedCourse] = useState(null);
+  const [courseDetailsLoading, setCourseDetailsLoading] = useState(false);
+  
   // Picker modal states
   const [showSubjectPicker, setShowSubjectPicker] = useState(false);
   const [showGradePicker, setShowGradePicker] = useState(false);
@@ -155,6 +160,61 @@ export default function LessonManagement() {
     if (diffHours < 24) return `${diffHours} hours ago`;
     if (diffDays < 7) return `${diffDays} days ago`;
     return date.toLocaleDateString();
+  };
+
+  const handleCoursePress = async (lesson) => {
+    setCourseDetailsLoading(true);
+    setShowCourseDetails(true);
+    
+    try {
+      const response = await courseAPI.getCourse(lesson.id);
+      if (response.data) {
+        const courseData = response.data;
+        
+        // Calculate attendance for each student
+        const totalVideos = (courseData.videoUrls?.length || 0) + (courseData.uploadedVideos?.length || 0);
+        
+        const studentsWithAttendance = (courseData.students || []).map(student => {
+          // Find student's video progress
+          const studentProgress = courseData.videoProgress?.find(
+            vp => vp.student && vp.student.toString() === (student._id || student.id)?.toString()
+          );
+          
+          let watchedCount = 0;
+          let attendancePercent = 0;
+          
+          if (studentProgress) {
+            watchedCount = 
+              (studentProgress.watchedVideoUrls?.length || 0) + 
+              (studentProgress.watchedUploadedVideos?.length || 0);
+            attendancePercent = totalVideos > 0 ? Math.round((watchedCount / totalVideos) * 100) : 0;
+          }
+          
+          return {
+            id: student._id || student.id,
+            name: `${student.firstName || ''} ${student.lastName || ''}`.trim() || 'Unknown Student',
+            email: student.email || 'No email',
+            watchedCount,
+            totalVideos,
+            attendancePercent,
+            hasAttended: watchedCount > 0,
+          };
+        });
+        
+        setSelectedCourse({
+          ...courseData,
+          studentsWithAttendance,
+          totalVideos,
+          enrolledCount: courseData.students?.length || 0,
+        });
+      }
+    } catch (err) {
+      console.error('Error fetching course details:', err);
+      Alert.alert('Error', 'Failed to load course details');
+      setShowCourseDetails(false);
+    } finally {
+      setCourseDetailsLoading(false);
+    }
   };
 
   const onRefresh = async () => {
@@ -371,7 +431,11 @@ export default function LessonManagement() {
       >
         {filteredLessons.length > 0 ? (
           filteredLessons.map((lesson) => (
-            <TouchableOpacity key={lesson.id} style={styles.lessonCard}>
+            <TouchableOpacity 
+              key={lesson.id} 
+              style={styles.lessonCard}
+              onPress={() => handleCoursePress(lesson)}
+            >
               <View style={styles.lessonHeader}>
                 <View style={styles.lessonTitleSection}>
                   <Text style={styles.lessonTitle}>{lesson.title}</Text>
@@ -399,6 +463,9 @@ export default function LessonManagement() {
                 <Text style={styles.metaItem}>📍 {lesson.grade}</Text>
                 <Text style={styles.metaItem}>⏱️ {lesson.duration}</Text>
                 <Text style={styles.metaItem}>✏️ {lesson.lastEdited}</Text>
+              </View>
+              <View style={styles.tapHint}>
+                <Text style={styles.tapHintText}>Tap for details →</Text>
               </View>
             </TouchableOpacity>
           ))
@@ -599,6 +666,133 @@ export default function LessonManagement() {
             (val) => setFormData({ ...formData, universityMajor: val }), 'Select Specialization')}
           {showStatusPicker && renderPickerModal(showStatusPicker, setShowStatusPicker, statusOptions, formData.status, 
             (val) => setFormData({ ...formData, status: val }), 'Select Status')}
+        </View>
+      </Modal>
+
+      {/* Course Details Modal */}
+      <Modal
+        visible={showCourseDetails}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowCourseDetails(false)}
+      >
+        <View style={styles.detailsModalOverlay}>
+          <View style={styles.detailsModalContainer}>
+            {/* Modal Header */}
+            <View style={styles.detailsModalHeader}>
+              <Text style={styles.detailsModalTitle}>📚 Course Details</Text>
+              <TouchableOpacity 
+                onPress={() => { setShowCourseDetails(false); setSelectedCourse(null); }}
+                style={styles.detailsCloseBtn}
+              >
+                <Text style={styles.detailsCloseBtnText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            {courseDetailsLoading ? (
+              <View style={styles.detailsLoading}>
+                <ActivityIndicator size="large" color="#007bff" />
+                <Text style={styles.detailsLoadingText}>Loading course details...</Text>
+              </View>
+            ) : selectedCourse ? (
+              <ScrollView style={styles.detailsContent} showsVerticalScrollIndicator={false}>
+                {/* Course Info Card */}
+                <View style={styles.courseInfoCard}>
+                  <Text style={styles.courseInfoTitle}>{selectedCourse.title}</Text>
+                  <View style={styles.courseInfoMeta}>
+                    <View style={styles.courseMetaItem}>
+                      <Text style={styles.courseMetaIcon}>📚</Text>
+                      <Text style={styles.courseMetaText}>{selectedCourse.subject || 'No subject'}</Text>
+                    </View>
+                    <View style={styles.courseMetaItem}>
+                      <Text style={styles.courseMetaIcon}>📍</Text>
+                      <Text style={styles.courseMetaText}>{selectedCourse.grade || 'All grades'}</Text>
+                    </View>
+                    <View style={styles.courseMetaItem}>
+                      <Text style={styles.courseMetaIcon}>⏱️</Text>
+                      <Text style={styles.courseMetaText}>{selectedCourse.duration || '45 min'}</Text>
+                    </View>
+                  </View>
+                  {selectedCourse.description && (
+                    <Text style={styles.courseInfoDescription}>{selectedCourse.description}</Text>
+                  )}
+                </View>
+
+                {/* Stats Overview */}
+                <View style={styles.detailsStatsRow}>
+                  <View style={styles.detailsStatCard}>
+                    <Text style={styles.detailsStatNumber}>{selectedCourse.enrolledCount || 0}</Text>
+                    <Text style={styles.detailsStatLabel}>Enrolled</Text>
+                  </View>
+                  <View style={styles.detailsStatCard}>
+                    <Text style={styles.detailsStatNumber}>{selectedCourse.totalVideos || 0}</Text>
+                    <Text style={styles.detailsStatLabel}>Videos</Text>
+                  </View>
+                  <View style={styles.detailsStatCard}>
+                    <Text style={[styles.detailsStatNumber, { color: '#10b981' }]}>
+                      {selectedCourse.studentsWithAttendance?.filter(s => s.hasAttended).length || 0}
+                    </Text>
+                    <Text style={styles.detailsStatLabel}>Active</Text>
+                  </View>
+                </View>
+
+                {/* Attendance Section */}
+                <View style={styles.attendanceSection}>
+                  <Text style={styles.attendanceSectionTitle}>👥 Student Attendance</Text>
+                  
+                  {selectedCourse.studentsWithAttendance?.length > 0 ? (
+                    selectedCourse.studentsWithAttendance.map((student, index) => (
+                      <View key={student.id || index} style={styles.studentAttendanceCard}>
+                        <View style={styles.studentInfo}>
+                          <View style={styles.studentAvatar}>
+                            <Text style={styles.studentAvatarText}>
+                              {student.name.charAt(0).toUpperCase()}
+                            </Text>
+                          </View>
+                          <View style={styles.studentDetails}>
+                            <Text style={styles.studentName}>{student.name}</Text>
+                            <Text style={styles.studentEmail}>{student.email}</Text>
+                          </View>
+                        </View>
+                        <View style={styles.attendanceInfo}>
+                          <View style={styles.progressBarContainer}>
+                            <View 
+                              style={[
+                                styles.progressBar, 
+                                { 
+                                  width: `${student.attendancePercent}%`,
+                                  backgroundColor: student.attendancePercent >= 70 ? '#10b981' : 
+                                                   student.attendancePercent >= 40 ? '#f59e0b' : '#ef4444'
+                                }
+                              ]} 
+                            />
+                          </View>
+                          <Text style={[
+                            styles.attendancePercent,
+                            { color: student.attendancePercent >= 70 ? '#10b981' : 
+                                     student.attendancePercent >= 40 ? '#f59e0b' : '#ef4444' }
+                          ]}>
+                            {student.attendancePercent}%
+                          </Text>
+                        </View>
+                        <Text style={styles.watchedText}>
+                          {student.watchedCount}/{student.totalVideos} videos watched
+                        </Text>
+                      </View>
+                    ))
+                  ) : (
+                    <View style={styles.noStudentsCard}>
+                      <Text style={styles.noStudentsIcon}>👤</Text>
+                      <Text style={styles.noStudentsText}>No students enrolled yet</Text>
+                      <Text style={styles.noStudentsSubtext}>Students who enroll will appear here</Text>
+                    </View>
+                  )}
+                </View>
+
+                <View style={{ height: 30 }} />
+              </ScrollView>
+            ) : null}
+          </View>
         </View>
       </Modal>
     </View>
@@ -1053,5 +1247,227 @@ const styles = StyleSheet.create({
     color: '#2563eb',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  // Tap hint styles
+  tapHint: {
+    marginTop: 8,
+    alignItems: 'flex-end',
+  },
+  tapHintText: {
+    fontSize: 12,
+    color: '#007bff',
+    fontStyle: 'italic',
+  },
+  // Course Details Modal Styles
+  detailsModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  detailsModalContainer: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '90%',
+    minHeight: '60%',
+  },
+  detailsModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  detailsModalTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1f2937',
+  },
+  detailsCloseBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#f3f4f6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  detailsCloseBtnText: {
+    fontSize: 18,
+    color: '#6b7280',
+    fontWeight: 'bold',
+  },
+  detailsLoading: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  detailsLoadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#6b7280',
+  },
+  detailsContent: {
+    padding: 16,
+  },
+  courseInfoCard: {
+    backgroundColor: '#f9fafb',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
+  },
+  courseInfoTitle: {
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: '#1f2937',
+    marginBottom: 12,
+  },
+  courseInfoMeta: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginBottom: 12,
+  },
+  courseMetaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#e5e7eb',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 20,
+    gap: 4,
+  },
+  courseMetaIcon: {
+    fontSize: 14,
+  },
+  courseMetaText: {
+    fontSize: 13,
+    color: '#4b5563',
+  },
+  courseInfoDescription: {
+    fontSize: 14,
+    color: '#6b7280',
+    lineHeight: 20,
+  },
+  detailsStatsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginBottom: 20,
+  },
+  detailsStatCard: {
+    flex: 1,
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  detailsStatNumber: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#1f2937',
+  },
+  detailsStatLabel: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginTop: 4,
+  },
+  attendanceSection: {
+    marginBottom: 20,
+  },
+  attendanceSectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1f2937',
+    marginBottom: 16,
+  },
+  studentAttendanceCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  studentInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  studentAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#667eea',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  studentAvatarText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: 'bold',
+  },
+  studentDetails: {
+    flex: 1,
+  },
+  studentName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1f2937',
+  },
+  studentEmail: {
+    fontSize: 13,
+    color: '#6b7280',
+  },
+  attendanceInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 8,
+  },
+  progressBarContainer: {
+    flex: 1,
+    height: 10,
+    backgroundColor: '#e5e7eb',
+    borderRadius: 5,
+    overflow: 'hidden',
+  },
+  progressBar: {
+    height: '100%',
+    borderRadius: 5,
+  },
+  attendancePercent: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    width: 50,
+    textAlign: 'right',
+  },
+  watchedText: {
+    fontSize: 12,
+    color: '#9ca3af',
+  },
+  noStudentsCard: {
+    backgroundColor: '#f9fafb',
+    borderRadius: 12,
+    padding: 32,
+    alignItems: 'center',
+  },
+  noStudentsIcon: {
+    fontSize: 40,
+    marginBottom: 12,
+  },
+  noStudentsText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1f2937',
+    marginBottom: 4,
+  },
+  noStudentsSubtext: {
+    fontSize: 14,
+    color: '#9ca3af',
   },
 });
