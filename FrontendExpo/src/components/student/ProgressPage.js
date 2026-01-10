@@ -8,91 +8,72 @@ import {
   RefreshControl,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useStudent } from '../../context/StudentContext';
-import { studentDashboardAPI, feedbackAPI } from '../../services/api';
+import { useTheme } from '../../context/ThemeContext';
+import { studentDashboardAPI } from '../../services/api';
 
-const defaultProgressData = {
-  overallProgress: 75,
-  subjects: [
-    { name: 'Mathematics', progress: 85, grade: 'A' },
-    { name: 'Physics', progress: 70, grade: 'B+' },
-    { name: 'English', progress: 90, grade: 'A' },
-    { name: 'Chemistry', progress: 60, grade: 'B' },
-    { name: 'History', progress: 55, grade: 'B-' },
-  ],
-  achievements: [
-    { title: 'Fast Learner', icon: '🚀', date: 'Dec 20, 2025' },
-    { title: 'Perfect Score', icon: '⭐', date: 'Dec 15, 2025' },
-    { title: 'Consistent Learner', icon: '📚', date: 'Dec 10, 2025' },
-  ],
+// Empty state - no fake data
+const emptyProgressData = {
+  overallProgress: 0,
+  subjects: [],
+  achievements: [],
   weeklyStats: {
-    lessonsCompleted: 12,
-    assignmentsSubmitted: 5,
-    hoursSpent: 18,
+    lessonsCompleted: 0,
+    assignmentsSubmitted: 0,
+    hoursSpent: 0,
   },
+  coursesCount: 0,
+  assignmentsCount: 0,
 };
 
 export default function ProgressPage() {
   // Get data from student context
-  const { student, progress: contextProgress, refreshData, loading: contextLoading } = useStudent();
+  const { student, refreshData, loading: contextLoading } = useStudent();
+  const { isDarkMode, theme } = useTheme();
 
-  const [progressData, setProgressData] = useState(defaultProgressData);
-  const [feedback, setFeedback] = useState({ received: [], given: [] });
+  const [progressData, setProgressData] = useState(emptyProgressData);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     fetchProgress();
-    fetchFeedback();
-  }, [student.id, contextProgress]);
-
-  const fetchFeedback = async () => {
-    try {
-      const response = await feedbackAPI.getMyFeedback();
-      if (response.data) {
-        setFeedback({
-          received: response.data.received || [],
-          given: response.data.given || [],
-        });
-      }
-    } catch (err) {
-      console.error('Error fetching feedback:', err);
-    }
-  };
+  }, [student.id]);
 
   const fetchProgress = async () => {
     try {
-      // First check context progress data
-      if (contextProgress && contextProgress.overallProgress !== undefined) {
-        setProgressData({
-          overallProgress: contextProgress.overallProgress || 0,
-          subjects: contextProgress.subjectProgress?.map(s => ({
-            name: s.name,
-            progress: s.progress || 0,
-            grade: s.grade || '-',
-          })) || defaultProgressData.subjects,
-          achievements: contextProgress.achievements || defaultProgressData.achievements,
-          weeklyStats: contextProgress.weeklyStats || defaultProgressData.weeklyStats,
-        });
+      const token = await AsyncStorage.getItem('token');
+      if (!token) {
         setLoading(false);
-        setRefreshing(false);
         return;
       }
 
-      // Fallback to API call
+      // Fetch from API
       const response = await studentDashboardAPI.getProgress();
       const data = response.data;
+      
       if (data) {
         setProgressData({
-          overallProgress: data.overallProgress || defaultProgressData.overallProgress,
-          subjects: data.subjects || defaultProgressData.subjects,
-          achievements: data.achievements || defaultProgressData.achievements,
-          weeklyStats: data.weeklyStats || defaultProgressData.weeklyStats,
+          overallProgress: data.overallProgress || 0,
+          subjects: data.subjectProgress?.map(s => ({
+            name: s.name,
+            progress: s.progress || 0,
+            grade: s.grade || '-',
+            totalVideos: s.totalVideos || 0,
+            watchedVideos: s.watchedVideos || 0,
+          })) || [],
+          achievements: data.achievements || [],
+          weeklyStats: data.weeklyStats || emptyProgressData.weeklyStats,
+          coursesCount: data.coursesCount || 0,
+          assignmentsCount: data.assignmentsCount || 0,
+          totalVideos: data.totalVideos || 0,
+          totalWatchedVideos: data.totalWatchedVideos || 0,
+          averageScore: data.averageScore || 0,
         });
       }
     } catch (err) {
       console.error('Error fetching progress:', err);
-      setProgressData(defaultProgressData);
+      setProgressData(emptyProgressData);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -103,7 +84,6 @@ export default function ProgressPage() {
     setRefreshing(true);
     await refreshData();
     fetchProgress();
-    fetchFeedback();
   };
 
   const getProgressColor = (progress) => {
@@ -114,15 +94,15 @@ export default function ProgressPage() {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007bff" />
+      <View style={[styles.loadingContainer, isDarkMode && { backgroundColor: theme.background }]}>
+        <ActivityIndicator size="large" color={theme.primary} />
       </View>
     );
   }
 
   return (
     <ScrollView 
-      style={styles.container} 
+      style={[styles.container, isDarkMode && { backgroundColor: theme.background }]} 
       showsVerticalScrollIndicator={false}
       refreshControl={
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -147,118 +127,95 @@ export default function ProgressPage() {
       </LinearGradient>
 
       {/* Overall Progress */}
-      <View style={styles.overallCard}>
-        <Text style={styles.overallLabel}>Overall Progress</Text>
+      <View style={[styles.overallCard, isDarkMode && { backgroundColor: theme.card }]}>
+        <Text style={[styles.overallLabel, isDarkMode && { color: theme.textSecondary }]}>Overall Progress</Text>
         <View style={styles.progressCircle}>
-          <Text style={styles.progressValue}>{progressData.overallProgress}%</Text>
+          <Text style={[styles.progressValue, isDarkMode && { color: theme.text }]}>{progressData.overallProgress}%</Text>
         </View>
-        <Text style={styles.progressNote}>Keep up the great work! 🎉</Text>
+        <Text style={[styles.progressNote, isDarkMode && { color: theme.textSecondary }]}>Keep up the great work! 🎉</Text>
       </View>
 
       {/* Weekly Stats */}
       <View style={styles.statsRow}>
-        <View style={styles.statItem}>
-          <Text style={styles.statValue}>{progressData.weeklyStats.lessonsCompleted}</Text>
-          <Text style={styles.statLabel}>Lessons</Text>
+        <View style={[styles.statItem, isDarkMode && { backgroundColor: theme.card }]}>
+          <Text style={[styles.statValue, isDarkMode && { color: theme.text }]}>{progressData.weeklyStats.lessonsCompleted}</Text>
+          <Text style={[styles.statLabel, isDarkMode && { color: theme.textSecondary }]}>Videos Watched</Text>
         </View>
-        <View style={styles.statItem}>
-          <Text style={styles.statValue}>{progressData.weeklyStats.assignmentsSubmitted}</Text>
-          <Text style={styles.statLabel}>Assignments</Text>
+        <View style={[styles.statItem, isDarkMode && { backgroundColor: theme.card }]}>
+          <Text style={[styles.statValue, isDarkMode && { color: theme.text }]}>{progressData.weeklyStats.assignmentsSubmitted}</Text>
+          <Text style={[styles.statLabel, isDarkMode && { color: theme.textSecondary }]}>Assignments</Text>
         </View>
-        <View style={styles.statItem}>
-          <Text style={styles.statValue}>{progressData.weeklyStats.hoursSpent}h</Text>
-          <Text style={styles.statLabel}>Study Time</Text>
+        <View style={[styles.statItem, isDarkMode && { backgroundColor: theme.card }]}>
+          <Text style={[styles.statValue, isDarkMode && { color: theme.text }]}>{progressData.weeklyStats.hoursSpent}h</Text>
+          <Text style={[styles.statLabel, isDarkMode && { color: theme.textSecondary }]}>Study Time</Text>
         </View>
       </View>
 
       {/* Subject Progress */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Subject Progress</Text>
-        {progressData.subjects.map((subject, index) => (
-          <View key={index} style={styles.subjectCard}>
-            <View style={styles.subjectHeader}>
-              <Text style={styles.subjectName}>{subject.name}</Text>
-              <View style={styles.gradeBadge}>
-                <Text style={styles.gradeText}>{subject.grade}</Text>
-              </View>
-            </View>
-            <View style={styles.progressBarContainer}>
-              <View style={styles.progressBar}>
-                <View
-                  style={[
-                    styles.progressFill,
-                    {
-                      width: `${subject.progress}%`,
-                      backgroundColor: getProgressColor(subject.progress),
-                    },
-                  ]}
-                />
-              </View>
-              <Text style={styles.progressPercent}>{subject.progress}%</Text>
-            </View>
-          </View>
-        ))}
-      </View>
-
-      {/* Achievements */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Recent Achievements</Text>
-        <View style={styles.achievementsGrid}>
-          {progressData.achievements.map((achievement, index) => (
-            <View key={index} style={styles.achievementCard}>
-              <Text style={styles.achievementIcon}>{achievement.icon}</Text>
-              <Text style={styles.achievementTitle}>{achievement.title}</Text>
-              <Text style={styles.achievementDate}>{achievement.date}</Text>
-            </View>
-          ))}
-        </View>
-      </View>
-
-      {/* Feedback Section - Only show 4+ star feedback */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Teacher Feedback</Text>
-        {feedback.received.filter(item => item.rating >= 4).length > 0 ? (
-          feedback.received.filter(item => item.rating >= 4).map((item, index) => (
-            <View key={index} style={styles.feedbackCard}>
-              <View style={styles.feedbackHeader}>
-                <View style={styles.feedbackRating}>
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <Text 
-                      key={star} 
-                      style={[
-                        styles.feedbackStar,
-                        star <= (item.rating || 0) && styles.feedbackStarActive
-                      ]}
-                    >
-                      ★
+        <Text style={[styles.sectionTitle, isDarkMode && { color: theme.text }]}>Subject Progress</Text>
+        {progressData.subjects.length > 0 ? (
+          progressData.subjects.map((subject, index) => (
+            <View key={index} style={[styles.subjectCard, isDarkMode && { backgroundColor: theme.card }]}>
+              <View style={styles.subjectHeader}>
+                <View style={styles.subjectNameContainer}>
+                  <Text style={[styles.subjectName, isDarkMode && { color: theme.text }]}>{subject.name}</Text>
+                  {subject.totalVideos > 0 && (
+                    <Text style={[styles.videoCount, isDarkMode && { color: theme.textSecondary }]}>
+                      📹 {subject.watchedVideos}/{subject.totalVideos} videos
                     </Text>
-                  ))}
+                  )}
                 </View>
-                <Text style={styles.feedbackDate}>
-                  {new Date(item.createdAt).toLocaleDateString()}
-                </Text>
+                <View style={styles.gradeBadge}>
+                  <Text style={styles.gradeText}>{subject.grade}</Text>
+                </View>
               </View>
-              {item.comment && (
-                <Text style={styles.feedbackComment}>{item.comment}</Text>
-              )}
-              <View style={styles.feedbackMeta}>
-                <Text style={styles.feedbackFrom}>
-                  From: {item.author?.firstName} {item.author?.lastName}
-                </Text>
-                {item.course && (
-                  <Text style={styles.feedbackCourse}>
-                    {item.course.subject || item.course.title}
-                  </Text>
-                )}
+              <View style={styles.progressBarContainer}>
+                <View style={[styles.progressBar, isDarkMode && { backgroundColor: theme.border }]}>
+                  <View
+                    style={[
+                      styles.progressFill,
+                      {
+                        width: `${subject.progress}%`,
+                        backgroundColor: getProgressColor(subject.progress),
+                      },
+                    ]}
+                  />
+                </View>
+                <Text style={styles.progressPercent}>{subject.progress}%</Text>
               </View>
             </View>
           ))
         ) : (
-          <View style={styles.emptyFeedback}>
-            <Text style={styles.emptyFeedbackIcon}>💬</Text>
-            <Text style={styles.emptyFeedbackText}>No feedback received yet</Text>
-            <Text style={styles.emptyFeedbackSubtext}>
-              Keep working hard and you'll receive feedback soon!
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyIcon}>📚</Text>
+            <Text style={styles.emptyText}>No courses available yet</Text>
+            <Text style={styles.emptySubtext}>
+              Enroll in courses to track your progress
+            </Text>
+          </View>
+        )}
+      </View>
+
+      {/* Achievements */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Achievements</Text>
+        {progressData.achievements.length > 0 ? (
+          <View style={styles.achievementsGrid}>
+            {progressData.achievements.map((achievement, index) => (
+              <View key={index} style={styles.achievementCard}>
+                <Text style={styles.achievementIcon}>{achievement.icon}</Text>
+                <Text style={styles.achievementTitle}>{achievement.title}</Text>
+                <Text style={styles.achievementDate}>{achievement.date}</Text>
+              </View>
+            ))}
+          </View>
+        ) : (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyIcon}>🏆</Text>
+            <Text style={styles.emptyText}>No achievements yet</Text>
+            <Text style={styles.emptySubtext}>
+              Complete lessons and assignments to earn achievements!
             </Text>
           </View>
         )}
@@ -424,6 +381,40 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#1f2937',
+  },
+  subjectNameContainer: {
+    flex: 1,
+  },
+  videoCount: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginTop: 2,
+  },
+  emptyState: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 30,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  emptyIcon: {
+    fontSize: 40,
+    marginBottom: 12,
+  },
+  emptyText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 6,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: '#6b7280',
+    textAlign: 'center',
   },
   gradeBadge: {
     backgroundColor: '#e0f2fe',

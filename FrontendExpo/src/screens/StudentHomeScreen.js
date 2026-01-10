@@ -14,6 +14,7 @@ import { logoutUser } from '../store/authSlice';
 
 // Context Provider
 import { StudentProvider, useStudent } from '../context/StudentContext';
+import { useTheme } from '../context/ThemeContext';
 
 // Sub-components
 import Dashboard from '../components/student/Dashboard';
@@ -33,6 +34,7 @@ function StudentHomeContent({ navigation }) {
   const dispatch = useDispatch();
   const [activePage, setActivePage] = useState('dashboard');
   const [sidebarVisible, setSidebarVisible] = useState(false);
+  const { isDarkMode, theme, profileImage } = useTheme();
 
   // Get data from context
   const {
@@ -122,17 +124,17 @@ function StudentHomeContent({ navigation }) {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isDarkMode && { backgroundColor: theme.background }]}>
       {/* Top Navigation Bar */}
-      <View style={styles.navbar}>
+      <View style={[styles.navbar, isDarkMode && { backgroundColor: theme.surface, borderBottomColor: theme.border }]}>
         <TouchableOpacity
           style={styles.menuButton}
           onPress={() => setSidebarVisible(true)}
         >
-          <Text style={styles.menuIcon}>☰</Text>
+          <Text style={[styles.menuIcon, isDarkMode && { color: theme.text }]}>☰</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.navTitleContainer} onPress={() => setActivePage('dashboard')}>
-          <Text style={styles.navTitle}>RUWWAD</Text>
+          <Text style={[styles.navTitle, isDarkMode && { color: theme.primary }]}>RUWWAD</Text>
         </TouchableOpacity>
         <View style={styles.navRight}>
           <TouchableOpacity 
@@ -161,8 +163,8 @@ function StudentHomeContent({ navigation }) {
             style={styles.profileIcon}
             onPress={() => setActivePage('settings')}
           >
-            {student.profilePicture ? (
-              <Image source={{ uri: student.profilePicture }} style={styles.profileImage} />
+            {(profileImage || student.profilePicture) ? (
+              <Image source={{ uri: profileImage || student.profilePicture }} style={styles.profileImage} />
             ) : (
               <Text style={styles.profileInitials}>{getInitials()}</Text>
             )}
@@ -178,7 +180,7 @@ function StudentHomeContent({ navigation }) {
         onRequestClose={() => setSidebarVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.sidebar}>
+          <View style={[styles.sidebar, isDarkMode && { backgroundColor: theme.surface }]}>
             {/* Sidebar Header with Logo */}
             <View style={styles.sidebarHeader}>
               <TouchableOpacity style={styles.sidebarLogoContainer} onPress={() => { setActivePage('dashboard'); setSidebarVisible(false); }}>
@@ -190,21 +192,21 @@ function StudentHomeContent({ navigation }) {
                 style={styles.closeButton}
                 onPress={() => setSidebarVisible(false)}
               >
-                <Text style={styles.closeIcon}>✕</Text>
+                <Text style={[styles.closeIcon, isDarkMode && { color: theme.textSecondary }]}>✕</Text>
               </TouchableOpacity>
             </View>
 
             {/* User Profile Section - Dynamic from Context */}
             <View style={styles.userInfo}>
-              {student.profilePicture ? (
-                <Image source={{ uri: student.profilePicture }} style={styles.avatarImage} />
+              {(profileImage || student.profilePicture) ? (
+                <Image source={{ uri: profileImage || student.profilePicture }} style={styles.avatarImage} />
               ) : (
                 <View style={styles.avatar}>
                   <Text style={styles.avatarInitials}>{getInitials()}</Text>
                 </View>
               )}
-              <Text style={styles.userName}>{getFullName()}</Text>
-              <Text style={styles.userRole}>{getGradeDisplay()}</Text>
+              <Text style={[styles.userName, isDarkMode && { color: theme.text }]}>{getFullName()}</Text>
+              <Text style={[styles.userRole, isDarkMode && { color: theme.textSecondary }]}>{getGradeDisplay()}</Text>
             </View>
 
             {/* Menu Items */}
@@ -215,6 +217,7 @@ function StudentHomeContent({ navigation }) {
                   style={[
                     styles.menuItem,
                     activePage === item.id && styles.menuItemActive,
+                    isDarkMode && activePage !== item.id && { backgroundColor: 'transparent' },
                   ]}
                   onPress={() => handleMenuPress(item.id)}
                 >
@@ -223,6 +226,7 @@ function StudentHomeContent({ navigation }) {
                     style={[
                       styles.menuItemText,
                       activePage === item.id && styles.menuItemTextActive,
+                      isDarkMode && activePage !== item.id && { color: theme.textSecondary },
                     ]}
                   >
                     {item.title}
@@ -237,16 +241,16 @@ function StudentHomeContent({ navigation }) {
             </ScrollView>
 
             {/* Logout Button */}
-            <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+            <TouchableOpacity style={[styles.logoutButton, isDarkMode && { borderTopColor: theme.border }]} onPress={handleLogout}>
               <Text style={styles.logoutIcon}>🚪</Text>
-              <Text style={styles.logoutText}>Logout</Text>
+              <Text style={[styles.logoutText, isDarkMode && { color: theme.textSecondary }]}>Logout</Text>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
 
       {/* Main Content */}
-      <View style={styles.mainContent}>
+      <View style={[styles.mainContent, isDarkMode && { backgroundColor: theme.background }]}>
         {renderPage()}
       </View>
 

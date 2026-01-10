@@ -7,6 +7,9 @@ import {
   Modal,
   TextInput,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
+  Keyboard,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { feedbackAPI } from '../../services/api';
@@ -72,13 +75,31 @@ export default function FeedbackStar() {
         visible={modalVisible}
         animationType="slide"
         transparent={true}
-        onRequestClose={() => setModalVisible(false)}
+        onRequestClose={() => {
+          Keyboard.dismiss();
+          setModalVisible(false);
+        }}
       >
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView 
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+        >
+          <TouchableOpacity 
+            style={styles.dismissArea} 
+            activeOpacity={1} 
+            onPress={() => Keyboard.dismiss()}
+          >
+            <View />
+          </TouchableOpacity>
+          
           <View style={styles.modalContent}>
             <TouchableOpacity
               style={styles.closeButton}
-              onPress={() => setModalVisible(false)}
+              onPress={() => {
+                Keyboard.dismiss();
+                setModalVisible(false);
+              }}
             >
               <Text style={styles.closeText}>✕</Text>
             </TouchableOpacity>
@@ -93,7 +114,10 @@ export default function FeedbackStar() {
               {[1, 2, 3, 4, 5].map((star) => (
                 <TouchableOpacity
                   key={star}
-                  onPress={() => setRating(star)}
+                  onPress={() => {
+                    Keyboard.dismiss();
+                    setRating(star);
+                  }}
                 >
                   <Text style={[
                     styles.star,
@@ -120,7 +144,10 @@ export default function FeedbackStar() {
             {/* Submit Button */}
             <TouchableOpacity
               style={[styles.submitButton, isSubmitting && styles.submitButtonDisabled]}
-              onPress={handleSubmit}
+              onPress={() => {
+                Keyboard.dismiss();
+                handleSubmit();
+              }}
               disabled={isSubmitting}
             >
               <Text style={styles.submitButtonText}>
@@ -128,7 +155,7 @@ export default function FeedbackStar() {
               </Text>
             </TouchableOpacity>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </>
   );
@@ -157,16 +184,18 @@ const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
+    justifyContent: 'flex-end',
+  },
+  dismissArea: {
+    flex: 1,
   },
   modalContent: {
     backgroundColor: '#fff',
-    borderRadius: 20,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     padding: 25,
+    paddingBottom: 40,
     width: '100%',
-    maxWidth: 350,
     alignItems: 'center',
   },
   closeButton: {

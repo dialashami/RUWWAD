@@ -15,6 +15,7 @@ import { logoutUser } from '../store/authSlice';
 
 // Context Provider
 import { TeacherProvider, useTeacher } from '../context/TeacherContext';
+import { useTheme } from '../context/ThemeContext';
 
 // Import components
 import Dashboard from '../components/teacher/Dashboard';
@@ -31,6 +32,7 @@ function TeacherHomeContent({ navigation }) {
   const dispatch = useDispatch();
   const [activePage, setActivePage] = useState('dashboard');
   const [sidebarVisible, setSidebarVisible] = useState(false);
+  const { isDarkMode, theme, profileImage } = useTheme();
 
   // Get data from context
   const {
@@ -123,11 +125,11 @@ function TeacherHomeContent({ navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, isDarkMode && { backgroundColor: theme.background }]}>
       <StatusBar barStyle="light-content" backgroundColor="#28a745" />
       
       {/* Header */}
-      <View style={styles.header}>
+      <View style={[styles.header, isDarkMode && { backgroundColor: theme.surface }]}>
         <TouchableOpacity
           style={styles.menuButton}
           onPress={() => setSidebarVisible(true)}
@@ -164,8 +166,8 @@ function TeacherHomeContent({ navigation }) {
             style={styles.profileIcon}
             onPress={() => setActivePage('settings')}
           >
-            {teacher.profilePicture ? (
-              <Image source={{ uri: teacher.profilePicture }} style={styles.profileImage} />
+            {(profileImage || teacher.profilePicture) ? (
+              <Image source={{ uri: profileImage || teacher.profilePicture }} style={styles.profileImage} />
             ) : (
               <Text style={styles.profileInitials}>{getInitials()}</Text>
             )}
@@ -174,7 +176,7 @@ function TeacherHomeContent({ navigation }) {
       </View>
 
       {/* Main Content */}
-      <View style={styles.mainContent}>
+      <View style={[styles.mainContent, isDarkMode && { backgroundColor: theme.background }]}>
         {renderPage()}
       </View>
 
@@ -186,7 +188,7 @@ function TeacherHomeContent({ navigation }) {
         onRequestClose={() => setSidebarVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.sidebar}>
+          <View style={[styles.sidebar, isDarkMode && { backgroundColor: theme.surface }]}>
             {/* Sidebar Header with Logo */}
             <View style={styles.sidebarHeader}>
               <TouchableOpacity style={styles.sidebarLogoContainer} onPress={() => { setActivePage('dashboard'); setSidebarVisible(false); }}>
@@ -204,8 +206,8 @@ function TeacherHomeContent({ navigation }) {
 
             {/* User Profile Section - Dynamic from Context */}
             <View style={styles.userInfo}>
-              {teacher.profilePicture ? (
-                <Image source={{ uri: teacher.profilePicture }} style={styles.avatarImage} />
+              {(profileImage || teacher.profilePicture) ? (
+                <Image source={{ uri: profileImage || teacher.profilePicture }} style={styles.avatarImage} />
               ) : (
                 <View style={styles.avatar}>
                   <Text style={styles.avatarInitials}>{getInitials()}</Text>

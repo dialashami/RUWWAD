@@ -133,6 +133,89 @@ exports.getCourseById = async (req, res, next) => {
   }
 };
 
+// Get student's courses with their individual video progress
+exports.getStudentCourses = async (req, res, next) => {
+  try {
+    const studentId = req.userId;
+    
+    // Check if userId is a valid ObjectId
+    const mongoose = require('mongoose');
+    if (!mongoose.Types.ObjectId.isValid(studentId)) {
+      // Return empty array for invalid user IDs (like "admin" string)
+      return res.json([]);
+    }
+    
+    const student = await User.findById(studentId);
+    
+    if (!student) {
+      return res.json([]); // Return empty array if student not found
+    }
+
+    // Build grade filter based on student type
+    const gradeFilter = { isActive: true };
+    if (student.studentType === 'school' && student.schoolGrade) {
+      const normalizedGrade = student.schoolGrade.toLowerCase().replace(/\s+/g, '');
+      gradeFilter.$or = [
+        { grade: student.schoolGrade },
+        { grade: new RegExp(normalizedGrade, 'i') },
+        { grade: new RegExp(student.schoolGrade.replace('grade', 'Grade '), 'i') },
+      ];
+    } else if (student.studentType === 'university' && student.universityMajor) {
+      gradeFilter.grade = new RegExp(student.universityMajor, 'i');
+    }
+
+    const courses = await Course.find(gradeFilter)
+      .populate('teacher', 'firstName lastName')
+      .sort({ createdAt: -1 });
+
+    // Calculate progress for each course
+    const coursesWithProgress = courses.map(course => {
+      const courseObj = course.toObject();
+      
+      // Find student's video progress
+      const studentProgress = course.videoProgress?.find(
+        vp => vp.student && vp.student.toString() === studentId
+      );
+      
+      // Calculate total videos
+      const totalVideos = (course.videoUrls?.length || 0) + (course.uploadedVideos?.length || 0);
+      
+      let progressPercent = 0;
+      let watchedCount = 0;
+      
+      if (studentProgress) {
+        watchedCount = 
+          (studentProgress.watchedVideoUrls?.length || 0) + 
+          (studentProgress.watchedUploadedVideos?.length || 0);
+        progressPercent = totalVideos > 0 ? Math.round((watchedCount / totalVideos) * 100) : 0;
+      }
+      
+      return {
+        _id: courseObj._id,
+        id: courseObj._id,
+        title: courseObj.title,
+        subject: courseObj.subject || 'Course',
+        description: courseObj.description,
+        teacher: courseObj.teacher,
+        grade: courseObj.grade,
+        duration: courseObj.duration || `${totalVideos} video${totalVideos !== 1 ? 's' : ''}`,
+        progress: progressPercent,
+        totalVideos,
+        watchedVideos: watchedCount,
+        isCompleted: studentProgress?.completedAt ? true : false,
+        completedAt: studentProgress?.completedAt || null,
+        videoUrls: courseObj.videoUrls,
+        uploadedVideos: courseObj.uploadedVideos,
+      };
+    });
+
+    res.json(coursesWithProgress);
+  } catch (err) {
+    console.error('Error getting student courses:', err);
+    next(err);
+  }
+};
+
 exports.updateCourse = async (req, res, next) => {
   try {
     console.log('Updating course:', req.params.id);

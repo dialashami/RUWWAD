@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   TouchableOpacity,
   RefreshControl,
+  Modal,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTeacher } from '../../context/TeacherContext';
@@ -43,6 +44,7 @@ export default function Dashboard() {
   } = useTeacher();
 
   const [refreshing, setRefreshing] = useState(false);
+  const [viewAllModal, setViewAllModal] = useState(null); // 'lessons', 'activities', 'courses'
 
   // Build stats from context
   const stats = {
@@ -186,7 +188,7 @@ export default function Dashboard() {
       <View style={styles.card}>
         <View style={styles.cardHeader}>
           <Text style={styles.cardTitle}>📅 Upcoming Lessons</Text>
-          <TouchableOpacity>
+          <TouchableOpacity onPress={() => setViewAllModal('lessons')}>
             <Text style={styles.viewAllBtn}>View All</Text>
           </TouchableOpacity>
         </View>
@@ -214,7 +216,7 @@ export default function Dashboard() {
       <View style={styles.card}>
         <View style={styles.cardHeader}>
           <Text style={styles.cardTitle}>🔔 Recent Activity</Text>
-          <TouchableOpacity>
+          <TouchableOpacity onPress={() => setViewAllModal('activities')}>
             <Text style={styles.viewAllBtn}>View All</Text>
           </TouchableOpacity>
         </View>
@@ -241,7 +243,7 @@ export default function Dashboard() {
       <View style={styles.card}>
         <View style={styles.cardHeader}>
           <Text style={styles.cardTitle}>📚 My Courses</Text>
-          <TouchableOpacity>
+          <TouchableOpacity onPress={() => setViewAllModal('courses')}>
             <Text style={styles.viewAllBtn}>View All</Text>
           </TouchableOpacity>
         </View>
@@ -279,6 +281,143 @@ export default function Dashboard() {
           ))}
         </View>
       </View>
+
+      {/* View All Lessons Modal */}
+      <Modal
+        visible={viewAllModal === 'lessons'}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setViewAllModal(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>📅 All Upcoming Lessons</Text>
+              <TouchableOpacity onPress={() => setViewAllModal(null)} style={styles.modalCloseBtn}>
+                <Text style={styles.modalCloseBtnText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
+              {upcomingLessons.length > 0 ? (
+                upcomingLessons.map((lesson, index) => (
+                  <View key={lesson.id || index} style={styles.modalItem}>
+                    <View style={styles.modalItemHeader}>
+                      <View style={styles.lessonTimeBadge}>
+                        <Text style={styles.lessonTimeIcon}>🕒</Text>
+                        <Text style={styles.lessonTime}>{lesson.time}</Text>
+                      </View>
+                      {lesson.date && (
+                        <Text style={styles.modalItemDate}>{lesson.date}</Text>
+                      )}
+                    </View>
+                    <Text style={styles.modalItemTitle}>{lesson.title}</Text>
+                    <Text style={styles.modalItemSubtitle}>{lesson.grade} • {lesson.room}</Text>
+                    {lesson.description && (
+                      <Text style={styles.modalItemDescription}>{lesson.description}</Text>
+                    )}
+                  </View>
+                ))
+              ) : (
+                <View style={styles.modalEmpty}>
+                  <Text style={styles.modalEmptyIcon}>📅</Text>
+                  <Text style={styles.modalEmptyText}>No upcoming lessons scheduled</Text>
+                  <Text style={styles.modalEmptySubtext}>Your upcoming lessons will appear here</Text>
+                </View>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* View All Activities Modal */}
+      <Modal
+        visible={viewAllModal === 'activities'}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setViewAllModal(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>🔔 All Recent Activity</Text>
+              <TouchableOpacity onPress={() => setViewAllModal(null)} style={styles.modalCloseBtn}>
+                <Text style={styles.modalCloseBtnText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
+              {recentActivities.length > 0 ? (
+                recentActivities.map((activity, index) => (
+                  <View key={activity.id || index} style={styles.modalItem}>
+                    <View style={styles.activityModalRow}>
+                      <View style={[styles.activityIcon, activity.type === 'submission' ? styles.activitySubmission : styles.activityDefault]}>
+                        <Text>{activity.type === 'submission' ? '✓' : '🔔'}</Text>
+                      </View>
+                      <View style={styles.activityModalContent}>
+                        <Text style={styles.modalItemTitle}>{activity.title}</Text>
+                        <Text style={styles.activityTime}>{activity.time}</Text>
+                        {activity.description && (
+                          <Text style={styles.modalItemDescription}>{activity.description}</Text>
+                        )}
+                      </View>
+                    </View>
+                  </View>
+                ))
+              ) : (
+                <View style={styles.modalEmpty}>
+                  <Text style={styles.modalEmptyIcon}>🔔</Text>
+                  <Text style={styles.modalEmptyText}>No recent activity</Text>
+                  <Text style={styles.modalEmptySubtext}>Your activity history will appear here</Text>
+                </View>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* View All Courses Modal */}
+      <Modal
+        visible={viewAllModal === 'courses'}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setViewAllModal(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>📚 All My Courses</Text>
+              <TouchableOpacity onPress={() => setViewAllModal(null)} style={styles.modalCloseBtn}>
+                <Text style={styles.modalCloseBtnText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={styles.modalContent} showsVerticalScrollIndicator={false}>
+              {courses.length > 0 ? (
+                courses.map((course, index) => (
+                  <View key={course._id || index} style={styles.modalCourseCard}>
+                    <View style={[styles.modalCourseColorBar, { backgroundColor: getSubjectColor(course.subject) }]} />
+                    <View style={styles.modalCourseContent}>
+                      <Text style={styles.modalCourseTitle}>{course.title}</Text>
+                      <Text style={styles.modalCourseSubject}>{course.subject}</Text>
+                      <View style={styles.modalCourseDetails}>
+                        <Text style={styles.modalCourseDetail}>📚 {course.grade}</Text>
+                        <Text style={styles.modalCourseDetail}>👥 {course.students} students</Text>
+                      </View>
+                      {course.description && (
+                        <Text style={styles.modalItemDescription}>{course.description}</Text>
+                      )}
+                    </View>
+                  </View>
+                ))
+              ) : (
+                <View style={styles.modalEmpty}>
+                  <Text style={styles.modalEmptyIcon}>📚</Text>
+                  <Text style={styles.modalEmptyText}>No courses yet</Text>
+                  <Text style={styles.modalEmptySubtext}>Your courses will appear here once created</Text>
+                </View>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -566,5 +705,136 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: '#9ca3af',
     paddingVertical: 20,
+  },
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContainer: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '85%',
+    paddingBottom: 30,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1f2937',
+  },
+  modalCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#f3f4f6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalCloseBtnText: {
+    fontSize: 16,
+    color: '#6b7280',
+    fontWeight: 'bold',
+  },
+  modalContent: {
+    padding: 16,
+  },
+  modalItem: {
+    backgroundColor: '#f9fafb',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+  },
+  modalItemHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  modalItemDate: {
+    fontSize: 12,
+    color: '#6b7280',
+  },
+  modalItemTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#1f2937',
+    marginBottom: 4,
+  },
+  modalItemSubtitle: {
+    fontSize: 13,
+    color: '#6b7280',
+  },
+  modalItemDescription: {
+    fontSize: 13,
+    color: '#6b7280',
+    marginTop: 8,
+    lineHeight: 18,
+  },
+  modalEmpty: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  modalEmptyIcon: {
+    fontSize: 48,
+    marginBottom: 16,
+  },
+  modalEmptyText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1f2937',
+    marginBottom: 4,
+  },
+  modalEmptySubtext: {
+    fontSize: 14,
+    color: '#9ca3af',
+  },
+  activityModalRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  activityModalContent: {
+    flex: 1,
+  },
+  modalCourseCard: {
+    backgroundColor: '#f9fafb',
+    borderRadius: 12,
+    marginBottom: 12,
+    overflow: 'hidden',
+  },
+  modalCourseColorBar: {
+    height: 6,
+  },
+  modalCourseContent: {
+    padding: 16,
+  },
+  modalCourseTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1f2937',
+    marginBottom: 4,
+  },
+  modalCourseSubject: {
+    fontSize: 13,
+    color: '#6b7280',
+    marginBottom: 8,
+  },
+  modalCourseDetails: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  modalCourseDetail: {
+    fontSize: 13,
+    color: '#6b7280',
   },
 });

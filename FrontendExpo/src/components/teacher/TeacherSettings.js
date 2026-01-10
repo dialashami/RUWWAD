@@ -21,9 +21,11 @@ import { logoutUser } from '../../store/authSlice';
 import * as ImagePicker from 'expo-image-picker';
 import { userAPI } from '../../services/api';
 import API_CONFIG from '../../config/api.config';
+import { useTheme } from '../../context/ThemeContext';
 
 export default function TeacherSettings({ navigation }) {
   const dispatch = useDispatch();
+  const { isDarkMode, setDarkMode, theme, profileImage, saveProfileImage } = useTheme();
   
   // Profile state
   const [firstName, setFirstName] = useState('');
@@ -41,9 +43,6 @@ export default function TeacherSettings({ navigation }) {
   const [pushNotifications, setPushNotifications] = useState(true);
   const [assignmentReminders, setAssignmentReminders] = useState(true);
   const [gradeNotifications, setGradeNotifications] = useState(true);
-
-  // Appearance
-  const [darkMode, setDarkMode] = useState(false);
 
   // UI state
   const [loading, setLoading] = useState(true);
@@ -181,12 +180,17 @@ export default function TeacherSettings({ navigation }) {
     });
 
     if (!result.canceled && result.assets[0]) {
-      setAvatarUrl(result.assets[0].uri);
+      const imageUri = result.assets[0].uri;
+      setAvatarUrl(imageUri);
+      // Save to ThemeContext for persistence
+      await saveProfileImage(imageUri);
     }
   };
 
-  const handleRemoveAvatar = () => {
+  const handleRemoveAvatar = async () => {
     setAvatarUrl(null);
+    // Remove from ThemeContext as well
+    await saveProfileImage(null);
   };
 
   const handleSaveProfile = async () => {
@@ -467,11 +471,11 @@ export default function TeacherSettings({ navigation }) {
 
   return (
     <KeyboardAvoidingView 
-      style={{ flex: 1 }}
+      style={{ flex: 1, backgroundColor: isDarkMode ? theme.background : '#f5f5f5' }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
     >
-      <ScrollView style={styles.container} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <ScrollView style={[styles.container, isDarkMode && { backgroundColor: theme.background }]} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         {/* Header Banner */}
         <LinearGradient
           colors={['#3498db', '#2c3e50']}
@@ -491,10 +495,10 @@ export default function TeacherSettings({ navigation }) {
         </LinearGradient>
 
       {/* Profile Section */}
-      <View style={styles.card}>
+      <View style={[styles.card, isDarkMode && { backgroundColor: theme.card }]}>
         <View style={styles.cardHeader}>
           <Text style={styles.cardIcon}>👤</Text>
-          <Text style={styles.cardTitle}>Profile Information</Text>
+          <Text style={[styles.cardTitle, isDarkMode && { color: theme.text }]}>Profile Information</Text>
         </View>
 
         {/* Avatar Row */}
@@ -507,7 +511,7 @@ export default function TeacherSettings({ navigation }) {
             )}
           </View>
           <View style={styles.avatarActions}>
-            <Text style={styles.avatarName}>{`${firstName} ${lastName}`.trim() || 'Teacher'}</Text>
+            <Text style={[styles.avatarName, isDarkMode && { color: theme.text }]}>{`${firstName} ${lastName}`.trim() || 'Teacher'}</Text>
             <View style={styles.avatarButtons}>
               <TouchableOpacity style={styles.btnPrimary} onPress={handlePickImage}>
                 <Text style={styles.btnPrimaryText}>📷 Change Photo</Text>
@@ -523,27 +527,29 @@ export default function TeacherSettings({ navigation }) {
         <View style={styles.formFields}>
           <View style={styles.row}>
             <View style={styles.fieldHalf}>
-              <Text style={styles.label}>First Name</Text>
+              <Text style={[styles.label, isDarkMode && { color: theme.text }]}>First Name</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, isDarkMode && { backgroundColor: theme.inputBackground, color: theme.text, borderColor: theme.border }]}
                 value={firstName}
                 onChangeText={setFirstName}
                 placeholder="First Name"
+                placeholderTextColor={isDarkMode ? theme.textSecondary : "#9ca3af"}
               />
             </View>
             <View style={styles.fieldHalf}>
-              <Text style={styles.label}>Last Name</Text>
+              <Text style={[styles.label, isDarkMode && { color: theme.text }]}>Last Name</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, isDarkMode && { backgroundColor: theme.inputBackground, color: theme.text, borderColor: theme.border }]}
                 value={lastName}
                 onChangeText={setLastName}
                 placeholder="Last Name"
+                placeholderTextColor={isDarkMode ? theme.textSecondary : "#9ca3af"}
               />
             </View>
           </View>
 
           <View style={styles.field}>
-            <Text style={styles.label}>Email</Text>
+            <Text style={[styles.label, isDarkMode && { color: theme.text }]}>Email</Text>
             <TextInput
               style={styles.input}
               value={email}
@@ -555,62 +561,64 @@ export default function TeacherSettings({ navigation }) {
           </View>
 
           <View style={styles.field}>
-            <Text style={styles.label}>Phone Number</Text>
+            <Text style={[styles.label, isDarkMode && { color: theme.text }]}>Phone Number</Text>
             <TextInput
-              style={styles.input}
+              style={[styles.input, isDarkMode && { backgroundColor: theme.inputBackground, color: theme.text, borderColor: theme.border }]}
               value={phone}
               onChangeText={setPhone}
               placeholder="Enter your phone number"
+              placeholderTextColor={isDarkMode ? theme.textSecondary : "#9ca3af"}
               keyboardType="phone-pad"
             />
           </View>
 
           <View style={styles.field}>
-            <Text style={styles.label}>Teacher Type</Text>
+            <Text style={[styles.label, isDarkMode && { color: theme.text }]}>Teacher Type</Text>
             <TouchableOpacity
-              style={styles.selectButton}
+              style={[styles.selectButton, isDarkMode && { backgroundColor: theme.inputBackground, borderColor: theme.border }]}
               onPress={() => handleOpenModal('teacherType')}
             >
-              <Text style={styles.selectText}>
+              <Text style={[styles.selectText, isDarkMode && { color: theme.text }]}>
                 {teacherType === 'school' ? 'School Teacher' : teacherType === 'university' ? 'University Teacher' : 'Select Type'}
               </Text>
-              <Text style={styles.selectArrow}>▼</Text>
+              <Text style={[styles.selectArrow, isDarkMode && { color: theme.textSecondary }]}>▼</Text>
             </TouchableOpacity>
           </View>
 
           {teacherType === 'school' && (
             <View style={styles.field}>
-              <Text style={styles.label}>Subject</Text>
+              <Text style={[styles.label, isDarkMode && { color: theme.text }]}>Subject</Text>
               <TouchableOpacity
-                style={styles.selectButton}
+                style={[styles.selectButton, isDarkMode && { backgroundColor: theme.inputBackground, borderColor: theme.border }]}
                 onPress={() => handleOpenModal('subject')}
               >
-                <Text style={styles.selectText}>{getSubjectLabel(subject)}</Text>
-                <Text style={styles.selectArrow}>▼</Text>
+                <Text style={[styles.selectText, isDarkMode && { color: theme.text }]}>{getSubjectLabel(subject)}</Text>
+                <Text style={[styles.selectArrow, isDarkMode && { color: theme.textSecondary }]}>▼</Text>
               </TouchableOpacity>
             </View>
           )}
 
           {teacherType === 'university' && (
             <View style={styles.field}>
-              <Text style={styles.label}>Specialization</Text>
+              <Text style={[styles.label, isDarkMode && { color: theme.text }]}>Specialization</Text>
               <TouchableOpacity
-                style={styles.selectButton}
+                style={[styles.selectButton, isDarkMode && { backgroundColor: theme.inputBackground, borderColor: theme.border }]}
                 onPress={() => handleOpenModal('specialization')}
               >
-                <Text style={styles.selectText}>{getSpecializationLabel(specialization)}</Text>
-                <Text style={styles.selectArrow}>▼</Text>
+                <Text style={[styles.selectText, isDarkMode && { color: theme.text }]}>{getSpecializationLabel(specialization)}</Text>
+                <Text style={[styles.selectArrow, isDarkMode && { color: theme.textSecondary }]}>▼</Text>
               </TouchableOpacity>
             </View>
           )}
 
           <View style={styles.field}>
-            <Text style={styles.label}>Bio</Text>
+            <Text style={[styles.label, isDarkMode && { color: theme.text }]}>Bio</Text>
             <TextInput
-              style={[styles.input, styles.textArea]}
+              style={[styles.input, styles.textArea, isDarkMode && { backgroundColor: theme.inputBackground, color: theme.text, borderColor: theme.border }]}
               value={bio}
               onChangeText={setBio}
               placeholder="Tell us about yourself"
+              placeholderTextColor={isDarkMode ? theme.textSecondary : "#9ca3af"}
               multiline
               numberOfLines={3}
             />
@@ -634,10 +642,10 @@ export default function TeacherSettings({ navigation }) {
       </View>
 
       {/* Notification Preferences */}
-      <View style={styles.card}>
+      <View style={[styles.card, isDarkMode && { backgroundColor: theme.card }]}>
         <View style={styles.cardHeader}>
           <Text style={styles.cardIcon}>🔔</Text>
-          <Text style={styles.cardTitle}>Notification Preferences</Text>
+          <Text style={[styles.cardTitle, isDarkMode && { color: theme.text }]}>Notification Preferences</Text>
         </View>
 
         <View style={styles.toggleList}>
@@ -645,8 +653,8 @@ export default function TeacherSettings({ navigation }) {
             <View style={styles.toggleLeft}>
               <Text style={styles.toggleIcon}>📧</Text>
               <View>
-                <Text style={styles.toggleTitle}>Email Notifications</Text>
-                <Text style={styles.toggleDesc}>Receive email updates about your courses</Text>
+                <Text style={[styles.toggleTitle, isDarkMode && { color: theme.text }]}>Email Notifications</Text>
+                <Text style={[styles.toggleDesc, isDarkMode && { color: theme.textSecondary }]}>Receive email updates about your courses</Text>
               </View>
             </View>
             <Switch
@@ -661,8 +669,8 @@ export default function TeacherSettings({ navigation }) {
             <View style={styles.toggleLeft}>
               <Text style={styles.toggleIcon}>🔔</Text>
               <View>
-                <Text style={styles.toggleTitle}>Push Notifications</Text>
-                <Text style={styles.toggleDesc}>Get push notifications on your device</Text>
+                <Text style={[styles.toggleTitle, isDarkMode && { color: theme.text }]}>Push Notifications</Text>
+                <Text style={[styles.toggleDesc, isDarkMode && { color: theme.textSecondary }]}>Get push notifications on your device</Text>
               </View>
             </View>
             <Switch
@@ -678,8 +686,8 @@ export default function TeacherSettings({ navigation }) {
           <View style={styles.toggleRow}>
             <View style={styles.toggleLeft}>
               <View>
-                <Text style={styles.toggleTitle}>Assignment Reminders</Text>
-                <Text style={styles.toggleDesc}>Get reminded about upcoming deadlines</Text>
+                <Text style={[styles.toggleTitle, isDarkMode && { color: theme.text }]}>Assignment Reminders</Text>
+                <Text style={[styles.toggleDesc, isDarkMode && { color: theme.textSecondary }]}>Get reminded about upcoming deadlines</Text>
               </View>
             </View>
             <Switch
@@ -693,8 +701,8 @@ export default function TeacherSettings({ navigation }) {
           <View style={styles.toggleRow}>
             <View style={styles.toggleLeft}>
               <View>
-                <Text style={styles.toggleTitle}>Grade Notifications</Text>
-                <Text style={styles.toggleDesc}>Be notified when grades are posted</Text>
+                <Text style={[styles.toggleTitle, isDarkMode && { color: theme.text }]}>Grade Notifications</Text>
+                <Text style={[styles.toggleDesc, isDarkMode && { color: theme.textSecondary }]}>Be notified when grades are posted</Text>
               </View>
             </View>
             <Switch
@@ -723,23 +731,23 @@ export default function TeacherSettings({ navigation }) {
       </View>
 
       {/* Appearance */}
-      <View style={styles.card}>
+      <View style={[styles.card, isDarkMode && { backgroundColor: theme.card }]}>
         <View style={styles.cardHeader}>
           <Text style={styles.cardIcon}>🎨</Text>
-          <Text style={styles.cardTitle}>Appearance</Text>
+          <Text style={[styles.cardTitle, isDarkMode && { color: theme.text }]}>Appearance</Text>
         </View>
 
         <View style={styles.toggleList}>
           <View style={styles.toggleRow}>
             <View style={styles.toggleLeft}>
-              <Text style={styles.toggleIcon}>{darkMode ? '🌙' : '☀️'}</Text>
+              <Text style={styles.toggleIcon}>{isDarkMode ? '🌙' : '☀️'}</Text>
               <View>
-                <Text style={styles.toggleTitle}>Dark Mode</Text>
-                <Text style={styles.toggleDesc}>Switch to dark theme for comfortable viewing</Text>
+                <Text style={[styles.toggleTitle, isDarkMode && { color: theme.text }]}>Dark Mode</Text>
+                <Text style={[styles.toggleDesc, isDarkMode && { color: theme.textSecondary }]}>Switch to dark theme for comfortable viewing</Text>
               </View>
             </View>
             <Switch
-              value={darkMode}
+              value={isDarkMode}
               onValueChange={setDarkMode}
               trackColor={{ false: '#e5e7eb', true: '#6366f1' }}
               thumbColor="#fff"
@@ -749,21 +757,21 @@ export default function TeacherSettings({ navigation }) {
       </View>
 
       {/* Privacy & Security */}
-      <View style={styles.card}>
+      <View style={[styles.card, isDarkMode && { backgroundColor: theme.card }]}>
         <View style={styles.cardHeader}>
           <Text style={styles.cardIcon}>🛡️</Text>
-          <Text style={styles.cardTitle}>Privacy & Security</Text>
+          <Text style={[styles.cardTitle, isDarkMode && { color: theme.text }]}>Privacy & Security</Text>
         </View>
 
         <View style={styles.privacyList}>
           <TouchableOpacity style={styles.privacyButton} onPress={() => handleOpenModal('password')}>
             <Text style={styles.privacyIcon}>🔒</Text>
-            <Text style={styles.privacyText}>Change Password</Text>
+            <Text style={[styles.privacyText, isDarkMode && { color: theme.text }]}>Change Password</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.privacyButton} onPress={() => handleOpenModal('2fa')}>
             <Text style={styles.privacyIcon}>🛡️</Text>
-            <Text style={styles.privacyText}>Two-Factor Authentication</Text>
+            <Text style={[styles.privacyText, isDarkMode && { color: theme.text }]}>Two-Factor Authentication</Text>
             {twoFAEnabled && (
               <View style={styles.badge}>
                 <Text style={styles.badgeText}>ON</Text>
@@ -794,19 +802,19 @@ export default function TeacherSettings({ navigation }) {
         onRequestClose={handleCloseModal}
       >
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, modalType === 'delete' && styles.modalDanger]}>
+          <View style={[styles.modalCard, isDarkMode && { backgroundColor: theme.card }, modalType === 'delete' && styles.modalDanger]}>
             <View style={styles.modalHeader}>
               <View style={styles.modalHeaderLeft}>
                 {modalType === 'password' && (
                   <>
                     <Text style={styles.modalIcon}>🔒</Text>
-                    <Text style={styles.modalTitle}>Change Password</Text>
+                    <Text style={[styles.modalTitle, isDarkMode && { color: theme.text }]}>Change Password</Text>
                   </>
                 )}
                 {modalType === '2fa' && (
                   <>
                     <Text style={styles.modalIcon}>🛡️</Text>
-                    <Text style={styles.modalTitle}>Two-Factor Authentication</Text>
+                    <Text style={[styles.modalTitle, isDarkMode && { color: theme.text }]}>Two-Factor Authentication</Text>
                   </>
                 )}
                 {modalType === 'delete' && (
@@ -818,19 +826,19 @@ export default function TeacherSettings({ navigation }) {
                 {modalType === 'teacherType' && (
                   <>
                     <Text style={styles.modalIcon}>👨‍🏫</Text>
-                    <Text style={styles.modalTitle}>Select Teacher Type</Text>
+                    <Text style={[styles.modalTitle, isDarkMode && { color: theme.text }]}>Select Teacher Type</Text>
                   </>
                 )}
                 {modalType === 'subject' && (
                   <>
                     <Text style={styles.modalIcon}>📚</Text>
-                    <Text style={styles.modalTitle}>Select Subject</Text>
+                    <Text style={[styles.modalTitle, isDarkMode && { color: theme.text }]}>Select Subject</Text>
                   </>
                 )}
                 {modalType === 'specialization' && (
                   <>
                     <Text style={styles.modalIcon}>🎓</Text>
-                    <Text style={styles.modalTitle}>Select Specialization</Text>
+                    <Text style={[styles.modalTitle, isDarkMode && { color: theme.text }]}>Select Specialization</Text>
                   </>
                 )}
               </View>
@@ -843,23 +851,25 @@ export default function TeacherSettings({ navigation }) {
               {modalType === 'password' && (
                 <>
                   <View style={styles.field}>
-                    <Text style={styles.label}>Current Password</Text>
+                    <Text style={[styles.label, isDarkMode && { color: theme.text }]}>Current Password</Text>
                     <TextInput
-                      style={styles.input}
+                      style={[styles.input, isDarkMode && { backgroundColor: theme.inputBackground, color: theme.text, borderColor: theme.border }]}
                       value={currentPassword}
                       onChangeText={setCurrentPassword}
                       secureTextEntry
                       placeholder="Enter current password"
+                      placeholderTextColor={isDarkMode ? theme.textSecondary : "#9ca3af"}
                     />
                   </View>
                   <View style={styles.field}>
-                    <Text style={styles.label}>New Password</Text>
+                    <Text style={[styles.label, isDarkMode && { color: theme.text }]}>New Password</Text>
                     <TextInput
-                      style={styles.input}
+                      style={[styles.input, isDarkMode && { backgroundColor: theme.inputBackground, color: theme.text, borderColor: theme.border }]}
                       value={newPassword}
                       onChangeText={setNewPassword}
                       secureTextEntry
                       placeholder="Enter new password"
+                      placeholderTextColor={isDarkMode ? theme.textSecondary : "#9ca3af"}
                     />
                   </View>
                 </>
@@ -867,15 +877,15 @@ export default function TeacherSettings({ navigation }) {
 
               {modalType === '2fa' && (
                 <>
-                  <Text style={styles.modalText}>
+                  <Text style={[styles.modalText, isDarkMode && { color: theme.textSecondary }]}>
                     Two-factor authentication adds an extra layer of security to your account. You will be asked for a verification code when you sign in.
                   </Text>
                   <View style={styles.toggleRow}>
                     <View style={styles.toggleLeft}>
                       <Text style={styles.toggleIcon}>🛡️</Text>
                       <View>
-                        <Text style={styles.toggleTitle}>Enable 2FA</Text>
-                        <Text style={styles.toggleDesc}>Require a code on sign in</Text>
+                        <Text style={[styles.toggleTitle, isDarkMode && { color: theme.text }]}>Enable 2FA</Text>
+                        <Text style={[styles.toggleDesc, isDarkMode && { color: theme.textSecondary }]}>Require a code on sign in</Text>
                       </View>
                     </View>
                     <Switch
@@ -902,7 +912,7 @@ export default function TeacherSettings({ navigation }) {
                   ].map(option => (
                     <TouchableOpacity
                       key={option.value}
-                      style={[styles.optionItem, teacherType === option.value && styles.optionItemActive]}
+                      style={[styles.optionItem, isDarkMode && { backgroundColor: theme.surface }, teacherType === option.value && styles.optionItemActive]}
                       onPress={() => {
                         setTeacherType(option.value);
                         setSubject('');
@@ -910,7 +920,7 @@ export default function TeacherSettings({ navigation }) {
                         handleCloseModal();
                       }}
                     >
-                      <Text style={[styles.optionText, teacherType === option.value && styles.optionTextActive]}>
+                      <Text style={[styles.optionText, isDarkMode && { color: theme.text }, teacherType === option.value && styles.optionTextActive]}>
                         {option.label}
                       </Text>
                       {teacherType === option.value && <Text style={styles.checkmark}>✓</Text>}
@@ -925,13 +935,13 @@ export default function TeacherSettings({ navigation }) {
                     {schoolSubjects.map(option => (
                       <TouchableOpacity
                         key={option.value}
-                        style={[styles.optionItem, subject === option.value && styles.optionItemActive]}
+                        style={[styles.optionItem, isDarkMode && { backgroundColor: theme.surface }, subject === option.value && styles.optionItemActive]}
                         onPress={() => {
                           setSubject(option.value);
                           handleCloseModal();
                         }}
                       >
-                        <Text style={[styles.optionText, subject === option.value && styles.optionTextActive]}>
+                        <Text style={[styles.optionText, isDarkMode && { color: theme.text }, subject === option.value && styles.optionTextActive]}>
                           {option.label}
                         </Text>
                         {subject === option.value && <Text style={styles.checkmark}>✓</Text>}
@@ -947,13 +957,13 @@ export default function TeacherSettings({ navigation }) {
                     {universitySpecializations.map(option => (
                       <TouchableOpacity
                         key={option.value}
-                        style={[styles.optionItem, specialization === option.value && styles.optionItemActive]}
+                        style={[styles.optionItem, isDarkMode && { backgroundColor: theme.surface }, specialization === option.value && styles.optionItemActive]}
                         onPress={() => {
                           setSpecialization(option.value);
                           handleCloseModal();
                         }}
                       >
-                        <Text style={[styles.optionText, specialization === option.value && styles.optionTextActive]}>
+                        <Text style={[styles.optionText, isDarkMode && { color: theme.text }, specialization === option.value && styles.optionTextActive]}>
                           {option.label}
                         </Text>
                         {specialization === option.value && <Text style={styles.checkmark}>✓</Text>}
