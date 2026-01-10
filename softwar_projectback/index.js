@@ -20,7 +20,33 @@ const app = express();
 
 // ========= Middleware =========
 app.use(express.json());
-app.use(cors());
+
+// ========= CORS Configuration =========
+// Properly configure CORS to allow frontend connections
+const corsOptions = {
+  origin: [
+    'http://localhost:3000', // Web frontend
+    'http://localhost:8081', // Expo local
+    'http://localhost:19000', // Expo tunnel
+    /^http:\/\/\d+\.\d+\.\d+\.\d+:/, // Local network IPs (192.168.x.x, etc)
+    'https://olive-coats-report.loca.lt', // Localtunnel URL
+    'exp://', // Expo Go on physical devices
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  optionsSuccessStatus: 200,
+};
+
+app.use(cors(corsOptions));
+
+// ========= Security Headers =========
+app.use((req, res, next) => {
+  res.header('X-Content-Type-Options', 'nosniff');
+  res.header('X-Frame-Options', 'DENY');
+  res.header('X-XSS-Protection', '1; mode=block');
+  next();
+});
 
 // Request logging for debugging
 app.use((req, res, next) => {
@@ -241,6 +267,23 @@ app.use(errorHandler);
 // ========= Start Server =========
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log('🚀 server is running on port', PORT);
+
+const server = app.listen(PORT, () => {
+  console.log('🚀 RUWWAD Backend Server');
+  console.log('========================');
+  console.log(`✅ Server is running on port ${PORT}`);
+  console.log(`📍 Local: http://localhost:${PORT}`);
+  console.log(`🌐 Network: http://<your-local-ip>:${PORT}`);
+  console.log(`📱 Expo devices will auto-detect the correct IP`);
+  console.log(`💾 Database: ${mongoose.connection.readyState === 1 ? '✅ Connected' : '❌ Disconnected'}`);
+  console.log('========================');
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received, shutting down gracefully...');
+  server.close(() => {
+    console.log('Server closed');
+    process.exit(0);
+  });
 });
