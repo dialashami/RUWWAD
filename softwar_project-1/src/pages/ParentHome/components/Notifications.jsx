@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-
-const API_BASE = 'http://localhost:3000/api';
+import { API_CONFIG } from '../../../config/api.config';
 
 // Icon components
 const Award = ({ className }) => (
@@ -98,9 +97,9 @@ function Notifications() {
       }
       try {
         setLoading(true);
-        console.log('[ParentNotifications] Fetching from:', `${API_BASE}/notifications/user/${userId}`);
+        console.log('[ParentNotifications] Fetching from:', `${API_CONFIG.BASE_URL}/api/notifications/user/${userId}`);
         
-        const res = await fetch(`${API_BASE}/notifications/user/${userId}`, {
+        const res = await fetch(`${API_CONFIG.BASE_URL}/api/notifications/user/${userId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         
@@ -187,7 +186,7 @@ function Notifications() {
 
   const handleMarkAsRead = async (id) => {
     try {
-      const res = await fetch(`${API_BASE}/notifications/${id}/read`, {
+      const res = await fetch(`${API_CONFIG.BASE_URL}/api/notifications/${id}/read`, {
         method: 'PATCH',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -202,7 +201,7 @@ function Notifications() {
 
   const handleMarkAllAsRead = async () => {
     try {
-      const res = await fetch(`${API_BASE}/notifications/user/${userId}/read-all`, {
+      const res = await fetch(`${API_CONFIG.BASE_URL}/api/notifications/user/${userId}/read-all`, {
         method: 'PATCH',
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -215,7 +214,7 @@ function Notifications() {
 
   const handleDeleteNotification = async (id) => {
     try {
-      const res = await fetch(`${API_BASE}/notifications/${id}`, {
+      const res = await fetch(`${API_CONFIG.BASE_URL}/api/notifications/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });

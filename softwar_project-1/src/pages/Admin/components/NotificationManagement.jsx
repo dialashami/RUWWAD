@@ -13,8 +13,9 @@ import {
   Info,
   AlertTriangle,
 } from 'lucide-react';
+import { API_CONFIG } from '../../../config/api.config';
 
-const API_BASE = 'http://localhost:3000/api';
+const API_BASE = API_CONFIG.BASE_URL + '/api';
 
 // NOTE: This modal is currently unused for creation/editing, but kept for potential future use.
 export function NotificationModal({ notification, onClose, onSave }) {

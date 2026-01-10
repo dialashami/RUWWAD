@@ -6,8 +6,9 @@ import {
   Mail,
   MessageSquare,
 } from 'lucide-react';
+import { API_CONFIG } from '../../../config/api.config';
 
-const API_BASE = 'http://localhost:3000/api';
+const API_BASE = API_CONFIG.BASE_URL + '/api';
 
 export function CommunicationCenter({ initialChatName, initialTab = 'messages' }) {
   const [selectedChat, setSelectedChat] = useState(null);

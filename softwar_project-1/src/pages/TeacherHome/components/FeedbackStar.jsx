@@ -61,7 +61,7 @@ export default function FeedbackStar() {
       
       console.log('Sending feedback data:', feedbackData);
 
-      const res = await fetch('http://localhost:3000/api/feedback', {
+      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/feedback`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

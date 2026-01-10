@@ -64,7 +64,7 @@ export function Sidebar({ activeItem, onItemChange }) {
         const token = localStorage.getItem('token');
         if (!token) return;
 
-        const response = await fetch('http://localhost:3000/api/notifications/unread-count', {
+        const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/notifications/unread-count`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }

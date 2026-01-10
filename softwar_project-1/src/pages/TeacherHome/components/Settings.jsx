@@ -86,7 +86,7 @@ export default function Settings() {
         const token = localStorage.getItem('token');
         if (!token) return;
 
-        const res = await fetch('http://localhost:3000/api/users/profile', {
+        const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/users/profile`, {
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
@@ -159,7 +159,7 @@ export default function Settings() {
         return;
       }
 
-      const res = await fetch('http://localhost:3000/api/teacher/preferences', {
+      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/teacher/preferences`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -219,7 +219,7 @@ export default function Settings() {
         return;
       }
 
-      const res = await fetch('http://localhost:3000/api/teacher/profile', {
+      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/teacher/profile`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -302,7 +302,7 @@ export default function Settings() {
           return;
         }
 
-        const res = await fetch('http://localhost:3000/api/auth/change-password', {
+        const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/auth/change-password`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -338,7 +338,7 @@ export default function Settings() {
         }
 
         const newStatus = !twoFAEnabled;
-        const res = await fetch('http://localhost:3000/api/auth/toggle-2fa', {
+        const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/auth/toggle-2fa`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -378,7 +378,7 @@ export default function Settings() {
           return;
         }
 
-        const res = await fetch('http://localhost:3000/api/auth/delete-account', {
+        const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/auth/delete-account`, {
           method: 'DELETE',
           headers: {
             'Content-Type': 'application/json',

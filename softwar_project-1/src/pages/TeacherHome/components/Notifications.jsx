@@ -16,7 +16,7 @@ function Notifications({ onNavigate }) {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const res = await fetch('http://localhost:3000/api/notifications/sent', {
+      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/notifications/sent`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -92,7 +92,7 @@ function Notifications({ onNavigate }) {
           return;
         }
 
-        const res = await fetch('http://localhost:3000/api/notifications/assignment-reminder', {
+        const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/notifications/assignment-reminder`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -159,7 +159,7 @@ function Notifications({ onNavigate }) {
         status: 'sent'
       };
 
-      const res = await fetch('http://localhost:3000/api/notifications/sent', {
+      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/notifications/sent`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

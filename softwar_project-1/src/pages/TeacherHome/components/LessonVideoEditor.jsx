@@ -24,7 +24,7 @@ function LessonVideoEditor({ courseId, courseTitle, onClose, onSave }) {
 
       try {
         const token = localStorage.getItem('token');
-        const res = await fetch(`http://localhost:3000/api/courses/${courseId}`, {
+        const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/courses/${courseId}`, {
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
@@ -119,9 +119,9 @@ function LessonVideoEditor({ courseId, courseTitle, onClose, onSave }) {
       console.log('Course ID type:', typeof courseId);
       console.log('Video URLs:', filteredUrls);
       console.log('Uploaded Videos:', uploadedVideosData);
-      console.log('API URL:', `http://localhost:3000/api/courses/${courseId}`);
+      console.log('API URL:', `${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/courses/${courseId}`);
 
-      const res = await fetch(`http://localhost:3000/api/courses/${courseId}`, {
+      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/courses/${courseId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

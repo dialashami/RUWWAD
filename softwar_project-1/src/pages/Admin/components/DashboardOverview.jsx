@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Users, BookOpen, GraduationCap, TrendingUp, TrendingDown, Activity, AlertCircle, AlertTriangle, Info, CheckCircle, MessageSquare, Bell, Star, FileText, UserPlus, Award } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
+import { API_CONFIG } from '../../../config/api.config';
 
-const API_BASE = 'http://localhost:3000/api';
+const API_BASE = API_CONFIG.BASE_URL + '/api';
 
 // StatsCard Component
 function StatsCard({ title, value, change, trend, icon: Icon, color }) {

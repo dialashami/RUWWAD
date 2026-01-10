@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import "../CSS/Signup.css"; // نستخدم نفس التنسيق
+import "../CSS/Signup.css";
+import { API_CONFIG } from '../config/api.config';
 
 const VerifyEmail = () => {
   const [code, setCode] = useState("");
@@ -26,7 +27,7 @@ const VerifyEmail = () => {
     setSuccess("");
 
     try {
-      const response = await fetch("http://localhost:3000/api/verify-email", {
+      const response = await fetch(API_CONFIG.AUTH.VERIFY_EMAIL, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

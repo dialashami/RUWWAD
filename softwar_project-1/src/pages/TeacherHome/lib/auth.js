@@ -72,7 +72,7 @@ class AuthManager {
   // Login - calls real backend API
   async login(email, password) {
     try {
-      const response = await fetch('http://localhost:3000/api/login', {
+      const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

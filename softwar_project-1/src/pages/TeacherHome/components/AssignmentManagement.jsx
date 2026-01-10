@@ -85,8 +85,8 @@ function AssignmentManagement({ onNavigate }) { // إضافة onNavigate كـ pr
 
         const teacherId = getTeacherId();
         const url = teacherId
-          ? `http://localhost:3000/api/assignments?teacher=${teacherId}`
-          : 'http://localhost:3000/api/assignments';
+          ? `${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/assignments?teacher=${teacherId}`
+          : `${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/assignments`;
 
         const res = await fetch(url, {
           method: 'GET',
@@ -157,7 +157,7 @@ function AssignmentManagement({ onNavigate }) { // إضافة onNavigate كـ pr
         return;
       }
 
-      const res = await fetch(`http://localhost:3000/api/assignments/${assignmentId}`, {
+      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/assignments/${assignmentId}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -361,7 +361,7 @@ const handleSaveEdit = async () => {
   try {
     // Call backend API to update assignment
     if (token && selectedAssignment.id) {
-      const res = await fetch(`http://localhost:3000/api/assignments/${selectedAssignment.id}`, {
+      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/assignments/${selectedAssignment.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -443,7 +443,7 @@ const handleSaveGrade = async () => {
     const token = localStorage.getItem('token');
     if (token && selectedAssignment && selectedStudent) {
       // Call backend API to grade submission
-      const res = await fetch(`http://localhost:3000/api/assignments/${selectedAssignment.id}/grade`, {
+      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/assignments/${selectedAssignment.id}/grade`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -525,7 +525,7 @@ const handleSaveBulkGrade = () => {
       try {
         // Call backend API to delete assignment
         if (token && assignmentId) {
-          const res = await fetch(`http://localhost:3000/api/assignments/${assignmentId}`, {
+          const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/assignments/${assignmentId}`, {
             method: 'DELETE',
             headers: {
               'Content-Type': 'application/json',
@@ -595,7 +595,7 @@ const handleCreateAssignment = async () => {
 
     // Call backend API to create assignment
     if (token && teacherId) {
-      const res = await fetch('http://localhost:3000/api/assignments', {
+      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/assignments`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

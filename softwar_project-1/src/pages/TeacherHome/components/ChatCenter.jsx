@@ -64,7 +64,7 @@ export const ChatCenter = ({ currentRole = "teacher" }) => {
       }
 
       // Fetch all users
-      const res = await fetch('http://localhost:3000/api/users', {
+      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/users`, {
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
@@ -82,7 +82,7 @@ export const ChatCenter = ({ currentRole = "teacher" }) => {
       // Also fetch conversations to get unread counts
       let conversationsData = [];
       try {
-        const convRes = await fetch(`http://localhost:3000/api/messages/conversations/${currentUserId}`, {
+        const convRes = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/messages/conversations/${currentUserId}`, {
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
@@ -187,7 +187,7 @@ export const ChatCenter = ({ currentRole = "teacher" }) => {
       if (!token) return;
 
       const res = await fetch(
-        `http://localhost:3000/api/messages/conversation/${currentUserId}/${selectedConversation.id}`,
+        `${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/messages/conversation/${currentUserId}/${selectedConversation.id}`,
         {
           headers: {
             'Content-Type': 'application/json',
@@ -256,7 +256,7 @@ export const ChatCenter = ({ currentRole = "teacher" }) => {
       const token = localStorage.getItem('token');
       if (!token || !currentUserId) return;
 
-      await fetch(`http://localhost:3000/api/messages/read/${currentUserId}/${partnerId}`, {
+      await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/messages/read/${currentUserId}/${partnerId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -294,7 +294,7 @@ export const ChatCenter = ({ currentRole = "teacher" }) => {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const res = await fetch('http://localhost:3000/api/messages', {
+      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/messages`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

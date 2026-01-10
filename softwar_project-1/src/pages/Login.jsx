@@ -7,6 +7,7 @@ import { signInWithPopup, getRedirectResult } from 'firebase/auth';
 import { auth, googleProvider, facebookProvider } from '../firebase';
 import { getUserRole } from "../utiles/getUserRole";
 import axios from 'axios';
+import { API_CONFIG } from '../config/api.config';
 
 export default function Login() {
   const dispatch = useDispatch();
@@ -19,7 +20,7 @@ export default function Login() {
 
   const handelGetType = async (id) => {
     try {
-      const response = await axios.get(`http://localhost:3000/api/studentType`, {
+      const response = await axios.get(API_CONFIG.STUDENT.TYPE, {
         headers: { Authorization: `Bearer ${token}` }
       });
       return response.data.studentType;

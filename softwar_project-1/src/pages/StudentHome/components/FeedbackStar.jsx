@@ -38,7 +38,7 @@ export default function FeedbackStar() {
         throw new Error('Not authenticated');
       }
 
-      const res = await fetch('http://localhost:3000/api/feedback', {
+      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/feedback`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

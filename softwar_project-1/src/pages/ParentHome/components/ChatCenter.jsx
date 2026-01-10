@@ -1,6 +1,5 @@
  import React, { useState, useEffect } from "react";
-
-const API_BASE = "http://localhost:3000/api";
+import { API_CONFIG } from '../../../config/api.config';
 
 export const ChatCenter = ({ currentRole = "parent" }) => {
   const [activeTab, setActiveTab] = useState("teachers"); // teachers | admin
@@ -21,7 +20,7 @@ export const ChatCenter = ({ currentRole = "parent" }) => {
       if (!userId || !token) return;
       try {
         setLoading(true);
-        const res = await fetch(`${API_BASE}/messages/conversations/${userId}`, {
+        const res = await fetch(`${API_CONFIG.BASE_URL}/api/messages/conversations/${userId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         if (!res.ok) throw new Error("Failed to fetch conversations");
@@ -62,7 +61,7 @@ export const ChatCenter = ({ currentRole = "parent" }) => {
       if (!selectedConversation || !userId || !token) return;
       try {
         const res = await fetch(
-          `${API_BASE}/messages/conversation/${userId}/${selectedConversation.partnerId}`,
+          `${API_CONFIG.BASE_URL}/api/messages/conversation/${userId}/${selectedConversation.partnerId}`,
           { headers: { Authorization: `Bearer ${token}` } }
         );
         if (!res.ok) throw new Error("Failed to fetch messages");
@@ -71,7 +70,7 @@ export const ChatCenter = ({ currentRole = "parent" }) => {
         
         // Mark messages as read
         await fetch(
-          `${API_BASE}/messages/read/${userId}/${selectedConversation.partnerId}`,
+          `${API_CONFIG.BASE_URL}/api/messages/read/${userId}/${selectedConversation.partnerId}`,
           {
             method: "PUT",
             headers: { Authorization: `Bearer ${token}` },
@@ -98,7 +97,7 @@ export const ChatCenter = ({ currentRole = "parent" }) => {
     if (!newMessage.trim() || !selectedConversation || !token) return;
 
     try {
-      const res = await fetch(`${API_BASE}/messages`, {
+      const res = await fetch(`${API_CONFIG.BASE_URL}/api/messages`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

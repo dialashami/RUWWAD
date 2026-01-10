@@ -48,14 +48,14 @@ app.use((req, res, next) => {
   next();
 });
 
-// Request logging for debugging
-app.use((req, res, next) => {
-  if (req.path.includes('feedback')) {
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
-    console.log('Headers:', req.headers.authorization ? 'Auth present' : 'NO AUTH');
-  }
-  next();
-});
+// Request logging for debugging (disabled - endpoints are working fine)
+// app.use((req, res, next) => {
+//   if (req.path.includes('feedback')) {
+//     console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+//     console.log('Headers:', req.headers.authorization ? 'Auth present' : 'NO AUTH');
+//   }
+//   next();
+// });
 
 // ========= MongoDB Connection =========
 
@@ -143,19 +143,55 @@ app.post('/api/chat', async (req, res) => {
       });
     }
 
-    const r = await axios.post(`${OLLAMA_BASE_URL}/api/chat`, {
-      model: OLLAMA_MODEL,
-      messages: [{ role: 'user', content: question }],
-      stream: false,
+    try {
+      const r = await axios.post(`${OLLAMA_BASE_URL}/api/chat`, {
+        model: OLLAMA_MODEL,
+        messages: [{ role: 'user', content: question }],
+        stream: false,
+      });
+
+      const data = r.data;
+      const answer = data?.message?.content || data?.response || null;
+      if (answer) return res.json({ answer });
+      // fallthrough to try OpenAI or fallback
+    } catch (ollamaErr) {
+      console.error('Ollama request failed:', ollamaErr.message || ollamaErr);
+      // try OpenAI fallback below
+    }
+
+    // If Ollama wasn't available, try OpenAI if configured
+    if (process.env.OPENAI_API_KEY) {
+      try {
+        const openaiRes = await axios.post(
+          'https://api.openai.com/v1/chat/completions',
+          {
+            model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+            messages: [{ role: 'user', content: question }],
+            max_tokens: 512,
+          },
+          {
+            headers: {
+              Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+
+        const choices = openaiRes.data?.choices;
+        const aiAnswer = choices && choices[0] && (choices[0].message?.content || choices[0].text);
+        if (aiAnswer) return res.json({ answer: aiAnswer });
+      } catch (openaiErr) {
+        console.error('OpenAI fallback failed:', openaiErr.message || openaiErr);
+      }
+    }
+
+    // Final graceful fallback
+    return res.json({
+      answer:
+        'Sorry — the AI backend is currently unavailable. Please start your local Ollama server or set the OPENAI_API_KEY environment variable for an online fallback.',
     });
-
-    const data = r.data;
-    const answer =
-      data?.message?.content || data?.response || 'No answer.';
-
-    return res.json({ answer });
   } catch (e) {
-    console.error('Server exception (Ollama):', e.response?.data || e.message);
+    console.error('Server exception (AI chat):', e.response?.data || e.message);
     return res.status(500).json({ error: 'Server error.' });
   }
 });
@@ -266,7 +302,7 @@ app.use(errorHandler);
 
 // ========= Start Server =========
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 5000;
 
 const server = app.listen(PORT, () => {
   console.log('🚀 RUWWAD Backend Server');

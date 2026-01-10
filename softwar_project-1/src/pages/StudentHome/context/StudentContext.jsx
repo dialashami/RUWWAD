@@ -107,7 +107,7 @@ export function StudentProvider({ children }) {
         return;
       }
 
-      const res = await fetch('http://localhost:3000/api/student/dashboard', {
+      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/student/dashboard`, {
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
@@ -127,7 +127,7 @@ export function StudentProvider({ children }) {
 
       // Fetch unread notification count from backend
       try {
-        const notifRes = await fetch('http://localhost:3000/api/notifications/unread-count', {
+        const notifRes = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/notifications/unread-count`, {
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
@@ -175,7 +175,7 @@ export function StudentProvider({ children }) {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const res = await fetch('http://localhost:3000/api/student/progress', {
+      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/student/progress`, {
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,

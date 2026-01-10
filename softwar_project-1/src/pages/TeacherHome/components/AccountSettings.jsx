@@ -72,7 +72,7 @@ export function AccountSettings() {
           return;
         }
 
-        const res = await fetch('http://localhost:3000/api/teacher/profile', {
+        const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/teacher/profile`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -140,7 +140,7 @@ export function AccountSettings() {
       const token = localStorage.getItem('token');
       
       if (token) {
-        const res = await fetch('http://localhost:3000/api/teacher/profile', {
+        const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/teacher/profile`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -195,7 +195,7 @@ export function AccountSettings() {
       const token = localStorage.getItem('token');
       
       if (token) {
-        const res = await fetch('http://localhost:3000/api/teacher/preferences', {
+        const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/teacher/preferences`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',

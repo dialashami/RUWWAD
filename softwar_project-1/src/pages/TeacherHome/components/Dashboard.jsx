@@ -66,7 +66,7 @@ export function Dashboard() {
 
       try {
         // Fetch teacher dashboard data
-        const res = await fetch('http://localhost:3000/api/teacher/dashboard', {
+        const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/teacher/dashboard`, {
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,

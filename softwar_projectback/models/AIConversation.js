@@ -20,6 +20,6 @@ const AIConversationSchema = new mongoose.Schema({
 
 
 // Index for efficient queries
-aiConversationSchema.index({ user: 1, isDeleted: 1, updatedAt: -1 });
+AIConversationSchema.index({ user: 1, isDeleted: 1, updatedAt: -1 });
 
-module.exports = mongoose.model('AIConversation', aiConversationSchema);
+module.exports = mongoose.model('AIConversation', AIConversationSchema);
