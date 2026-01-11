@@ -2,6 +2,7 @@ import '../CSS/login.css';
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from 'axios';
+import { API_CONFIG } from '../config/api.config';
 
 export default function ForgotPassword() {
   const navigate = useNavigate();
@@ -28,7 +29,7 @@ export default function ForgotPassword() {
     setError("");
     
     try {
-      await axios.post('http://localhost:3000/api/auth/forgot-password', { email });
+      await axios.post(API_CONFIG.AUTH.FORGOT_PASSWORD, { email });
       setSuccess("If an account with that email exists, a reset code has been sent.");
       setCooldown(60);
       setStep(2);
@@ -77,7 +78,7 @@ export default function ForgotPassword() {
     setError("");
 
     try {
-      await axios.post('http://localhost:3000/api/auth/reset-password', {
+      await axios.post(API_CONFIG.AUTH.RESET_PASSWORD, {
         email,
         code,
         newPassword

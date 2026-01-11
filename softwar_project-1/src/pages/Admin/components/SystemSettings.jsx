@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Save, Globe, Mail, Check } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-const API_BASE = 'http://localhost:3000/api';
+const API_BASE = (process.env.REACT_APP_API_BASE_URL || window.location.origin) + '/api';
 
 export function SystemSettings() {
   const { t, i18n } = useTranslation();

@@ -82,7 +82,7 @@ export default function Settings() {
         const token = localStorage.getItem('token');
         if (!token) return;
 
-        const res = await fetch('http://localhost:3000/api/users/profile', {
+        const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/users/profile`, {
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
@@ -144,7 +144,7 @@ export default function Settings() {
         return;
       }
 
-      const res = await fetch('http://localhost:3000/api/student/preferences', {
+      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/student/preferences`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -208,7 +208,7 @@ export default function Settings() {
         return;
       }
 
-      const res = await fetch('http://localhost:3000/api/auth/profile', {
+      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/auth/profile`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -321,7 +321,7 @@ export default function Settings() {
           return;
         }
 
-        const res = await fetch('http://localhost:3000/api/auth/change-password', {
+        const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/auth/change-password`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

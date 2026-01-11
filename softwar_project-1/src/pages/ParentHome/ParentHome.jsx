@@ -7,10 +7,9 @@ import  Notifications from './components/Notifications';
  import Settings from './components/Settings';
 
 import { ChatCenter } from './components/ChatCenter';
-import FeedbackStar from './components/FeedbackStar'; 
+import FeedbackStar from './components/FeedbackStar';
+import { API_CONFIG } from '../../config/api.config';
 import './ParentHome.css';
-
-const API_BASE = 'http://localhost:3000/api';
 
 export default function StudentHome() {
   const [activePage, setActivePage] = useState('dashboard');
@@ -25,7 +24,7 @@ export default function StudentHome() {
   const fetchUnreadMessageCount = async () => {
     if (!userId || !token) return;
     try {
-      const res = await fetch(`${API_BASE}/messages/conversations/${userId}`, {
+      const res = await fetch(`${API_CONFIG.BASE_URL}/api/messages/conversations/${userId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) return;
@@ -44,7 +43,7 @@ export default function StudentHome() {
   const fetchUnreadNotificationCount = async () => {
     if (!userId || !token) return;
     try {
-      const res = await fetch(`${API_BASE}/notifications/unread-count`, {
+      const res = await fetch(API_CONFIG.NOTIFICATIONS.UNREAD_COUNT, {
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!res.ok) return;

@@ -2,6 +2,7 @@ import '../CSS/welcome.css';
 import { useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useState, useEffect } from "react";
+import { API_CONFIG } from '../config/api.config';
 
 // Default testimonials to show when no feedback is available
 const defaultTestimonials = [
@@ -26,7 +27,7 @@ export default function Welcome() {
   // Fetch random feedback from database
   const fetchFeedback = async () => {
     try {
-      const res = await fetch('http://localhost:3000/api/feedback/random?limit=3');
+      const res = await fetch(API_CONFIG.FEEDBACK.RANDOM + '?limit=3');
       if (res.ok) {
         const data = await res.json();
         if (data && data.length > 0) {

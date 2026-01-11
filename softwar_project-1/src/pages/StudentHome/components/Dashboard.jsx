@@ -88,7 +88,7 @@ export function Dashboard() {
         const token = localStorage.getItem('token');
         if (!token) return;
 
-        const res = await fetch('http://localhost:3000/api/student/progress', {
+        const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/student/progress`, {
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
@@ -188,7 +188,7 @@ export function Dashboard() {
     try {
       const token = localStorage.getItem('token');
       if (token) {
-        const res = await fetch('http://localhost:3000/api/student/progress', {
+        const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/student/progress`, {
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,

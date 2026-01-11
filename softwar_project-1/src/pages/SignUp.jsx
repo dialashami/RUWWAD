@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import './Login.jsx'
 import '../CSS/Signup.css'
+import { API_CONFIG } from '../config/api.config';
 
 
 
@@ -95,7 +96,7 @@ const SignUp = () => {
   // إرسال البيانات إلى الخادم
   const saveUserToDatabase = async (userData) => {
     try {
-      const response = await fetch('http://localhost:3000/api/signup', {
+      const response = await fetch(API_CONFIG.AUTH.SIGNUP, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(userData),

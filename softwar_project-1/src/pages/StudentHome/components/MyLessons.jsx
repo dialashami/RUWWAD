@@ -33,7 +33,7 @@ export function MyLessons() {
         console.log('Fetching courses for student grade:', grade, 'studentId:', studentId);
 
         // Fetch all active courses that match student's grade
-        let url = 'http://localhost:3000/api/courses?isActive=true';
+        let url = `${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/courses?isActive=true`;
         if (grade) url += `&grade=${encodeURIComponent(grade)}`;
         if (major) url += `&specialization=${encodeURIComponent(major)}`;
 
@@ -140,7 +140,7 @@ export function MyLessons() {
         return;
       }
 
-      const res = await fetch(`http://localhost:3000/api/courses/${courseId}/enroll`, {
+      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/courses/${courseId}/enroll`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -189,7 +189,7 @@ export function MyLessons() {
         return;
       }
 
-      const res = await fetch(`http://localhost:3000/api/courses/${courseId}/unenroll`, {
+      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/courses/${courseId}/unenroll`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

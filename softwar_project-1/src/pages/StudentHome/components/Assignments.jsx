@@ -407,7 +407,7 @@ export function Assignments() {
         const studentId = student.id || null;
 
         // Build URL with filters
-        let url = 'http://localhost:3000/api/assignments';
+        let url = `${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/assignments`;
         const params = [];
         if (grade) params.push(`grade=${encodeURIComponent(grade)}`);
         if (major) params.push(`specialization=${encodeURIComponent(major)}`);
@@ -592,7 +592,7 @@ export function Assignments() {
       }
 
       // Submit to backend
-      const res = await fetch(`http://localhost:3000/api/assignments/${selectedAssignment.id}/submit`, {
+      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/assignments/${selectedAssignment.id}/submit`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

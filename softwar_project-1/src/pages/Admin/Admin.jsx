@@ -53,9 +53,8 @@ import { UserManagement } from './components/UserManagement';
 import { CommunicationCenter } from './components/CommunicationCenter';
 import { NotificationManagement } from './components/NotificationManagement';
 import { SystemSettings } from './components/SystemSettings';
+import { API_CONFIG } from '../../config/api.config';
 import './Admin.css';
-
-const API_BASE = 'http://localhost:3000/api';
 
 export function Admin() {
   const [activeSection, setActiveSection] = useState('dashboard');
@@ -70,7 +69,7 @@ export function Admin() {
     }
 
     try {
-      const res = await fetch(`${API_BASE}/notifications/unread-count`, {
+      const res = await fetch(API_CONFIG.NOTIFICATIONS.UNREAD_COUNT, {
         headers: {
           Authorization: `Bearer ${token}`,
         },

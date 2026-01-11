@@ -35,7 +35,7 @@ function CourseDetail({ courseId, courseTitle, onClose, isTeacher = true }) {
         
         // For students, fetch course with progress
         if (!isTeacher && userId) {
-          const res = await fetch(`http://localhost:3000/api/courses/${courseId}/progress?studentId=${userId}`, {
+          const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/courses/${courseId}/progress?studentId=${userId}`, {
             headers: {
               'Content-Type': 'application/json',
               Authorization: `Bearer ${token}`,
@@ -55,7 +55,7 @@ function CourseDetail({ courseId, courseTitle, onClose, isTeacher = true }) {
             }
           } else {
             // Fallback to regular fetch
-            const fallbackRes = await fetch(`http://localhost:3000/api/courses/${courseId}`, {
+            const fallbackRes = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/courses/${courseId}`, {
               headers: {
                 'Content-Type': 'application/json',
                 Authorization: `Bearer ${token}`,
@@ -68,7 +68,7 @@ function CourseDetail({ courseId, courseTitle, onClose, isTeacher = true }) {
           }
         } else {
           // Teacher view - just fetch course
-          const res = await fetch(`http://localhost:3000/api/courses/${courseId}`, {
+          const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/courses/${courseId}`, {
             headers: {
               'Content-Type': 'application/json',
               Authorization: `Bearer ${token}`,
@@ -121,7 +121,7 @@ function CourseDetail({ courseId, courseTitle, onClose, isTeacher = true }) {
     
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`http://localhost:3000/api/courses/${courseId}/watch-video`, {
+      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/courses/${courseId}/watch-video`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

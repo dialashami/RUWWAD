@@ -839,8 +839,8 @@ function LessonManagement({ onNavigate }) {
         
         // Use query parameter to filter by teacher on backend
         const url = teacherId 
-          ? `http://localhost:3000/api/courses?teacher=${teacherId}`
-          : 'http://localhost:3000/api/courses';
+          ? `${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/courses?teacher=${teacherId}`
+          : `${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/courses`;
           
         const res = await fetch(url, {
           method: 'GET',
@@ -1026,7 +1026,7 @@ function LessonManagement({ onNavigate }) {
 
       console.log('Creating course with data:', body);
       
-      const res = await fetch('http://localhost:3000/api/courses', {
+      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/courses`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1127,7 +1127,7 @@ function LessonManagement({ onNavigate }) {
         const token = localStorage.getItem('token');
         if (token) {
           try {
-            await fetch(`http://localhost:3000/api/courses/${selectedCourseForZoom}`, {
+            await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/courses/${selectedCourseForZoom}`, {
               method: 'PUT',
               headers: {
                 'Content-Type': 'application/json',

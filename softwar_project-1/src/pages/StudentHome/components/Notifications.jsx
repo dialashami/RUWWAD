@@ -94,7 +94,7 @@ export default function Notifications() {
       }
 
       console.log('Fetching notifications for user:', userId);
-      const res = await fetch(`http://localhost:3000/api/notifications/user/${userId}`, {
+      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/notifications/user/${userId}`, {
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
@@ -177,7 +177,7 @@ export default function Notifications() {
     try {
       const token = localStorage.getItem('token');
       if (token && id && !id.toString().startsWith('fallback')) {
-        await fetch(`http://localhost:3000/api/notifications/${id}/read`, {
+        await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/notifications/${id}/read`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
@@ -205,7 +205,7 @@ export default function Notifications() {
       const token = localStorage.getItem('token');
       console.log('Deleting notification:', id, 'isFallback:', id.toString().startsWith('fallback'));
       if (token && id && !id.toString().startsWith('fallback')) {
-        const res = await fetch(`http://localhost:3000/api/notifications/${id}`, {
+        const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/notifications/${id}`, {
           method: 'DELETE',
           headers: {
             'Content-Type': 'application/json',
@@ -242,7 +242,7 @@ export default function Notifications() {
 
       if (token && userId) {
         console.log('Marking all as read for user:', userId);
-        const res = await fetch(`http://localhost:3000/api/notifications/user/${userId}/read-all`, {
+        const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/notifications/user/${userId}/read-all`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
@@ -318,7 +318,7 @@ export default function Notifications() {
         return;
       }
 
-      const res = await fetch('http://localhost:3000/api/notifications/reply', {
+      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/notifications/reply`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

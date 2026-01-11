@@ -19,7 +19,7 @@ import { Button } from './ui';
 import { Input } from './ui';
 import { Badge } from './ui';
 
-const API_BASE_URL = 'http://localhost:3000/api';
+const API_BASE_URL = (process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000') + '/api';
 
 const quickActions = [
  { icon: Calculator, label: 'Explain Math Concepts', prompt: 'I need help creating a lesson to explain calculus derivatives to my students.' },
@@ -145,11 +145,15 @@ export default function AITutorPage() {
   const sendToBackend = async (text) => {
     try {
       setIsLoading(true);
-      const res = await fetch('/api/chat', {
+      const res = await fetch(`${API_BASE_URL}/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question: text }),
       });
+      if (!res.ok) {
+        console.error('AI backend responded with', res.status);
+        return 'Sorry, I could not reach the AI server.';
+      }
       const data = await res.json();
       return data.answer || 'Sorry, I could not answer that.';
     } catch (err) {

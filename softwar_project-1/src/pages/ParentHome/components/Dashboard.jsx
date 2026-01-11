@@ -27,7 +27,7 @@ export default function Dashboard() {
         }
 
         // Fetch linked children
-        const childrenRes = await fetch('http://localhost:3000/api/users/children', {
+        const childrenRes = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/users/children`, {
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
@@ -42,7 +42,7 @@ export default function Dashboard() {
           const dashboardData = {};
           for (const child of childrenList) {
             try {
-              const dashRes = await fetch(`http://localhost:3000/api/users/children/${child._id}/dashboard`, {
+              const dashRes = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/users/children/${child._id}/dashboard`, {
                 headers: {
                   'Content-Type': 'application/json',
                   Authorization: `Bearer ${token}`,
