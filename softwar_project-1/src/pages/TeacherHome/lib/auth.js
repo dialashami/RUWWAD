@@ -1,4 +1,5 @@
 // Authentication and user management
+import { API_BASE_URL } from '../../../services/api';
 
 const AUTH_KEY = 'ruwwad_auth_user';
 const USERS_KEY = 'ruwwad_users';
@@ -72,7 +73,7 @@ class AuthManager {
   // Login - calls real backend API
   async login(email, password) {
     try {
-      const response = await fetch('http://localhost:3000/api/login', {
+      const response = await fetch(`${API_BASE_URL}/api/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

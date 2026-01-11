@@ -25,7 +25,9 @@ app.use(express.json());
 // Properly configure CORS to allow frontend connections
 const corsOptions = {
   origin: [
-    'http://localhost:3000', // Web frontend
+    'http://localhost:3000', // Web frontend (if on same port)
+    'http://localhost:3001', // Web frontend (on different port)
+    'http://localhost:5173', // Vite dev server
     'http://localhost:8081', // Expo local
     'http://localhost:19000', // Expo tunnel
     /^http:\/\/\d+\.\d+\.\d+\.\d+:/, // Local network IPs (192.168.x.x, etc)

@@ -1,16 +1,13 @@
 // features/auth/authSlice.js
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
-import axios from "axios";
+import { authAPI } from "../services/api";
 
 // Async login thunk
 export const loginUser = createAsyncThunk(
   "auth/loginUser",
   async ({ email, password }, { rejectWithValue }) => {
     try {
-      const response = await axios.post("http://localhost:3000/api/login", {
-        email,
-        password,
-      });
+      const response = await authAPI.login(email, password);
 
       // Handle API success
       if (response.data.status === "success") {
