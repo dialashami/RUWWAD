@@ -8,7 +8,7 @@ import axios from 'axios';
 // ============================================
 
 // Backend API URL - change this based on your environment
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:3000';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 console.log('🔗 Web API connecting to:', API_BASE_URL);
 

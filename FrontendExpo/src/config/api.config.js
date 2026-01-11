@@ -10,7 +10,7 @@ import Constants from 'expo-constants';
 // ============================================
 
 // Backend server port
-const PORT = 3000;
+const PORT = 5000;
 
 // Localtunnel URL (if using tunnel for external access)
 const TUNNEL_URL = 'https://olive-coats-report.loca.lt';
