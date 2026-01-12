@@ -35,12 +35,26 @@ exports.getDashboard = async (req, res, next) => {
       gradeFilter.grade = new RegExp(student.universityMajor, 'i');
     }
 
+    // IMPORTANT: Only fetch courses where this student is enrolled
+    // This ensures new students don't see other students' data
+    const enrolledFilter = { students: userId };
+
     // Fetch courses, assignments, messages, notifications in parallel
-    const [courses, assignments, messages, notifications] = await Promise.all([
+    const [enrolledCourses, availableCourses, assignments, messages, notifications] = await Promise.all([
+      // Courses the student is enrolled in
+      Course.find({ ...enrolledFilter, isActive: true })
+        .populate('teacher', 'firstName lastName')
+        .sort({ createdAt: -1 }),
+      // Available courses for their grade (for discovery, not enrolled yet)
       Course.find({ ...gradeFilter, isActive: true })
         .populate('teacher', 'firstName lastName')
         .sort({ createdAt: -1 }),
-      Assignment.find(gradeFilter)
+      // Assignments only from enrolled courses
+      Assignment.find({ 
+        ...gradeFilter,
+        // Only show assignments from courses the student is enrolled in
+        course: { $in: await Course.find(enrolledFilter).distinct('_id') }
+      })
         .populate('course', 'title')
         .populate('teacher', 'firstName lastName')
         .sort({ dueDate: 1 }),
@@ -52,6 +66,9 @@ exports.getDashboard = async (req, res, next) => {
         .sort({ createdAt: -1 })
         .limit(20),
     ]);
+
+    // Use enrolled courses for stats
+    const courses = enrolledCourses;
 
     // Calculate stats
     const totalCourses = courses.length;
@@ -122,7 +139,10 @@ exports.getDashboard = async (req, res, next) => {
         unreadMessages,
         unreadNotifications,
       },
-      courses: courses.slice(0, 6), // limit for dashboard display
+      courses: courses.slice(0, 6), // enrolled courses for dashboard display
+      availableCourses: availableCourses.filter(c => 
+        !c.students.some(s => s.toString() === userId)
+      ).slice(0, 6), // courses available to enroll (not yet enrolled)
       assignments: assignments.slice(0, 6),
       todaySchedule,
       recentActivities,
@@ -161,25 +181,17 @@ exports.getProgress = async (req, res, next) => {
       return res.status(404).json({ message: 'Student not found' });
     }
 
-    // Build grade filter
-    const gradeFilter = {};
-    if (student.studentType === 'school' && student.schoolGrade) {
-      const normalizedGrade = student.schoolGrade.toLowerCase().replace(/\s+/g, '');
-      gradeFilter.$or = [
-        { grade: student.schoolGrade },
-        { grade: new RegExp(normalizedGrade, 'i') },
-        { grade: new RegExp(student.schoolGrade.replace('grade', 'Grade '), 'i') },
-      ];
-    } else if (student.studentType === 'university' && student.universityMajor) {
-      gradeFilter.grade = new RegExp(student.universityMajor, 'i');
-    }
+    // IMPORTANT: Only use courses where this student is enrolled
+    const enrolledFilter = { students: userId };
 
-    // Fetch courses and assignments
+    // Fetch ONLY enrolled courses and their assignments
+    const enrolledCourseIds = await Course.find(enrolledFilter).distinct('_id');
+    
     const [courses, assignments] = await Promise.all([
-      Course.find({ ...gradeFilter, isActive: true })
+      Course.find({ ...enrolledFilter, isActive: true })
         .populate('teacher', 'firstName lastName')
         .sort({ createdAt: -1 }),
-      Assignment.find(gradeFilter)
+      Assignment.find({ course: { $in: enrolledCourseIds } })
         .populate('course', 'title subject')
         .sort({ dueDate: 1 }),
     ]);

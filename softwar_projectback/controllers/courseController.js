@@ -168,14 +168,19 @@ exports.getStudentCourses = async (req, res, next) => {
       .populate('teacher', 'firstName lastName')
       .sort({ createdAt: -1 });
 
-    // Calculate progress for each course
+    // Calculate progress for each course and mark enrollment status
     const coursesWithProgress = courses.map(course => {
       const courseObj = course.toObject();
       
-      // Find student's video progress
-      const studentProgress = course.videoProgress?.find(
-        vp => vp.student && vp.student.toString() === studentId
+      // Check if student is enrolled in this course
+      const isEnrolled = course.students?.some(
+        s => s && s.toString() === studentId
       );
+      
+      // Find student's video progress (only if enrolled)
+      const studentProgress = isEnrolled ? course.videoProgress?.find(
+        vp => vp.student && vp.student.toString() === studentId
+      ) : null;
       
       // Calculate total videos
       const totalVideos = (course.videoUrls?.length || 0) + (course.uploadedVideos?.length || 0);
@@ -202,6 +207,7 @@ exports.getStudentCourses = async (req, res, next) => {
         progress: progressPercent,
         totalVideos,
         watchedVideos: watchedCount,
+        isEnrolled: isEnrolled, // NEW: indicates if student is enrolled
         isCompleted: studentProgress?.completedAt ? true : false,
         completedAt: studentProgress?.completedAt || null,
         videoUrls: courseObj.videoUrls,

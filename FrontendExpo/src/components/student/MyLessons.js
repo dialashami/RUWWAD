@@ -100,8 +100,11 @@ export default function MyLessons() {
       if (!isMountedRef.current) return;
       
       const data = response.data || [];
-      if (data.length > 0) {
-        setLessons(data.map(c => ({
+      // IMPORTANT: Only show courses where student is enrolled
+      const enrolledCourses = data.filter(c => c.isEnrolled === true);
+      
+      if (enrolledCourses.length > 0) {
+        setLessons(enrolledCourses.map(c => ({
           id: c._id || c.id,
           _id: c._id || c.id,
           title: c.title,
@@ -115,20 +118,9 @@ export default function MyLessons() {
           videoUrls: c.videoUrls || [],
           uploadedVideos: c.uploadedVideos || [],
         })));
-      } else if (contextCourses && contextCourses.length > 0) {
-        // Fallback to context courses if API returns empty
-        setLessons(contextCourses.map(c => ({
-          id: c._id || c.id,
-          _id: c._id || c.id,
-          title: c.title || 'Untitled Course',
-          subject: c.subject || 'Course',
-          progress: c.progress || 0,
-          duration: c.duration || '30 min',
-          completed: c.progress === 100,
-          status: c.progress >= 100 ? 'completed' : c.progress > 0 ? 'in-progress' : 'not-started',
-        })));
       } else {
-        setLessons(defaultLessons);
+        // No enrolled courses - show empty state (not demo lessons)
+        setLessons([]);
       }
     } catch (err) {
       // Only log if not a 401 (user logged out)
@@ -136,21 +128,8 @@ export default function MyLessons() {
         console.error('Error fetching lessons:', err);
       }
       if (isMountedRef.current) {
-        // Fallback to context courses on error
-        if (contextCourses && contextCourses.length > 0) {
-          setLessons(contextCourses.map(c => ({
-            id: c._id || c.id,
-            _id: c._id || c.id,
-            title: c.title || 'Untitled Course',
-            subject: c.subject || 'Course',
-            progress: c.progress || 0,
-            duration: c.duration || '30 min',
-            completed: c.progress === 100,
-            status: c.progress >= 100 ? 'completed' : c.progress > 0 ? 'in-progress' : 'not-started',
-          })));
-        } else {
-          setLessons(defaultLessons);
-        }
+        // On error, show empty state - don't show other students' data
+        setLessons([]);
       }
     } finally {
       if (isMountedRef.current) {

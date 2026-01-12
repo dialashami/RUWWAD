@@ -12,9 +12,11 @@ import {
   RefreshControl,
   KeyboardAvoidingView,
   Platform,
+  SafeAreaView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as ImagePicker from 'expo-image-picker';
 import { useTeacher } from '../../context/TeacherContext';
 import { courseAPI } from '../../services/api';
 
@@ -69,6 +71,13 @@ export default function LessonManagement() {
   const [showCourseDetails, setShowCourseDetails] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [courseDetailsLoading, setCourseDetailsLoading] = useState(false);
+  
+  // Video Editor Modal States
+  const [showVideoEditor, setShowVideoEditor] = useState(false);
+  const [videoUrls, setVideoUrls] = useState(['']);
+  const [uploadedVideos, setUploadedVideos] = useState([]);
+  const [isSavingVideos, setIsSavingVideos] = useState(false);
+  const [isUploadingVideo, setIsUploadingVideo] = useState(false);
   
   // Picker modal states
   const [showSubjectPicker, setShowSubjectPicker] = useState(false);
@@ -165,6 +174,9 @@ export default function LessonManagement() {
   const handleCoursePress = async (lesson) => {
     setCourseDetailsLoading(true);
     setShowCourseDetails(true);
+    setShowVideoEditor(false);  // Reset video editor state
+    setVideoUrls(['']);  // Reset video URLs
+    setUploadedVideos([]);  // Reset uploaded videos
     
     try {
       const response = await courseAPI.getCourse(lesson.id);
@@ -214,6 +226,174 @@ export default function LessonManagement() {
       setShowCourseDetails(false);
     } finally {
       setCourseDetailsLoading(false);
+    }
+  };
+
+  // Video Editor Functions
+  const handleOpenVideoEditor = () => {
+    console.log('Opening video editor for course:', selectedCourse?.title);
+    if (selectedCourse) {
+      const existingUrls = selectedCourse.videoUrls || [];
+      setVideoUrls(existingUrls.length > 0 ? [...existingUrls] : ['']);
+    } else {
+      setVideoUrls(['']);
+    }
+    setShowVideoEditor(true);
+  };
+
+  const handleCloseVideoEditor = () => {
+    setShowVideoEditor(false);
+    setVideoUrls(['']);
+  };
+
+  const handleAddVideoField = () => {
+    const newUrls = [...videoUrls, ''];
+    setVideoUrls(newUrls);
+  };
+
+  const handleRemoveVideoField = (index) => {
+    if (videoUrls.length > 1) {
+      const newUrls = videoUrls.filter((_, i) => i !== index);
+      setVideoUrls(newUrls);
+    }
+  };
+
+  const handleVideoUrlChange = (index, value) => {
+    const newUrls = [...videoUrls];
+    newUrls[index] = value;
+    setVideoUrls(newUrls);
+  };
+
+  // Pick video from device
+  const handlePickVideo = async () => {
+    try {
+      // Request permissions
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Please allow access to your media library to upload videos.');
+        return;
+      }
+
+      // Launch video picker
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+        allowsEditing: true,
+        quality: 0.8,
+        videoMaxDuration: 600, // 10 minutes max
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const video = result.assets[0];
+        console.log('Selected video:', video);
+        
+        // Add to uploaded videos list
+        const newVideo = {
+          uri: video.uri,
+          fileName: video.fileName || `video_${Date.now()}.mp4`,
+          fileSize: video.fileSize,
+          duration: video.duration,
+          type: video.mimeType || 'video/mp4',
+        };
+        
+        setUploadedVideos(prev => [...prev, newVideo]);
+        Alert.alert('Video Added', `"${newVideo.fileName}" has been added. Don't forget to save!`);
+      }
+    } catch (error) {
+      console.error('Error picking video:', error);
+      Alert.alert('Error', 'Failed to pick video. Please try again.');
+    }
+  };
+
+  // Remove uploaded video
+  const handleRemoveUploadedVideo = (index) => {
+    setUploadedVideos(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const getYouTubeEmbedUrl = (url) => {
+    if (!url) return null;
+    const youtubeRegex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+    const match = url.match(youtubeRegex);
+    return match ? `https://www.youtube.com/embed/${match[1]}` : null;
+  };
+
+  const isValidVideoUrl = (url) => {
+    if (!url || url.trim() === '') return false;
+    // Accept any URL that looks like a link
+    try {
+      // Check for common video platforms or file extensions
+      const videoPatterns = [
+        /youtube\.com/i,
+        /youtu\.be/i,
+        /vimeo\.com/i,
+        /\.(mp4|webm|ogg|mov)(\?|$)/i,
+        /drive\.google\.com/i,
+        /^https?:\/\//i,  // Accept any http/https URL
+      ];
+      return videoPatterns.some(pattern => pattern.test(url));
+    } catch (e) {
+      return false;
+    }
+  };
+
+  const handleSaveVideos = async () => {
+    // Filter out empty URLs
+    const validUrls = videoUrls.filter(url => url && url.trim() !== '');
+    
+    // Check if there are any videos to save
+    const totalVideos = validUrls.length + uploadedVideos.length;
+    
+    if (totalVideos === 0) {
+      Alert.alert('No Videos', 'Please add at least one video URL or upload a video from your device.');
+      return;
+    }
+
+    setIsSavingVideos(true);
+
+    try {
+      const courseId = selectedCourse._id || selectedCourse.id;
+      
+      // Prepare uploaded videos data
+      const uploadedVideosData = uploadedVideos.map(video => ({
+        fileName: video.fileName,
+        fileUrl: video.uri,  // In production, this would be the cloud storage URL
+        fileSize: video.fileSize,
+        duration: video.duration,
+      }));
+      
+      console.log('Updating course ID:', courseId);
+      console.log('Video URLs:', validUrls);
+      console.log('Uploaded Videos:', uploadedVideosData);
+      
+      const response = await courseAPI.updateCourse(courseId, { 
+        videoUrls: validUrls,
+        uploadedVideos: uploadedVideosData,
+      });
+      console.log('Update response:', response.data);
+      
+      // Update local state
+      setSelectedCourse(prev => ({
+        ...prev,
+        videoUrls: validUrls,
+        uploadedVideos: uploadedVideosData,
+        totalVideos: totalVideos,
+      }));
+      
+      Alert.alert('Success', `${totalVideos} video(s) saved successfully!`);
+      setShowVideoEditor(false);
+      setVideoUrls(['']);
+      setUploadedVideos([]);
+      
+      // Refresh the courses list
+      if (refreshData) {
+        await refreshData();
+      }
+      fetchCourses();
+    } catch (err) {
+      console.error('Error saving videos:', err);
+      console.error('Error details:', err.response?.data || err.message);
+      Alert.alert('Error', `Failed to save videos: ${err.response?.data?.message || err.message || 'Unknown error'}`);
+    } finally {
+      setIsSavingVideos(false);
     }
   };
 
@@ -735,6 +915,207 @@ export default function LessonManagement() {
                     <Text style={styles.detailsStatLabel}>Active</Text>
                   </View>
                 </View>
+
+                {/* Manage Videos Button */}
+                <TouchableOpacity
+                  style={styles.manageVideosButton}
+                  onPress={() => {
+                    if (!showVideoEditor) {
+                      // Opening - load existing videos
+                      const existingUrls = selectedCourse.videoUrls || [];
+                      const existingUploaded = selectedCourse.uploadedVideos || [];
+                      setVideoUrls(existingUrls.length > 0 ? [...existingUrls] : ['']);
+                      setUploadedVideos(existingUploaded.map(v => ({
+                        uri: v.fileUrl,
+                        fileName: v.fileName,
+                        fileSize: v.fileSize,
+                        duration: v.duration,
+                      })));
+                    }
+                    setShowVideoEditor(!showVideoEditor);
+                  }}
+                >
+                  <Text style={styles.manageVideosIcon}>🎬</Text>
+                  <Text style={styles.manageVideosText}>
+                    {showVideoEditor ? 'Hide Video Editor' : 'Manage Videos'}
+                  </Text>
+                  <Text style={styles.manageVideosCount}>
+                    {(selectedCourse.videoUrls?.length || 0) + (selectedCourse.uploadedVideos?.length || 0)} video(s)
+                  </Text>
+                </TouchableOpacity>
+
+                {/* Inline Video Editor */}
+                {showVideoEditor && (
+                  <View style={styles.inlineVideoEditor}>
+                    {/* Section 1: Video Links */}
+                    <Text style={styles.videoEditorSectionTitle}>🔗 Add Video Links</Text>
+                    <Text style={styles.videoEditorInstructionsText}>
+                      Add YouTube, Vimeo, or direct video links.
+                    </Text>
+
+                    {videoUrls.map((url, index) => (
+                      <View key={`video-input-${index}`} style={styles.videoUrlInputContainer}>
+                        <View style={styles.videoUrlInputRow}>
+                          <Text style={styles.videoUrlLabel}>Link {index + 1}</Text>
+                          {videoUrls.length > 1 && (
+                            <TouchableOpacity
+                              onPress={() => handleRemoveVideoField(index)}
+                            >
+                              <Text style={styles.removeVideoBtnText}>✕ Remove</Text>
+                            </TouchableOpacity>
+                          )}
+                        </View>
+                        <TextInput
+                          style={styles.videoUrlInput}
+                          placeholder="https://youtube.com/watch?v=..."
+                          placeholderTextColor="#9ca3af"
+                          value={url}
+                          onChangeText={(value) => handleVideoUrlChange(index, value)}
+                          autoCapitalize="none"
+                          autoCorrect={false}
+                        />
+                      </View>
+                    ))}
+
+                    <TouchableOpacity
+                      style={styles.addVideoBtn}
+                      onPress={handleAddVideoField}
+                    >
+                      <Text style={styles.addVideoBtnText}>+ Add Another Link</Text>
+                    </TouchableOpacity>
+
+                    {/* Divider */}
+                    <View style={styles.videoEditorDivider}>
+                      <View style={styles.dividerLine} />
+                      <Text style={styles.dividerText}>OR</Text>
+                      <View style={styles.dividerLine} />
+                    </View>
+
+                    {/* Section 2: Upload from Device */}
+                    <Text style={styles.videoEditorSectionTitle}>📱 Upload from Device</Text>
+                    <Text style={styles.videoEditorInstructionsText}>
+                      Select videos from your phone's gallery.
+                    </Text>
+
+                    <TouchableOpacity
+                      style={styles.uploadVideoBtn}
+                      onPress={handlePickVideo}
+                      disabled={isUploadingVideo}
+                    >
+                      {isUploadingVideo ? (
+                        <ActivityIndicator size="small" color="#007bff" />
+                      ) : (
+                        <>
+                          <Text style={styles.uploadVideoIcon}>📤</Text>
+                          <Text style={styles.uploadVideoBtnText}>Choose Video from Gallery</Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+
+                    {/* Show uploaded videos */}
+                    {uploadedVideos.length > 0 && (
+                      <View style={styles.uploadedVideosList}>
+                        <Text style={styles.uploadedVideosTitle}>
+                          Uploaded Videos ({uploadedVideos.length})
+                        </Text>
+                        {uploadedVideos.map((video, index) => (
+                          <View key={`uploaded-${index}`} style={styles.uploadedVideoItem}>
+                            <View style={styles.uploadedVideoInfo}>
+                              <Text style={styles.uploadedVideoIcon}>🎥</Text>
+                              <View style={styles.uploadedVideoDetails}>
+                                <Text style={styles.uploadedVideoName} numberOfLines={1}>
+                                  {video.fileName}
+                                </Text>
+                                {video.duration && (
+                                  <Text style={styles.uploadedVideoDuration}>
+                                    Duration: {Math.round(video.duration / 1000)}s
+                                  </Text>
+                                )}
+                              </View>
+                            </View>
+                            <TouchableOpacity
+                              onPress={() => handleRemoveUploadedVideo(index)}
+                              style={styles.removeUploadedBtn}
+                            >
+                              <Text style={styles.removeUploadedBtnText}>✕</Text>
+                            </TouchableOpacity>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+
+                    {/* Summary */}
+                    <View style={styles.videoSummary}>
+                      <Text style={styles.videoSummaryText}>
+                        Total: {videoUrls.filter(u => u && u.trim() !== '').length} link(s) + {uploadedVideos.length} uploaded
+                      </Text>
+                    </View>
+
+                    {/* Action Buttons */}
+                    <View style={styles.videoEditorActions}>
+                      <TouchableOpacity
+                        style={[styles.videoEditorBtn, styles.videoEditorCancelBtn]}
+                        onPress={() => {
+                          setShowVideoEditor(false);
+                          setVideoUrls(['']);
+                        }}
+                      >
+                        <Text style={styles.videoEditorCancelBtnText}>Cancel</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[
+                          styles.videoEditorBtn, 
+                          styles.videoEditorSaveBtn,
+                          isSavingVideos && styles.disabledButton
+                        ]}
+                        onPress={handleSaveVideos}
+                        disabled={isSavingVideos}
+                      >
+                        {isSavingVideos ? (
+                          <ActivityIndicator size="small" color="#fff" />
+                        ) : (
+                          <Text style={styles.videoEditorSaveBtnText}>Save Videos</Text>
+                        )}
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
+
+                {/* Display Current Videos */}
+                {((selectedCourse.videoUrls && selectedCourse.videoUrls.length > 0) || 
+                  (selectedCourse.uploadedVideos && selectedCourse.uploadedVideos.length > 0)) && (
+                  <View style={styles.videosSection}>
+                    <Text style={styles.videosSectionTitle}>
+                      📹 Course Videos ({(selectedCourse.videoUrls?.length || 0) + (selectedCourse.uploadedVideos?.length || 0)})
+                    </Text>
+                    
+                    {/* Video Links */}
+                    {selectedCourse.videoUrls?.map((url, index) => (
+                      <View key={`url-${index}`} style={styles.videoItem}>
+                        <View style={styles.videoItemLeft}>
+                          <Text style={styles.videoItemIcon}>🔗</Text>
+                          <View style={styles.videoItemInfo}>
+                            <Text style={styles.videoItemTitle}>Link {index + 1}</Text>
+                            <Text style={styles.videoItemUrl} numberOfLines={1}>{url}</Text>
+                          </View>
+                        </View>
+                      </View>
+                    ))}
+                    
+                    {/* Uploaded Videos */}
+                    {selectedCourse.uploadedVideos?.map((video, index) => (
+                      <View key={`uploaded-${index}`} style={styles.videoItem}>
+                        <View style={styles.videoItemLeft}>
+                          <Text style={styles.videoItemIcon}>🎥</Text>
+                          <View style={styles.videoItemInfo}>
+                            <Text style={styles.videoItemTitle}>{video.fileName}</Text>
+                            <Text style={styles.videoItemUrl}>Uploaded from device</Text>
+                          </View>
+                        </View>
+                      </View>
+                    ))}
+                  </View>
+                )}
 
                 {/* Attendance Section */}
                 <View style={styles.attendanceSection}>
@@ -1469,5 +1850,373 @@ const styles = StyleSheet.create({
   noStudentsSubtext: {
     fontSize: 14,
     color: '#9ca3af',
+  },
+  // Manage Videos Button Styles
+  manageVideosButton: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#007bff',
+    borderStyle: 'dashed',
+  },
+  manageVideosIcon: {
+    fontSize: 24,
+    marginRight: 12,
+  },
+  manageVideosText: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#007bff',
+  },
+  manageVideosCount: {
+    fontSize: 14,
+    color: '#6b7280',
+    backgroundColor: '#f3f4f6',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 20,
+  },
+  // Inline Video Editor Styles
+  inlineVideoEditor: {
+    backgroundColor: '#f0f9ff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#007bff',
+  },
+  videoEditorSectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#1f2937',
+    marginBottom: 6,
+  },
+  videoEditorDivider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 20,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#d1d5db',
+  },
+  dividerText: {
+    paddingHorizontal: 12,
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#6b7280',
+  },
+  uploadVideoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    paddingVertical: 16,
+    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: '#007bff',
+    borderStyle: 'dashed',
+  },
+  uploadVideoIcon: {
+    fontSize: 24,
+    marginRight: 10,
+  },
+  uploadVideoBtnText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#007bff',
+  },
+  uploadedVideosList: {
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 12,
+  },
+  uploadedVideosTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 10,
+  },
+  uploadedVideoItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#f3f4f6',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+  },
+  uploadedVideoInfo: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  uploadedVideoIcon: {
+    fontSize: 24,
+    marginRight: 10,
+  },
+  uploadedVideoDetails: {
+    flex: 1,
+  },
+  uploadedVideoName: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#1f2937',
+  },
+  uploadedVideoDuration: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginTop: 2,
+  },
+  removeUploadedBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#fee2e2',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  removeUploadedBtnText: {
+    fontSize: 14,
+    color: '#ef4444',
+    fontWeight: 'bold',
+  },
+  videoSummary: {
+    alignItems: 'center',
+    paddingVertical: 10,
+    marginBottom: 10,
+  },
+  videoSummaryText: {
+    fontSize: 14,
+    color: '#6b7280',
+    fontWeight: '500',
+  },
+  // Videos Section Styles
+  videosSection: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  videosSectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1f2937',
+    marginBottom: 12,
+  },
+  videoItem: {
+    backgroundColor: '#f9fafb',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  videoItemLeft: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  videoItemIcon: {
+    fontSize: 20,
+    marginRight: 12,
+  },
+  videoItemInfo: {
+    flex: 1,
+  },
+  videoItemTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1f2937',
+    marginBottom: 2,
+  },
+  videoItemUrl: {
+    fontSize: 12,
+    color: '#6b7280',
+  },
+  // Video Editor Modal Styles
+  videoEditorFullScreen: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  videoEditorContainer: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
+  videoEditorHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+  },
+  videoEditorTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1f2937',
+  },
+  videoEditorCloseBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#f3f4f6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  videoEditorCloseBtnText: {
+    fontSize: 18,
+    color: '#6b7280',
+    fontWeight: 'bold',
+  },
+  videoEditorContent: {
+    padding: 16,
+  },
+  videoEditorInstructions: {
+    backgroundColor: '#eff6ff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    borderLeftWidth: 4,
+    borderLeftColor: '#007bff',
+  },
+  videoEditorInstructionsTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1e40af',
+    marginBottom: 4,
+  },
+  videoEditorInstructionsText: {
+    fontSize: 14,
+    color: '#3b82f6',
+    lineHeight: 20,
+  },
+  videoUrlInputContainer: {
+    marginBottom: 16,
+  },
+  videoUrlInputRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  videoUrlLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  removeVideoBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  removeVideoBtnText: {
+    fontSize: 13,
+    color: '#ef4444',
+    fontWeight: '500',
+  },
+  videoUrlInput: {
+    backgroundColor: '#f9fafb',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    fontSize: 14,
+    color: '#1f2937',
+  },
+  videoUrlValid: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+    gap: 4,
+  },
+  videoUrlValidIcon: {
+    fontSize: 14,
+    color: '#10b981',
+  },
+  videoUrlValidText: {
+    fontSize: 12,
+    color: '#10b981',
+  },
+  videoUrlInvalid: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+    gap: 4,
+  },
+  videoUrlInvalidIcon: {
+    fontSize: 14,
+    color: '#f59e0b',
+  },
+  videoUrlInvalidText: {
+    fontSize: 12,
+    color: '#f59e0b',
+  },
+  addVideoBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f3f4f6',
+    borderRadius: 8,
+    paddingVertical: 14,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderStyle: 'dashed',
+  },
+  addVideoBtnIcon: {
+    fontSize: 20,
+    color: '#6b7280',
+    marginRight: 8,
+  },
+  addVideoBtnText: {
+    fontSize: 14,
+    color: '#6b7280',
+    fontWeight: '500',
+  },
+  videoSummary: {
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  videoSummaryText: {
+    fontSize: 14,
+    color: '#6b7280',
+  },
+  videoEditorActions: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  videoEditorBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  videoEditorCancelBtn: {
+    backgroundColor: '#f3f4f6',
+  },
+  videoEditorCancelBtnText: {
+    color: '#6b7280',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  videoEditorSaveBtn: {
+    backgroundColor: '#007bff',
+  },
+  videoEditorSaveBtnText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
