@@ -26,6 +26,7 @@ import Notifications from '../components/shared/Notifications';
 import AITutorPage from '../components/shared/AITutorPage';
 import Settings from '../components/student/Settings';
 import FeedbackStar from '../components/shared/FeedbackStar';
+import QuizzesExams from '../components/student/QuizzesExams';
 
 const { width } = Dimensions.get('window');
 
@@ -55,6 +56,7 @@ function StudentHomeContent({ navigation }) {
     { id: 'dashboard', title: 'Dashboard', icon: '📊', badge: 0 },
     { id: 'lessons', title: 'My Lessons', icon: '📚', badge: 0 },
     { id: 'assignments', title: 'Assignments', icon: '📝', badge: stats.pendingAssignments || 0 },
+    { id: 'quizzes', title: 'Quizzes & Exams', icon: '✏️', badge: 0 },
     { id: 'chat', title: 'Messages', icon: '💬', badge: stats.unreadMessages || 0 },
     { id: 'progress', title: 'Progress', icon: '📈', badge: 0 },
     { id: 'notifications', title: 'Notifications', icon: '🔔', badge: stats.unreadNotifications || 0 },
@@ -86,6 +88,8 @@ function StudentHomeContent({ navigation }) {
         return <MyLessons />;
       case 'assignments':
         return <Assignments />;
+      case 'quizzes':
+        return <QuizzesExams />;
       case 'chat':
         return (
           <ChatCenter 

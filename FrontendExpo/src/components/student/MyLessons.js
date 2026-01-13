@@ -16,6 +16,7 @@ import { useStudent } from '../../context/StudentContext';
 import { useTheme } from '../../context/ThemeContext';
 import { courseAPI } from '../../services/api';
 import CourseDetail from './CourseDetail';
+import CourseChaptersView from './CourseChaptersView';
 
 const defaultLessons = [
   {
@@ -76,6 +77,7 @@ export default function MyLessons() {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [courseDetailVisible, setCourseDetailVisible] = useState(false);
+  const [showChaptersView, setShowChaptersView] = useState(false);
   const isMountedRef = useRef(true);
 
   useEffect(() => {
@@ -117,6 +119,8 @@ export default function MyLessons() {
           watchedVideos: c.watchedVideos || 0,
           videoUrls: c.videoUrls || [],
           uploadedVideos: c.uploadedVideos || [],
+          isChapterBased: c.isChapterBased || false,
+          numberOfChapters: c.numberOfChapters || 0,
         })));
       } else {
         // No enrolled courses - show empty state (not demo lessons)
@@ -156,13 +160,21 @@ export default function MyLessons() {
       );
       return;
     }
+    
     setSelectedCourse(lesson);
-    setCourseDetailVisible(true);
+    
+    // If course is chapter-based, show chapters view
+    if (lesson.isChapterBased) {
+      setShowChaptersView(true);
+    } else {
+      setCourseDetailVisible(true);
+    }
   };
 
   // Close course detail modal
   const handleCloseCourse = () => {
     setCourseDetailVisible(false);
+    setShowChaptersView(false);
     setSelectedCourse(null);
     // Refresh to get updated progress
     fetchLessons();
@@ -321,6 +333,22 @@ export default function MyLessons() {
             course={selectedCourse}
             onClose={handleCloseCourse}
             onCourseComplete={handleCourseComplete}
+          />
+        )}
+      </Modal>
+
+      {/* Course Chapters View Modal (for chapter-based courses) */}
+      <Modal
+        visible={showChaptersView}
+        animationType="slide"
+        presentationStyle="fullScreen"
+        onRequestClose={handleCloseCourse}
+      >
+        {selectedCourse && (
+          <CourseChaptersView
+            course={selectedCourse}
+            studentId={student.id}
+            onBack={handleCloseCourse}
           />
         )}
       </Modal>

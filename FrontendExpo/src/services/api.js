@@ -99,6 +99,51 @@ export const courseAPI = {
   markVideoWatched: (id, data) => api.post(`/api/courses/${id}/watch-video`, data),
 };
 
+// ========= Chapter API =========
+export const chapterAPI = {
+  // Get all chapters for a course
+  getChaptersByCourse: (courseId, studentId) => {
+    const url = studentId
+      ? `/api/chapters/course/${courseId}?studentId=${studentId}`
+      : `/api/chapters/course/${courseId}`;
+    return api.get(url);
+  },
+  // Get single chapter
+  getChapter: (chapterId) => api.get(`/api/chapters/${chapterId}`),
+  // Create chapter (teacher only)
+  createChapter: (courseId, data) => api.post(`/api/chapters/course/${courseId}`, data),
+  // Update chapter (teacher only)
+  updateChapter: (chapterId, data) => api.put(`/api/chapters/${chapterId}`, data),
+  // Add slides to chapter (teacher only)
+  addSlides: (chapterId, data) => api.post(`/api/chapters/${chapterId}/slides`, data),
+  // Add lectures to chapter (teacher only)
+  addLectures: (chapterId, data) => api.post(`/api/chapters/${chapterId}/lectures`, data),
+  // Mark slides as viewed (student)
+  markSlidesViewed: (chapterId, studentId) => 
+    api.post(`/api/chapters/${chapterId}/slides/viewed`, { studentId }),
+  // Mark lecture as watched (student)
+  markLectureWatched: (chapterId, studentId, lectureUrl) => 
+    api.post(`/api/chapters/${chapterId}/lectures/watched`, { studentId, lectureUrl }),
+  // Delete chapter (teacher only)
+  deleteChapter: (chapterId) => api.delete(`/api/chapters/${chapterId}`),
+};
+
+// ========= Quiz API =========
+export const quizAPI = {
+  // Generate quiz for a chapter (teacher only)
+  generateQuiz: (chapterId) => api.post(`/api/quiz/generate/${chapterId}`),
+  // Regenerate quiz with new questions (teacher only)
+  regenerateQuiz: (chapterId) => api.post(`/api/quiz/regenerate/${chapterId}`),
+  // Start a quiz attempt (student)
+  startQuiz: (chapterId, studentId) => 
+    api.post(`/api/quiz/start/${chapterId}`, { studentId }),
+  // Submit quiz answers (student)
+  submitQuiz: (attemptId, studentId, answers) => 
+    api.post(`/api/quiz/submit/${attemptId}`, { studentId, answers }),
+  // Get quiz results for a chapter (student)
+  getQuizResults: (chapterId) => api.get(`/api/quiz/results/${chapterId}`),
+};
+
 // ========= Assignment API =========
 export const assignmentAPI = {
   getAssignments: () => api.get('/api/assignments'),
@@ -356,4 +401,13 @@ export const systemSettingsAPI = {
   updateSettings: (data) => api.put('/api/system-settings', data),
 };
 
+// ========= Zoom API =========
+export const zoomAPI = {
+  createMeeting: (data) => api.post('/api/zoom/create-meeting', data),
+};
+
+// Export the base axios instance as default
 export default api;
+
+// Export the API_BASE_URL for components that need it
+export { API_CONFIG };

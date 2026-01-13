@@ -202,7 +202,7 @@ export default function TeacherSettings({ navigation }) {
         return;
       }
 
-      const response = await fetch(`${API_CONFIG.BASE_URL}/api/teacher/profile`, {
+      const response = await fetch(API_CONFIG.TEACHER.PROFILE, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -261,7 +261,7 @@ export default function TeacherSettings({ navigation }) {
         return;
       }
 
-      const response = await fetch(`${API_CONFIG.BASE_URL}/api/teacher/preferences`, {
+      const response = await fetch(API_CONFIG.TEACHER.PREFERENCES, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -319,7 +319,7 @@ export default function TeacherSettings({ navigation }) {
         return;
       }
 
-      const response = await fetch(`${API_CONFIG.BASE_URL}/api/auth/change-password`, {
+      const response = await fetch(API_CONFIG.AUTH.CHANGE_PASSWORD, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -355,7 +355,7 @@ export default function TeacherSettings({ navigation }) {
       }
 
       const newStatus = !twoFAEnabled;
-      const response = await fetch(`${API_CONFIG.BASE_URL}/api/auth/toggle-2fa`, {
+      const response = await fetch(API_CONFIG.USER.TOGGLE_2FA, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -397,7 +397,7 @@ export default function TeacherSettings({ navigation }) {
                 return;
               }
 
-              const response = await fetch(`${API_CONFIG.BASE_URL}/api/auth/delete-account`, {
+              const response = await fetch(API_CONFIG.USER.ACCOUNT, {
                 method: 'DELETE',
                 headers: {
                   'Content-Type': 'application/json',

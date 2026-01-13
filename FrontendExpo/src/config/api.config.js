@@ -135,6 +135,7 @@ const BASE_URL = getBaseUrl();
 // ============================================
 
 export const API_CONFIG = {
+  // Base configuration
   BASE_URL,
   TIMEOUT: 15000,
   PORT,
@@ -143,6 +144,107 @@ export const API_CONFIG = {
   ENVIRONMENT,
   // Expose the detection function for debugging
   getExpoHostIP,
+  
+  // API endpoints (matching web frontend structure)
+  AUTH: {
+    LOGIN: `${BASE_URL}/api/login`,
+    SIGNUP: `${BASE_URL}/api/signup`,
+    VERIFY_EMAIL: `${BASE_URL}/api/verify-email`,
+    FORGOT_PASSWORD: `${BASE_URL}/api/auth/forgot-password`,
+    RESET_PASSWORD: `${BASE_URL}/api/auth/reset-password`,
+    VERIFY_TOKEN: `${BASE_URL}/api/auth/verify-token`,
+    REFRESH_TOKEN: `${BASE_URL}/api/auth/refresh-token`,
+    CHANGE_PASSWORD: `${BASE_URL}/api/auth/change-password`,
+  },
+  
+  USER: {
+    PROFILE: `${BASE_URL}/api/users/profile`,
+    USERS: `${BASE_URL}/api/users`,
+    CHILDREN: `${BASE_URL}/api/users/children`,
+    PREFERENCES: `${BASE_URL}/api/users/preferences`,
+    TOGGLE_2FA: `${BASE_URL}/api/users/toggle-2fa`,
+    ACCOUNT: `${BASE_URL}/api/users/account`,
+  },
+  
+  STUDENT: {
+    TYPE: `${BASE_URL}/api/studentType`,
+    DASHBOARD: `${BASE_URL}/api/student/dashboard`,
+  },
+  
+  TEACHER: {
+    PROFILE: `${BASE_URL}/api/teacher/profile`,
+    PREFERENCES: `${BASE_URL}/api/teacher/preferences`,
+    DASHBOARD: `${BASE_URL}/api/teacher/dashboard`,
+  },
+  
+  FEEDBACK: {
+    BASE: `${BASE_URL}/api/feedback`,
+    RANDOM: `${BASE_URL}/api/feedback/random`,
+  },
+  
+  NOTIFICATIONS: {
+    BASE: `${BASE_URL}/api/notifications`,
+    UNREAD_COUNT: `${BASE_URL}/api/notifications/unread-count`,
+  },
+  
+  COURSES: {
+    BASE: `${BASE_URL}/api/courses`,
+  },
+  
+  CHAPTERS: {
+    BASE: `${BASE_URL}/api/chapters`,
+    BY_COURSE: (courseId) => `${BASE_URL}/api/chapters/course/${courseId}`,
+    SINGLE: (chapterId) => `${BASE_URL}/api/chapters/${chapterId}`,
+    SLIDES_VIEWED: (chapterId) => `${BASE_URL}/api/chapters/${chapterId}/slides/viewed`,
+    LECTURE_WATCHED: (chapterId) => `${BASE_URL}/api/chapters/${chapterId}/lectures/watched`,
+  },
+  
+  QUIZ: {
+    GENERATE: (chapterId) => `${BASE_URL}/api/quiz/generate/${chapterId}`,
+    REGENERATE: (chapterId) => `${BASE_URL}/api/quiz/regenerate/${chapterId}`,
+    START: (chapterId) => `${BASE_URL}/api/quiz/start/${chapterId}`,
+    SUBMIT: (attemptId) => `${BASE_URL}/api/quiz/submit/${attemptId}`,
+    RESULTS: (chapterId) => `${BASE_URL}/api/quiz/results/${chapterId}`,
+  },
+  
+  ASSIGNMENTS: {
+    BASE: `${BASE_URL}/api/assignments`,
+  },
+  
+  MESSAGES: {
+    BASE: `${BASE_URL}/api/messages`,
+    CONVERSATIONS: `${BASE_URL}/api/messages/conversations`,
+  },
+  
+  ADMIN: {
+    DASHBOARD: `${BASE_URL}/api/admin/dashboard`,
+    USERS: `${BASE_URL}/api/admin/users`,
+  },
+  
+  PARENT: {
+    DASHBOARD: `${BASE_URL}/api/parent/dashboard`,
+  },
+  
+  AI: {
+    CONVERSATIONS: `${BASE_URL}/api/ai-conversations`,
+    CHAT: `${BASE_URL}/api/chat`,
+  },
+  
+  SYSTEM: {
+    SETTINGS: `${BASE_URL}/api/system-settings`,
+  },
+  
+  ZOOM: {
+    CREATE_MEETING: `${BASE_URL}/api/zoom/create-meeting`,
+  },
+};
+
+// Helper function to build dynamic URLs (matching web frontend)
+export const getApiUrl = (path) => {
+  if (path.startsWith('http')) {
+    return path; // Already a full URL
+  }
+  return `${BASE_URL}${path.startsWith('/') ? '' : '/'}${path}`;
 };
 
 export default API_CONFIG;

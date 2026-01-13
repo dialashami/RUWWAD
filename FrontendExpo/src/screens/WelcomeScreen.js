@@ -97,7 +97,7 @@ export default function WelcomeScreen({ navigation }) {
 
   const fetchFeedback = async () => {
     try {
-      const res = await api.get('/api/feedback/random?limit=3');
+      const res = await feedbackAPI.getRandomFeedback(3);
       if (res.data && res.data.length > 0) {
         setTestimonials(res.data);
       }
