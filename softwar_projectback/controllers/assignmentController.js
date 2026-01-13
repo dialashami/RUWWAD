@@ -211,7 +211,7 @@ exports.deleteAssignment = async (req, res, next) => {
 // Submit an assignment (student)
 exports.submitAssignment = async (req, res, next) => {
   try {
-    const { studentId, file } = req.body;
+    const { studentId, file, fileName, comment } = req.body;
     const assignment = await Assignment.findById(req.params.id);
     if (!assignment) return res.status(404).json({ message: 'Assignment not found' });
 
@@ -226,6 +226,8 @@ exports.submitAssignment = async (req, res, next) => {
     assignment.submissions.push({
       student: studentId,
       file: file || null,
+      fileName: fileName || null,
+      comment: comment || null,
       submittedAt: new Date(),
     });
 

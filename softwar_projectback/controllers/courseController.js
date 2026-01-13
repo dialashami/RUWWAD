@@ -150,7 +150,7 @@ exports.getCourses = async (req, res, next) => {
     const courses = await Course.find(filter)
       .populate('teacher', 'firstName lastName email')
       .populate('students', 'firstName lastName email')
-      .populate('chapters', '_id chapterNumber title isPublished')
+      .populate('chapters', '_id chapterNumber title isPublished slides lectures resources')
       .sort({ createdAt: -1 });
 
     console.log('getCourses found', courses.length, 'courses');
@@ -159,9 +159,12 @@ exports.getCourses = async (req, res, next) => {
     const userId = req.userId;
     const userRole = req.User?.role;
     
-    console.log('getCourses - userId:', userId, 'userRole:', userRole);
+    console.log('getCourses - userId:', userId, 'userRole:', userRole, 'req.User:', JSON.stringify(req.User));
     
-    if (userRole === 'student') {
+    // Check if user is a student (case-insensitive)
+    const isStudent = userRole && userRole.toLowerCase() === 'student';
+    
+    if (isStudent) {
       const sanitizedCourses = courses.map(course => {
         const courseObj = course.toObject();
         
@@ -193,18 +196,45 @@ exports.getCourses = async (req, res, next) => {
         delete courseObj.videoProgress;
         delete courseObj.students;
         
+        // Count chapters that have actual content (slides, lectures, or resources) or are published
+        const chaptersWithContent = courseObj.chapters?.filter(ch => {
+          const hasSlides = ch.slides && ch.slides.length > 0;
+          const hasLectures = ch.lectures && ch.lectures.length > 0;
+          const hasResources = ch.resources && ch.resources.length > 0;
+          return ch.isPublished || hasSlides || hasLectures || hasResources;
+        }).length || 0;
+        
+        console.log('Course:', courseObj.title, 'chapters count:', courseObj.chapters?.length, 'chaptersWithContent:', chaptersWithContent);
+        
         return {
           ...courseObj,
           isEnrolled, // Add enrollment status for frontend
           progress: progressPercent,
           totalVideos,
           watchedVideos: watchedCount,
+          chaptersWithContent, // Number of chapters with actual content
         };
       });
       return res.json(sanitizedCourses);
     }
     
-    res.json(courses);
+    // For non-students (teachers, etc), still add chaptersWithContent
+    const coursesWithChapterCount = courses.map(course => {
+      const courseObj = course.toObject();
+      const chaptersWithContent = courseObj.chapters?.filter(ch => {
+        const hasSlides = ch.slides && ch.slides.length > 0;
+        const hasLectures = ch.lectures && ch.lectures.length > 0;
+        const hasResources = ch.resources && ch.resources.length > 0;
+        return ch.isPublished || hasSlides || hasLectures || hasResources;
+      }).length || 0;
+      
+      return {
+        ...courseObj,
+        chaptersWithContent
+      };
+    });
+    
+    res.json(coursesWithChapterCount);
   } catch (err) {
     next(err);
   }

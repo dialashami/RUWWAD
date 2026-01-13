@@ -407,7 +407,7 @@ export function Assignments() {
         const studentId = student.id || null;
 
         // Build URL with filters
-        let url = `${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/assignments`;
+        let url = `${process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000'}/api/assignments`;
         const params = [];
         if (grade) params.push(`grade=${encodeURIComponent(grade)}`);
         if (major) params.push(`specialization=${encodeURIComponent(major)}`);
@@ -591,8 +591,25 @@ export function Assignments() {
         return;
       }
 
+      // Convert file to base64 if uploaded
+      let fileData = null;
+      let fileName = null;
+      
+      if (uploadedFiles.length > 0) {
+        const file = uploadedFiles[0];
+        fileName = file.name;
+        
+        // Read file as base64
+        fileData = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      }
+
       // Submit to backend
-      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/assignments/${selectedAssignment.id}/submit`, {
+      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000'}/api/assignments/${selectedAssignment.id}/submit`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -600,7 +617,8 @@ export function Assignments() {
         },
         body: JSON.stringify({
           studentId,
-          file: uploadedFiles.length > 0 ? uploadedFiles[0].name : null,
+          file: fileData,
+          fileName: fileName,
           comment: submissionText.trim() || null,
         }),
       });

@@ -1,6 +1,7 @@
 const Chapter = require('../models/Chapter');
 const Course = require('../models/Course');
 const QuizAttempt = require('../models/QuizAttempt');
+const pdfParse = require('pdf-parse');
 
 // Get all chapters for a course
 exports.getChaptersByCourse = async (req, res, next) => {
@@ -134,10 +135,9 @@ exports.createChapter = async (req, res, next) => {
     const existingChapters = await Chapter.countDocuments({ course: courseId });
     const newChapterNumber = chapterNumber || existingChapters + 1;
     
-    if (newChapterNumber > course.numberOfChapters) {
-      return res.status(400).json({ 
-        message: `Cannot create chapter ${newChapterNumber}. Course only has ${course.numberOfChapters} chapters.`
-      });
+    // Auto-update course numberOfChapters if needed
+    if (newChapterNumber > (course.numberOfChapters || 0)) {
+      course.numberOfChapters = newChapterNumber;
     }
     
     const chapter = new Chapter({
@@ -373,6 +373,74 @@ exports.deleteChapter = async (req, res, next) => {
     
     res.json({ message: 'Chapter deleted successfully' });
   } catch (err) {
+    next(err);
+  }
+};
+
+// Extract text from PDF slide for quiz generation
+exports.extractPdfText = async (req, res, next) => {
+  try {
+    const { chapterId } = req.params;
+    const { pdfDataUrl } = req.body; // Base64 data URL of the PDF
+    
+    const chapter = await Chapter.findById(chapterId).populate('course');
+    if (!chapter) {
+      return res.status(404).json({ message: 'Chapter not found' });
+    }
+    
+    // Verify the user is the course teacher
+    if (chapter.course.teacher.toString() !== req.userId) {
+      return res.status(403).json({ message: 'Only the course teacher can extract slide content' });
+    }
+    
+    if (!pdfDataUrl) {
+      return res.status(400).json({ message: 'No PDF data provided' });
+    }
+    
+    // Extract base64 data from data URL
+    const base64Data = pdfDataUrl.split(',')[1];
+    if (!base64Data) {
+      return res.status(400).json({ message: 'Invalid PDF data format' });
+    }
+    
+    // Convert base64 to buffer
+    const pdfBuffer = Buffer.from(base64Data, 'base64');
+    
+    // Parse PDF and extract text
+    const pdfData = await pdfParse(pdfBuffer);
+    
+    if (!pdfData.text || pdfData.text.trim().length === 0) {
+      return res.status(400).json({ 
+        message: 'Could not extract text from PDF. The PDF may be image-based or empty.',
+        suggestion: 'Try copying text manually from the slides or use a PDF with selectable text.'
+      });
+    }
+    
+    // Clean up the extracted text
+    let extractedText = pdfData.text
+      .replace(/\s+/g, ' ')  // Replace multiple spaces with single space
+      .replace(/\n\s*\n/g, '\n')  // Remove empty lines
+      .trim();
+    
+    // Optionally save to chapter
+    chapter.slideContent = extractedText;
+    await chapter.save();
+    
+    res.json({
+      success: true,
+      message: 'Text extracted successfully',
+      extractedText,
+      pageCount: pdfData.numpages,
+      charCount: extractedText.length
+    });
+  } catch (err) {
+    console.error('PDF extraction error:', err);
+    if (err.message?.includes('Invalid PDF')) {
+      return res.status(400).json({ 
+        message: 'Invalid PDF file. Please upload a valid PDF.',
+        error: err.message
+      });
+    }
     next(err);
   }
 };

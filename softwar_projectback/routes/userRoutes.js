@@ -11,6 +11,9 @@ router.put('/users/change-password', authMiddleware, userController.changePasswo
 router.put('/users/toggle-2fa', authMiddleware, userController.toggle2FA);
 router.delete('/users/account', authMiddleware, userController.deleteAccount);
 
+// Get student count by grade (for teachers)
+router.get('/users/student-count', authMiddleware, userController.getStudentCountByGrade);
+
 // Parent-child linking routes
 router.get('/users/children', authMiddleware, userController.getChildren);
 router.post('/users/children', authMiddleware, userController.addChild);

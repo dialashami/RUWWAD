@@ -3,7 +3,9 @@ const mongoose = require('mongoose');
 const submissionSchema = new mongoose.Schema({
   student: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   submittedAt: { type: Date, default: Date.now },
-  file: { type: String }, // URL or file ID
+  file: { type: String }, // Base64 data URL or external URL
+  fileName: { type: String, trim: true }, // Original file name
+  comment: { type: String, trim: true }, // Student's comment
   grade: { type: Number, min: 0 },
   feedback: { type: String, trim: true },
   isGraded: { type: Boolean, default: false },

@@ -313,6 +313,35 @@ exports.startQuiz = async (req, res, next) => {
       });
     }
     
+    // Check if all lectures are completed
+    const studentProgress = chapter.studentProgress?.find(
+      p => p.student.toString() === studentId.toString()
+    );
+    
+    const totalLectures = chapter.lectures?.length || 0;
+    const watchedLectures = studentProgress?.lecturesWatched?.length || 0;
+    const allLecturesWatched = totalLectures === 0 || watchedLectures >= totalLectures || studentProgress?.allLecturesCompleted;
+    
+    // Also check if slides were viewed (if there are slides)
+    const hasSlides = (chapter.slides?.length > 0) || chapter.slideContent;
+    const slidesViewed = !hasSlides || studentProgress?.slidesViewed;
+    
+    if (!allLecturesWatched) {
+      return res.status(403).json({
+        message: `Please watch all lectures before taking the quiz. You have watched ${watchedLectures} out of ${totalLectures} lectures.`,
+        lecturesRequired: true,
+        totalLectures,
+        watchedLectures
+      });
+    }
+    
+    if (!slidesViewed && hasSlides) {
+      return res.status(403).json({
+        message: 'Please view the slides before taking the quiz.',
+        slidesRequired: true
+      });
+    }
+    
     // Check max attempts
     const existingAttempts = await QuizAttempt.countDocuments({
       student: studentId,

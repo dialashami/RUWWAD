@@ -243,19 +243,53 @@ function CourseChaptersView({ course, studentId, onBack }) {
                   
                   {chapter.lectures?.length > 0 && (
                     <button onClick={() => handleViewLectures(chapter)}>
-                      <i className="fas fa-play-circle"></i> Watch Lectures
+                      <i className="fas fa-play-circle"></i> Watch Lectures 
+                      {chapter.studentProgress?.lecturesWatched?.length > 0 && 
+                        ` (${chapter.studentProgress.lecturesWatched.length}/${chapter.lectures.length})`
+                      }
                     </button>
                   )}
                   
-                  {chapter.quiz?.isGenerated && (
-                    <button 
-                      onClick={() => handleStartQuiz(chapter)}
-                      className={chapter.studentProgress?.quizPassed ? 'retake' : 'primary'}
-                    >
-                      <i className="fas fa-clipboard-list"></i>
-                      {chapter.studentProgress?.quizPassed ? 'Retake Quiz' : 'Take Quiz'}
-                    </button>
-                  )}
+                  {chapter.quiz?.isGenerated && (() => {
+                    // Check if all lectures are completed
+                    const totalLectures = chapter.lectures?.length || 0;
+                    const watchedLectures = chapter.studentProgress?.lecturesWatched?.length || 0;
+                    const allLecturesComplete = totalLectures === 0 || watchedLectures >= totalLectures || chapter.studentProgress?.allLecturesCompleted;
+                    
+                    // Check if slides viewed
+                    const hasSlides = (chapter.slides?.length > 0) || chapter.slideContent;
+                    const slidesViewed = !hasSlides || chapter.studentProgress?.slidesViewed;
+                    
+                    const quizAvailable = allLecturesComplete && slidesViewed;
+                    
+                    if (!quizAvailable) {
+                      return (
+                        <button 
+                          className="quiz-locked"
+                          disabled
+                          title={!allLecturesComplete ? 'Complete all lectures first' : 'View slides first'}
+                        >
+                          <i className="fas fa-lock"></i>
+                          Quiz Locked
+                          <span className="quiz-requirement">
+                            {!allLecturesComplete 
+                              ? `(Watch ${totalLectures - watchedLectures} more lecture${totalLectures - watchedLectures > 1 ? 's' : ''})` 
+                              : '(View slides first)'}
+                          </span>
+                        </button>
+                      );
+                    }
+                    
+                    return (
+                      <button 
+                        onClick={() => handleStartQuiz(chapter)}
+                        className={chapter.studentProgress?.quizPassed ? 'retake' : 'primary'}
+                      >
+                        <i className="fas fa-clipboard-list"></i>
+                        {chapter.studentProgress?.quizPassed ? 'Retake Quiz' : 'Take Quiz'}
+                      </button>
+                    );
+                  })()}
                 </div>
               </div>
             ) : (
@@ -271,45 +305,164 @@ function CourseChaptersView({ course, studentId, onBack }) {
   );
   
   // Render slides view
-  const renderSlidesView = () => (
-    <div className="slides-view">
-      <div className="view-header">
-        <button className="back-btn" onClick={() => setViewMode('list')}>
-          <i className="fas fa-arrow-left"></i> Back to Chapters
-        </button>
-        <h2>{selectedChapter.title} - Slides</h2>
-      </div>
+  const renderSlidesView = () => {
+    const getSlideUrl = (slide) => slide.fileUrl || slide.content || slide.url;
+    
+    // Convert data URL to blob URL for better browser compatibility
+    const openSlideInNewTab = (slide) => {
+      const url = getSlideUrl(slide);
+      if (!url) {
+        alert('Slide file not available');
+        return;
+      }
       
-      <div className="slides-content">
-        {selectedChapter.slideContent ? (
-          <div className="slide-text">
-            {selectedChapter.slideContent.split('\n').map((paragraph, i) => (
-              <p key={i}>{paragraph}</p>
-            ))}
+      // If it's a data URL, convert to blob for better browser support
+      if (url.startsWith('data:')) {
+        try {
+          // Extract the base64 data and mime type
+          const [header, base64Data] = url.split(',');
+          const mimeMatch = header.match(/data:([^;]+)/);
+          const mimeType = mimeMatch ? mimeMatch[1] : 'application/pdf';
+          
+          // Convert base64 to blob
+          const byteCharacters = atob(base64Data);
+          const byteNumbers = new Array(byteCharacters.length);
+          for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+          }
+          const byteArray = new Uint8Array(byteNumbers);
+          const blob = new Blob([byteArray], { type: mimeType });
+          
+          // Create blob URL and open
+          const blobUrl = URL.createObjectURL(blob);
+          window.open(blobUrl, '_blank');
+          
+          // Clean up blob URL after a delay
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+        } catch (err) {
+          console.error('Error opening slide:', err);
+          alert('Failed to open slide. Try downloading instead.');
+        }
+      } else {
+        // Regular URL - open directly
+        window.open(url, '_blank', 'noopener,noreferrer');
+      }
+    };
+    
+    // Download slide file
+    const downloadSlide = (slide) => {
+      const url = getSlideUrl(slide);
+      if (!url) {
+        alert('Slide file not available');
+        return;
+      }
+      
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = slide.fileName || 'slide.pdf';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    };
+    
+    const renderSlidePreview = (slide, index) => {
+      const url = getSlideUrl(slide);
+      const isPdf = slide.fileType?.includes('pdf') || slide.fileName?.toLowerCase().endsWith('.pdf');
+      
+      if (!url) {
+        return (
+          <div key={index} className="slide-item slide-unavailable">
+            <i className="fas fa-file-alt"></i>
+            <span>{slide.fileName || `Slide ${index + 1}`}</span>
+            <span className="unavailable-text">File not available</span>
           </div>
-        ) : (
-          <p className="no-content">No slide content available for this chapter.</p>
-        )}
+        );
+      }
+      
+      // For PDFs, show embedded viewer with action buttons
+      if (isPdf) {
+        // For data URLs, we need to use blob URL for iframe too
+        let iframeSrc = url;
         
-        {selectedChapter.slides?.length > 0 && (
-          <div className="slide-files">
-            <h4>Slide Files</h4>
-            {selectedChapter.slides.map((slide, i) => (
-              <a key={i} href={slide.fileUrl} target="_blank" rel="noopener noreferrer">
-                <i className="fas fa-file-pdf"></i> {slide.fileName}
-              </a>
-            ))}
+        return (
+          <div key={index} className="slide-item slide-pdf-embed">
+            <div className="slide-header">
+              <i className="fas fa-file-pdf"></i>
+              <span>{slide.fileName || `Slide ${index + 1}`}</span>
+              <div className="slide-actions">
+                <button onClick={() => openSlideInNewTab(slide)} className="open-external-btn">
+                  <i className="fas fa-external-link-alt"></i> Open
+                </button>
+                <button onClick={() => downloadSlide(slide)} className="download-btn">
+                  <i className="fas fa-download"></i> Download
+                </button>
+              </div>
+            </div>
+            <iframe 
+              src={iframeSrc} 
+              title={slide.fileName || `Slide ${index + 1}`}
+              className="pdf-viewer"
+            />
           </div>
-        )}
-      </div>
+        );
+      }
       
-      <div className="view-footer">
-        <button className="next-btn" onClick={() => setViewMode('list')}>
-          Done Reading <i className="fas fa-check"></i>
-        </button>
+      // For non-PDF files, show clickable buttons
+      return (
+        <div key={index} className="slide-item slide-link">
+          <div className="slide-link-content">
+            <i className="fas fa-file-powerpoint"></i>
+            <span>{slide.fileName || `Slide ${index + 1}`}</span>
+          </div>
+          <div className="slide-actions">
+            <button onClick={() => openSlideInNewTab(slide)} className="slide-open-btn">
+              <i className="fas fa-external-link-alt"></i> Open
+            </button>
+            <button onClick={() => downloadSlide(slide)} className="download-btn">
+              <i className="fas fa-download"></i> Download
+            </button>
+          </div>
+        </div>
+      );
+    };
+    
+    return (
+      <div className="slides-view">
+        <div className="view-header">
+          <button className="back-btn" onClick={() => setViewMode('list')}>
+            <i className="fas fa-arrow-left"></i> Back to Chapters
+          </button>
+          <h2>{selectedChapter.title} - Slides</h2>
+        </div>
+        
+        <div className="slides-content">
+          {selectedChapter.slideContent && (
+            <div className="slide-text">
+              <h4>Slide Notes</h4>
+              {selectedChapter.slideContent.split('\n').map((paragraph, i) => (
+                <p key={i}>{paragraph}</p>
+              ))}
+            </div>
+          )}
+          
+          {selectedChapter.slides?.length > 0 ? (
+            <div className="slide-files">
+              <h4>Slide Files ({selectedChapter.slides.length})</h4>
+              {selectedChapter.slides.map((slide, i) => renderSlidePreview(slide, i))}
+            </div>
+          ) : !selectedChapter.slideContent && (
+            <p className="no-content">No slides available for this chapter.</p>
+          )}
+        </div>
+        
+        <div className="view-footer">
+          <button className="next-btn" onClick={() => setViewMode('list')}>
+            Done Reading <i className="fas fa-check"></i>
+          </button>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
   
   // Render lectures view
   const renderLecturesView = () => (
@@ -404,17 +557,26 @@ function CourseChaptersView({ course, studentId, onBack }) {
     }
     
     const currentQ = quizState.questions[quizState.currentQuestion];
+    const answeredCount = quizState.answers.filter(a => a !== -1).length;
+    const progressPercent = Math.round((answeredCount / quizState.totalQuestions) * 100);
     
     return (
       <div className="quiz-view">
         <div className="quiz-header">
           <h2>{selectedChapter.title} - Quiz</h2>
-          <div className="quiz-progress">
+          <div className="quiz-info">
+            <div className="quiz-progress-bar">
+              <div className="progress-fill" style={{ width: `${progressPercent}%` }}></div>
+            </div>
+            <span>{answeredCount}/{quizState.totalQuestions} answered</span>
+          </div>
+          <div className="quiz-question-counter">
             Question {quizState.currentQuestion + 1} of {quizState.totalQuestions}
           </div>
         </div>
         
         <div className="question-card">
+          <div className="question-number">Question {quizState.currentQuestion + 1}</div>
           <p className="question-text">{currentQ.questionText}</p>
           <div className="options">
             {currentQ.options.map((option, i) => (
@@ -424,7 +586,7 @@ function CourseChaptersView({ course, studentId, onBack }) {
                 onClick={() => handleAnswerQuestion(i)}
               >
                 <span className="option-letter">{String.fromCharCode(65 + i)}</span>
-                {option}
+                <span className="option-text">{option}</span>
               </button>
             ))}
           </div>
@@ -444,6 +606,7 @@ function CourseChaptersView({ course, studentId, onBack }) {
                 key={i} 
                 className={`dot ${i === quizState.currentQuestion ? 'current' : ''} ${quizState.answers[i] !== -1 ? 'answered' : ''}`}
                 onClick={() => setQuizState({ ...quizState, currentQuestion: i })}
+                title={`Question ${i + 1}${quizState.answers[i] !== -1 ? ' (answered)' : ''}`}
               />
             ))}
           </div>
@@ -459,6 +622,22 @@ function CourseChaptersView({ course, studentId, onBack }) {
               Submit Quiz <i className="fas fa-paper-plane"></i>
             </button>
           )}
+        </div>
+        
+        {/* Quick Jump */}
+        <div className="quiz-jump-grid">
+          <span className="jump-label">Jump to question:</span>
+          <div className="jump-buttons">
+            {quizState.questions.map((_, i) => (
+              <button
+                key={i}
+                className={`jump-btn ${i === quizState.currentQuestion ? 'current' : ''} ${quizState.answers[i] !== -1 ? 'answered' : ''}`}
+                onClick={() => setQuizState({ ...quizState, currentQuestion: i })}
+              >
+                {i + 1}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     );

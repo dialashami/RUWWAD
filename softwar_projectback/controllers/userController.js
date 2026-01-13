@@ -391,3 +391,40 @@ exports.getChildDashboard = async (req, res, next) => {
     next(err);
   }
 };
+
+// Get student count by grade (for teachers when creating assignments)
+exports.getStudentCountByGrade = async (req, res, next) => {
+  try {
+    const { grade, universityMajor } = req.query;
+    
+    if (!grade) {
+      return res.status(400).json({ message: 'Grade is required' });
+    }
+    
+    let query = { role: 'student' };
+    
+    // Handle different grade formats
+    if (grade === 'University') {
+      query.studentType = 'university';
+      if (universityMajor) {
+        query.universityMajor = universityMajor;
+      }
+    } else {
+      // Convert "Grade 1", "Grade 2", etc. to "grade1", "grade2", etc.
+      const gradeNumber = grade.replace('Grade ', '').trim();
+      const schoolGradeValue = `grade${gradeNumber}`;
+      query.studentType = 'school';
+      query.schoolGrade = schoolGradeValue;
+    }
+    
+    const count = await User.countDocuments(query);
+    
+    res.json({ 
+      count,
+      grade,
+      universityMajor: universityMajor || null
+    });
+  } catch (err) {
+    next(err);
+  }
+};

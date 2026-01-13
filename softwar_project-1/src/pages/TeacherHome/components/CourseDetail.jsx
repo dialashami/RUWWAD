@@ -1,5 +1,6 @@
 // src/pages/TeacherHome/components/CourseDetail.jsx
 import React, { useState, useEffect, useRef } from 'react';
+import ChapterDetail from './ChapterDetail';
 
 function CourseDetail({ courseId, courseTitle, onClose, isTeacher = true }) {
   const [course, setCourse] = useState(null);
@@ -9,6 +10,15 @@ function CourseDetail({ courseId, courseTitle, onClose, isTeacher = true }) {
   const [isCompleted, setIsCompleted] = useState(false);
   const [userId, setUserId] = useState(null);
   const videoRefs = useRef({});
+  
+  // Chapter states
+  const [chapters, setChapters] = useState([]);
+  const [loadingChapters, setLoadingChapters] = useState(false);
+  const [showAddChapter, setShowAddChapter] = useState(false);
+  const [newChapterTitle, setNewChapterTitle] = useState('');
+  const [newChapterDescription, setNewChapterDescription] = useState('');
+  const [addingChapter, setAddingChapter] = useState(false);
+  const [selectedChapter, setSelectedChapter] = useState(null);
 
   useEffect(() => {
     // Get user ID from localStorage
@@ -91,6 +101,84 @@ function CourseDetail({ courseId, courseTitle, onClose, isTeacher = true }) {
 
     fetchCourse();
   }, [courseId, isTeacher, userId]);
+
+  // Fetch chapters for the course
+  useEffect(() => {
+    const fetchChapters = async () => {
+      if (!courseId) return;
+      
+      setLoadingChapters(true);
+      try {
+        const token = localStorage.getItem('token');
+        const res = await fetch(
+          `${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/chapters/course/${courseId}`,
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        if (res.ok) {
+          const data = await res.json();
+          // Backend returns { chapters: [], courseProgress: {} }
+          setChapters(data.chapters || data || []);
+        }
+      } catch (err) {
+        console.error('Error fetching chapters:', err);
+      } finally {
+        setLoadingChapters(false);
+      }
+    };
+
+    fetchChapters();
+  }, [courseId]);
+
+  // Add new chapter
+  const handleAddChapter = async () => {
+    if (!newChapterTitle.trim()) {
+      alert('Please enter a chapter title');
+      return;
+    }
+
+    setAddingChapter(true);
+    try {
+      const token = localStorage.getItem('token');
+      const res = await fetch(
+        `${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/chapters/course/${courseId}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            title: newChapterTitle.trim(),
+            description: newChapterDescription.trim(),
+            chapterNumber: chapters.length + 1,
+          }),
+        }
+      );
+
+      if (res.ok) {
+        const newChapter = await res.json();
+        setChapters(prev => [...prev, newChapter]);
+        setNewChapterTitle('');
+        setNewChapterDescription('');
+        setShowAddChapter(false);
+        alert('Chapter added successfully!');
+      } else {
+        const error = await res.json();
+        alert(error.message || 'Failed to add chapter');
+      }
+    } catch (err) {
+      console.error('Error adding chapter:', err);
+      alert('Failed to add chapter');
+    } finally {
+      setAddingChapter(false);
+    }
+  };
 
   // Helper to get YouTube embed URL
   const getYouTubeEmbedUrl = (url) => {
@@ -209,19 +297,32 @@ function CourseDetail({ courseId, courseTitle, onClose, isTeacher = true }) {
             <button 
               onClick={onClose}
               style={{
-                background: '#f3f4f6',
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                 border: 'none',
-                borderRadius: '8px',
-                width: '36px',
-                height: '36px',
+                borderRadius: '12px',
+                padding: '10px 18px',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
-                color: '#6b7280',
+                gap: '8px',
+                color: '#fff',
+                fontSize: '0.95rem',
+                fontWeight: '600',
+                boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)',
+                transition: 'all 0.2s ease',
               }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.transform = 'translateX(-3px)';
+                e.currentTarget.style.boxShadow = '0 6px 16px rgba(102, 126, 234, 0.5)';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.transform = 'translateX(0)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.4)';
+              }}
+              title="Go Back"
             >
-              <i className="fas fa-times"></i>
+              <i className="fas fa-arrow-left"></i>
+              Back
             </button>
           )}
         </div>
@@ -277,6 +378,171 @@ function CourseDetail({ courseId, courseTitle, onClose, isTeacher = true }) {
           </div>
         )}
 
+        {/* Chapters Section - Always visible for managing chapters */}
+        <div style={{ marginBottom: '20px', padding: '20px', background: '#faf5ff', borderRadius: '12px', border: '1px solid #e9d5ff' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#7c3aed' }}>
+              <i className="fas fa-layer-group" style={{ marginRight: '8px' }}></i>
+              Chapters ({chapters.length})
+            </h3>
+            {isTeacher && (
+              <button
+                onClick={() => setShowAddChapter(!showAddChapter)}
+                style={{
+                  padding: '8px 16px',
+                  background: showAddChapter ? '#dc2626' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}
+              >
+                <i className={`fas ${showAddChapter ? 'fa-times' : 'fa-plus'}`}></i>
+                {showAddChapter ? 'Cancel' : 'Add Chapter'}
+              </button>
+            )}
+          </div>
+
+          {/* Add Chapter Form */}
+          {showAddChapter && isTeacher && (
+            <div style={{ 
+              marginBottom: '16px', 
+              padding: '16px', 
+                background: '#fff', 
+                borderRadius: '10px',
+                border: '1px solid #e5e7eb'
+              }}>
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500, color: '#374151' }}>
+                    Chapter Title *
+                  </label>
+                  <input
+                    type="text"
+                    value={newChapterTitle}
+                    onChange={(e) => setNewChapterTitle(e.target.value)}
+                    placeholder="Enter chapter title"
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '8px',
+                      fontSize: '0.95rem',
+                      outline: 'none',
+                    }}
+                  />
+                </div>
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={{ display: 'block', marginBottom: '6px', fontSize: '0.9rem', fontWeight: 500, color: '#374151' }}>
+                    Description (optional)
+                  </label>
+                  <textarea
+                    value={newChapterDescription}
+                    onChange={(e) => setNewChapterDescription(e.target.value)}
+                    placeholder="Enter chapter description"
+                    rows={3}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '8px',
+                      fontSize: '0.95rem',
+                      outline: 'none',
+                      resize: 'vertical',
+                    }}
+                  />
+                </div>
+                <button
+                  onClick={handleAddChapter}
+                  disabled={addingChapter}
+                  style={{
+                    padding: '10px 20px',
+                    background: addingChapter ? '#9ca3af' : '#10b981',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: addingChapter ? 'not-allowed' : 'pointer',
+                    fontSize: '0.9rem',
+                    fontWeight: 600,
+                  }}
+                >
+                  {addingChapter ? 'Adding...' : 'Add Chapter'}
+                </button>
+              </div>
+            )}
+
+            {/* Chapters List as Buttons */}
+            {loadingChapters ? (
+              <div style={{ textAlign: 'center', padding: '20px', color: '#6b7280' }}>
+                <i className="fas fa-spinner fa-spin" style={{ marginRight: '8px' }}></i>
+                Loading chapters...
+              </div>
+            ) : chapters.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '30px', color: '#9ca3af' }}>
+                <i className="fas fa-book-open" style={{ fontSize: '28px', marginBottom: '10px', display: 'block' }}></i>
+                <p style={{ margin: 0 }}>No chapters yet.</p>
+                {isTeacher && (
+                  <p style={{ margin: '8px 0 0', fontSize: '0.85rem' }}>
+                    Click "Add Chapter" to create your first chapter.
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+                {chapters.map((chapter, index) => (
+                  <button
+                    key={chapter._id || index}
+                    onClick={() => {
+                      setSelectedChapter(chapter);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px',
+                      padding: '12px 18px',
+                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: '10px',
+                      cursor: 'pointer',
+                      fontSize: '0.9rem',
+                      fontWeight: 600,
+                      boxShadow: '0 4px 12px rgba(102, 126, 234, 0.3)',
+                      transition: 'all 0.2s ease',
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 6px 16px rgba(102, 126, 234, 0.4)';
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.3)';
+                    }}
+                  >
+                    <span style={{
+                      width: '28px',
+                      height: '28px',
+                      borderRadius: '50%',
+                      background: 'rgba(255, 255, 255, 0.2)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '0.85rem',
+                      fontWeight: 700,
+                    }}>
+                      {chapter.chapterNumber || index + 1}
+                    </span>
+                    <span>{chapter.title || `Chapter ${chapter.chapterNumber || index + 1}`}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
         {/* Zoom Link */}
         {course.zoomLink && (
           <div style={{ marginBottom: '20px', padding: '16px', background: '#eff6ff', borderRadius: '12px', border: '1px solid #bfdbfe' }}>
@@ -294,216 +560,6 @@ function CourseDetail({ courseId, courseTitle, onClose, isTeacher = true }) {
             </a>
           </div>
         )}
-
-        {/* Videos Section */}
-        <div style={{ marginTop: '20px' }}>
-          <h3 style={{ margin: '0 0 16px', fontSize: '1.1rem', color: '#1f2937' }}>
-            <i className="fas fa-play-circle" style={{ marginRight: '8px', color: '#8b5cf6' }}></i>
-            Course Videos
-          </h3>
-
-          {!hasVideos ? (
-            <div style={{ 
-              padding: '40px', 
-              textAlign: 'center', 
-              background: '#f9fafb', 
-              borderRadius: '12px',
-              color: '#9ca3af'
-            }}>
-              <i className="fas fa-film" style={{ fontSize: '32px', marginBottom: '12px', display: 'block' }}></i>
-              <p style={{ margin: 0 }}>No videos available for this course yet.</p>
-              {isTeacher && (
-                <p style={{ margin: '8px 0 0', fontSize: '0.85rem' }}>
-                  Click "Add Videos" on the course card to add videos.
-                </p>
-              )}
-            </div>
-          ) : (
-            <div>
-              {/* Online Video URLs */}
-              {course.videoUrls && course.videoUrls.length > 0 && (
-                <div style={{ marginBottom: '20px' }}>
-                  {course.videoUrls.map((url, index) => {
-                    const embedUrl = getYouTubeEmbedUrl(url);
-                    const watched = isVideoWatched(url, 'url');
-                    return (
-                      <div
-                        key={index}
-                        style={{
-                          marginBottom: '16px',
-                          padding: '16px',
-                          borderRadius: '12px',
-                          border: watched ? '2px solid #16a34a' : '1px solid #e5e7eb',
-                          background: watched ? '#f0fdf4' : '#fff',
-                        }}
-                      >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: embedUrl ? '12px' : 0 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <span style={{ 
-                              width: '28px', 
-                              height: '28px', 
-                              borderRadius: '50%', 
-                              background: '#8b5cf6', 
-                              color: '#fff',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontSize: '0.85rem',
-                              fontWeight: 600
-                            }}>
-                              {index + 1}
-                            </span>
-                            <span style={{ fontSize: '0.95rem', fontWeight: 500, color: '#374151' }}>
-                              Video Lesson {index + 1}
-                            </span>
-                            {watched && (
-                              <span style={{ 
-                                background: '#dcfce7', 
-                                color: '#16a34a', 
-                                padding: '4px 10px', 
-                                borderRadius: '12px',
-                                fontSize: '0.75rem',
-                                fontWeight: 600
-                              }}>
-                                ✓ Watched
-                              </span>
-                            )}
-                          </div>
-                          <a
-                            href={url}
-                            target="_blank"
-                            rel="noreferrer"
-                            style={{ fontSize: '0.85rem', color: '#2563eb', textDecoration: 'none' }}
-                          >
-                            <i className="fas fa-external-link-alt" style={{ marginRight: '4px' }}></i>
-                            Open in new tab
-                          </a>
-                        </div>
-                        {embedUrl && (
-                          <iframe
-                            width="100%"
-                            height="315"
-                            src={embedUrl}
-                            title={`Video ${index + 1}`}
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                            allowFullScreen
-                            style={{ borderRadius: '8px', border: 'none' }}
-                          ></iframe>
-                        )}
-                        {/* Mark as Watched button for students */}
-                        {!isTeacher && !watched && (
-                          <button
-                            onClick={() => markVideoWatched(url, 'url')}
-                            style={{
-                              marginTop: '12px',
-                              padding: '10px 20px',
-                              background: '#10b981',
-                              color: '#fff',
-                              border: 'none',
-                              borderRadius: '8px',
-                              cursor: 'pointer',
-                              fontSize: '0.9rem',
-                              fontWeight: 600,
-                            }}
-                          >
-                            ✓ Mark as Watched
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* Uploaded Videos */}
-              {course.uploadedVideos && course.uploadedVideos.length > 0 && (
-                <div>
-                  {course.uploadedVideos.map((video, index) => {
-                    const watched = isVideoWatched(video.fileUrl, 'uploaded');
-                    const videoIndex = (course.videoUrls?.length || 0) + index + 1;
-                    return (
-                    <div
-                      key={index}
-                      style={{
-                        marginBottom: '16px',
-                        padding: '16px',
-                        borderRadius: '12px',
-                        border: watched ? '2px solid #16a34a' : '1px solid #e5e7eb',
-                        background: watched ? '#f0fdf4' : '#faf5ff',
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <span style={{ 
-                            width: '28px', 
-                            height: '28px', 
-                            borderRadius: '50%', 
-                            background: '#8b5cf6', 
-                            color: '#fff',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '0.85rem',
-                            fontWeight: 600
-                          }}>
-                            {videoIndex}
-                          </span>
-                          <span style={{ fontSize: '0.95rem', fontWeight: 500, color: '#374151' }}>
-                            <i className="fas fa-file-video" style={{ marginRight: '8px', color: '#8b5cf6' }}></i>
-                            {video.fileName || `Uploaded Video ${index + 1}`}
-                          </span>
-                          {watched && (
-                            <span style={{ 
-                              background: '#dcfce7', 
-                              color: '#16a34a', 
-                              padding: '4px 10px', 
-                              borderRadius: '12px',
-                              fontSize: '0.75rem',
-                              fontWeight: 600
-                            }}>
-                              ✓ Watched
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      {video.fileUrl && (
-                        <video
-                          width="100%"
-                          height="315"
-                          controls
-                          src={video.fileUrl}
-                          style={{ borderRadius: '8px' }}
-                          onEnded={() => handleVideoEnded(video.fileUrl, 'uploaded')}
-                        >
-                          Your browser does not support the video tag.
-                        </video>
-                      )}
-                      {/* Mark as Watched button for students */}
-                      {!isTeacher && !watched && (
-                        <button
-                          onClick={() => markVideoWatched(video.fileUrl, 'uploaded')}
-                          style={{
-                            marginTop: '12px',
-                            padding: '10px 20px',
-                            background: '#10b981',
-                            color: '#fff',
-                            border: 'none',
-                            borderRadius: '8px',
-                            cursor: 'pointer',
-                            fontSize: '0.9rem',
-                            fontWeight: 600,
-                          }}
-                        >
-                          ✓ Mark as Watched
-                        </button>
-                      )}
-                    </div>
-                  )})}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
 
         {/* Close button at bottom */}
         <div style={{ marginTop: '24px', textAlign: 'center' }}>
@@ -525,6 +581,16 @@ function CourseDetail({ courseId, courseTitle, onClose, isTeacher = true }) {
           )}
         </div>
       </div>
+
+      {/* Chapter Detail Modal */}
+      {selectedChapter && (
+        <ChapterDetail
+          chapter={selectedChapter}
+          courseId={courseId}
+          onClose={() => setSelectedChapter(null)}
+          isTeacher={isTeacher}
+        />
+      )}
     </div>
   );
 }

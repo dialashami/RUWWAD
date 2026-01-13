@@ -772,7 +772,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../styles/lesson-management.css';
-import LessonVideoEditor from './LessonVideoEditor';
 import CourseDetail from './CourseDetail';
 import CourseChaptersManager from './CourseChaptersManager';
 
@@ -780,13 +779,56 @@ function LessonManagement({ onNavigate }) {
   const navigate = useNavigate();
   const [showModal, setShowModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [showVideoEditor, setShowVideoEditor] = useState(false);
   const [showCourseDetail, setShowCourseDetail] = useState(false);
   const [showChaptersManager, setShowChaptersManager] = useState(false);
   const [selectedLesson, setSelectedLesson] = useState(null);
 
   const [lessons, setLessons] = useState([]);
   const [loadingLessons, setLoadingLessons] = useState(true);
+
+  // Handle delete course
+  const handleDeleteCourse = async (lesson, e) => {
+    e.stopPropagation();
+    
+    const confirmDelete = window.confirm(
+      `Are you sure you want to delete the course "${lesson.title}"?\n\nThis will permanently remove:\n- All course content\n- All chapters and slides\n- All student progress\n\nThis action cannot be undone.`
+    );
+    
+    if (!confirmDelete) return;
+    
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        alert('You must be logged in to delete a course');
+        return;
+      }
+      
+      const courseId = lesson._id || lesson.id;
+      const res = await fetch(
+        `${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/courses/${courseId}`,
+        {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+      
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to delete course');
+      }
+      
+      // Remove course from local state
+      setLessons(prev => prev.filter(l => (l._id || l.id) !== courseId));
+      alert(`Course "${lesson.title}" has been deleted successfully.`);
+      
+    } catch (error) {
+      console.error('Error deleting course:', error);
+      alert(`Failed to delete course: ${error.message}`);
+    }
+  };
 
   // form state
   const [formData, setFormData] = useState({
@@ -1291,25 +1333,6 @@ function LessonManagement({ onNavigate }) {
                   onClick={() => handleOpenLesson(lesson.id)}
                   style={{ cursor: 'pointer', position: 'relative' }}
                 >
-                  {/* Chapter-based badge */}
-                  {lesson.isChapterBased && lesson.numberOfChapters > 0 && (
-                    <div style={{
-                      position: 'absolute',
-                      top: '10px',
-                      right: '10px',
-                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                      color: 'white',
-                      padding: '4px 10px',
-                      borderRadius: '12px',
-                      fontSize: '0.75rem',
-                      fontWeight: '600',
-                      boxShadow: '0 2px 8px rgba(102, 126, 234, 0.4)',
-                      zIndex: 1
-                    }}>
-                      <i className="fas fa-book-open" style={{ marginRight: '5px' }}></i>
-                      {lesson.numberOfChapters} Chapters
-                    </div>
-                  )}
                   <div className="lesson-card-header">
                     <div className="lesson-header-section">
                       <div className="lesson-title-section">
@@ -1362,7 +1385,7 @@ function LessonManagement({ onNavigate }) {
                         onClick={(e) => {
                           e.stopPropagation();
                           setSelectedLesson(lesson);
-                          setShowChaptersManager(true);
+                          setShowCourseDetail(true);
                         }}
                         style={{
                           background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
@@ -1377,16 +1400,12 @@ function LessonManagement({ onNavigate }) {
                           gap: '4px'
                         }}
                       >
-                        <i className="fas fa-layer-group"></i> Manage Chapters
+                        <i className="fas fa-cog"></i> Manage Course
                       </button>
                       <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedLesson(lesson);
-                          setShowVideoEditor(true);
-                        }}
+                        onClick={(e) => handleDeleteCourse(lesson, e)}
                         style={{
-                          background: '#8b5cf6',
+                          background: '#ef4444',
                           color: '#fff',
                           border: 'none',
                           borderRadius: '6px',
@@ -1398,7 +1417,7 @@ function LessonManagement({ onNavigate }) {
                           gap: '4px'
                         }}
                       >
-                        <i className="fas fa-film"></i> Add Videos
+                        <i className="fas fa-trash"></i> Delete Course
                       </button>
                     </div>
                   </div>
@@ -1486,21 +1505,6 @@ function LessonManagement({ onNavigate }) {
                     <option>Mechatronics Engineering</option>
                     <option>Chemical Engineering</option>
                   </select>
-                </div>
-                <div className="form-group">
-                  <label>Number of Chapters *</label>
-                  <input
-                    name="numberOfChapters"
-                    value={formData.numberOfChapters}
-                    onChange={handleChange}
-                    type="number"
-                    min="1"
-                    max="20"
-                    placeholder="e.g., 5"
-                  />
-                  <small style={{color: '#6c757d', fontSize: '0.8rem'}}>
-                    Each chapter will have slides, lectures, and an AI-generated quiz
-                  </small>
                 </div>
               </div>
 
@@ -1620,32 +1624,6 @@ function LessonManagement({ onNavigate }) {
                 </button>
               </div>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Video Editor Modal */}
-      {showVideoEditor && selectedLesson && (
-        <div className="modal-overlay" onClick={() => setShowVideoEditor(false)}>
-          <div 
-            className="modal video-editor-modal" 
-            onClick={(e) => e.stopPropagation()} 
-            style={{ maxWidth: 700, maxHeight: '90vh', overflow: 'auto', padding: 0 }}
-          >
-            <LessonVideoEditor
-              courseId={selectedLesson.id}
-              courseTitle={selectedLesson.title}
-              onClose={() => setShowVideoEditor(false)}
-              onSave={(videoData) => {
-                console.log('Videos saved for course:', selectedLesson.id, videoData);
-                // Update local state to show video indicator
-                setLessons(prev => prev.map(lesson => 
-                  lesson.id === selectedLesson.id 
-                    ? { ...lesson, hasVideos: true }
-                    : lesson
-                ));
-              }}
-            />
           </div>
         </div>
       )}

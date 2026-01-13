@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useStudent } from '../../context/StudentContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -204,10 +205,37 @@ export default function Assignments() {
         }
       }
 
-      // Submit the assignment
+      // Read file as base64
+      let fileData = null;
+      try {
+        const fileContent = await FileSystem.readAsStringAsync(selectedFile.uri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+        // Get mime type from file extension
+        const extension = selectedFile.name?.split('.').pop()?.toLowerCase() || 'bin';
+        const mimeTypes = {
+          pdf: 'application/pdf',
+          doc: 'application/msword',
+          docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          txt: 'text/plain',
+          zip: 'application/zip',
+          jpg: 'image/jpeg',
+          jpeg: 'image/jpeg',
+          png: 'image/png',
+        };
+        const mimeType = mimeTypes[extension] || 'application/octet-stream';
+        fileData = `data:${mimeType};base64,${fileContent}`;
+      } catch (readError) {
+        console.error('Error reading file:', readError);
+        Alert.alert('Error', 'Could not read the selected file. Please try again.');
+        setSubmitting(false);
+        return;
+      }
+
+      // Submit the assignment with actual file content
       await assignmentAPI.submitAssignment(selectedAssignment.id, {
         studentId,
-        file: selectedFile.uri,
+        file: fileData,
         fileName: selectedFile.name,
       });
 

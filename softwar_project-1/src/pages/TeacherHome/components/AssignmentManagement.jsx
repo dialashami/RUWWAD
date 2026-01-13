@@ -157,7 +157,8 @@ function AssignmentManagement({ onNavigate }) { // إضافة onNavigate كـ pr
         return;
       }
 
-      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/assignments/${assignmentId}`, {
+      const apiBase = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+      const res = await fetch(`${apiBase}/api/assignments/${assignmentId}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -176,21 +177,37 @@ function AssignmentManagement({ onNavigate }) { // إضافة onNavigate كـ pr
 
       // Map submissions to student format
       if (data.submissions && Array.isArray(data.submissions)) {
-        const mappedStudents = data.submissions.map((sub, index) => ({
-          id: sub._id || sub.student?._id || index + 1,
-          studentId: sub.student?._id || sub.student,
-          name: sub.student?.firstName && sub.student?.lastName 
-            ? `${sub.student.firstName} ${sub.student.lastName}`
-            : sub.student?.firstName || sub.studentName || `Student ${index + 1}`,
-          submitted: true,
-          grade: sub.grade || null,
-          feedback: sub.feedback || '',
-          submittedDate: sub.submittedAt 
-            ? new Date(sub.submittedAt).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
-            : 'Unknown',
-          file: sub.file || 'submission_file',
-          isGraded: sub.isGraded || false
-        }));
+        const mappedStudents = data.submissions.map((sub, index) => {
+          // Determine file name
+          let displayFileName = sub.fileName;
+          if (!displayFileName && sub.file) {
+            // If it's a base64 data URL, we can't extract filename from it
+            if (sub.file.startsWith('data:')) {
+              displayFileName = 'Submitted File';
+            } else {
+              displayFileName = sub.file.split('/').pop();
+            }
+          }
+          
+          return {
+            id: sub._id || sub.student?._id || index + 1,
+            studentId: sub.student?._id || sub.student,
+            name: sub.student?.firstName && sub.student?.lastName 
+              ? `${sub.student.firstName} ${sub.student.lastName}`
+              : sub.student?.firstName || sub.studentName || `Student ${index + 1}`,
+            submitted: true,
+            grade: sub.grade || null,
+            feedback: sub.feedback || '',
+            comment: sub.comment || '',
+            submittedDate: sub.submittedAt 
+              ? new Date(sub.submittedAt).toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' })
+              : 'Unknown',
+            file: sub.file || null,
+            fileName: displayFileName,
+            fileUrl: sub.file || null,
+            isGraded: sub.isGraded || false
+          };
+        });
         setStudents(mappedStudents);
       } else {
         setStudents([]);
@@ -203,6 +220,68 @@ function AssignmentManagement({ onNavigate }) { // إضافة onNavigate كـ pr
     }
   };
 
+  // Download a single student's submission file
+  const handleDownloadFile = async (student) => {
+    if (!student.fileUrl && !student.file) {
+      alert('No file available for download');
+      return;
+    }
+    
+    const fileUrl = student.fileUrl || student.file;
+    const fileName = student.fileName || `${student.name.replace(/\s+/g, '_')}_submission`;
+    
+    try {
+      // If it's a data URL (base64), convert and download
+      if (fileUrl.startsWith('data:')) {
+        const link = document.createElement('a');
+        link.href = fileUrl;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else {
+        // If it's a regular URL, fetch and download
+        const response = await fetch(fileUrl);
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      }
+    } catch (err) {
+      console.error('Error downloading file:', err);
+      // Fallback: open in new tab
+      window.open(fileUrl, '_blank');
+    }
+  };
+
+  // Download all submitted files as individual downloads
+  const handleDownloadAllFiles = async () => {
+    const submittedStudents = students.filter(s => s.submitted && (s.fileUrl || s.file));
+    
+    if (submittedStudents.length === 0) {
+      alert('No files available for download');
+      return;
+    }
+    
+    const confirmDownload = window.confirm(
+      `This will download ${submittedStudents.length} file(s). Continue?`
+    );
+    
+    if (!confirmDownload) return;
+    
+    // Download each file with a small delay to prevent browser blocking
+    for (let i = 0; i < submittedStudents.length; i++) {
+      const student = submittedStudents[i];
+      await new Promise(resolve => setTimeout(resolve, 500)); // 500ms delay between downloads
+      handleDownloadFile(student);
+    }
+  };
+
   // بيانات النموذج
   const [formData, setFormData] = useState({
     title: '',
@@ -210,12 +289,48 @@ function AssignmentManagement({ onNavigate }) { // إضافة onNavigate كـ pr
     grade: '',
     universityMajor: '',
     dueDate: '',
-    totalStudents: 62,
+    totalStudents: 0,
     points: 100,
     passingScore: 60,
     instructions: '',
     status: 'upcoming'
   });
+
+  const [loadingStudentCount, setLoadingStudentCount] = useState(false);
+
+  // Fetch student count by grade
+  const fetchStudentCount = async (grade, universityMajor = null) => {
+    if (!grade) {
+      setFormData(prev => ({ ...prev, totalStudents: 0 }));
+      return;
+    }
+    
+    setLoadingStudentCount(true);
+    try {
+      const token = localStorage.getItem('token');
+      let url = `${process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000'}/api/users/student-count?grade=${encodeURIComponent(grade)}`;
+      
+      if (grade === 'University' && universityMajor) {
+        url += `&universityMajor=${encodeURIComponent(universityMajor)}`;
+      }
+      
+      const res = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        setFormData(prev => ({ ...prev, totalStudents: data.count }));
+      }
+    } catch (error) {
+      console.error('Error fetching student count:', error);
+    } finally {
+      setLoadingStudentCount(false);
+    }
+  };
 
   const [gradeData, setGradeData] = useState({
     score: '',
@@ -239,6 +354,21 @@ function AssignmentManagement({ onNavigate }) { // إضافة onNavigate كـ pr
       ...prev,
       [name]: value
     }));
+    
+    // Fetch student count when grade changes
+    if (name === 'grade') {
+      if (value === 'University') {
+        // Wait for universityMajor to be selected
+        setFormData(prev => ({ ...prev, totalStudents: 0, universityMajor: '' }));
+      } else {
+        fetchStudentCount(value);
+      }
+    }
+    
+    // Fetch student count when universityMajor changes (for university grade)
+    if (name === 'universityMajor' && formData.grade === 'University') {
+      fetchStudentCount('University', value);
+    }
   };
 
   // معالجة تغيير التقدير الفردي
@@ -307,6 +437,13 @@ const handleEdit = (assignment) => {
     instructions: assignment.instructionsFileName || assignment.instructions || '',
     status: assignment.status
   });
+
+  // Fetch current student count for this grade
+  if (assignment.grade === 'University' && assignment.universityMajor) {
+    fetchStudentCount(assignment.grade, assignment.universityMajor);
+  } else if (assignment.grade) {
+    fetchStudentCount(assignment.grade);
+  }
 
   setInstructionFile(null);
   setShowEditModal(true);
@@ -1134,16 +1271,18 @@ const handleCreateAssignment = async () => {
                 </div>
 
                 <div className="form-group">
-                  <label>Total Students</label>
+                  <label>Total Students {loadingStudentCount && <span style={{fontSize: '12px', color: '#666'}}>(loading...)</span>}</label>
                   <input 
                     type="number" 
                     name="totalStudents"
                     className="form-input"
                     value={formData.totalStudents}
-                    onChange={handleInputChange}
-                    min="1"
-                    max="100"
+                    readOnly
+                    disabled
+                    style={{ backgroundColor: '#f5f5f5', cursor: 'not-allowed' }}
+                    title="Auto-calculated based on grade selection"
                   />
+                  <small style={{color: '#666', fontSize: '11px'}}>Auto-calculated based on grade</small>
                 </div>
               </div>
 
@@ -1180,6 +1319,38 @@ const handleCreateAssignment = async () => {
                   <span>Submitted: {selectedAssignment.submitted}</span>
                   <span>Graded: {selectedAssignment.graded}</span>
                 </div>
+                {/* Download All Button */}
+                {students.filter(s => s.submitted && (s.fileUrl || s.file)).length > 0 && (
+                  <button
+                    onClick={handleDownloadAllFiles}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      padding: '10px 20px',
+                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      color: '#fff',
+                      border: 'none',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      fontWeight: '600',
+                      fontSize: '0.9rem',
+                      boxShadow: '0 4px 12px rgba(102, 126, 234, 0.4)',
+                      transition: 'all 0.2s ease',
+                    }}
+                    onMouseOver={(e) => {
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.boxShadow = '0 6px 16px rgba(102, 126, 234, 0.5)';
+                    }}
+                    onMouseOut={(e) => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.boxShadow = '0 4px 12px rgba(102, 126, 234, 0.4)';
+                    }}
+                  >
+                    <i className="fas fa-download"></i>
+                    Download All Files ({students.filter(s => s.submitted && (s.fileUrl || s.file)).length})
+                  </button>
+                )}
               </div>
               
               <div className="students-list">
@@ -1200,6 +1371,31 @@ const handleCreateAssignment = async () => {
                         <span className={`submission-status ${student.submitted ? 'submitted' : 'pending'}`}>
                           {student.submitted ? `Submitted on ${student.submittedDate}` : 'Not submitted'}
                         </span>
+                        {/* Show file info if available */}
+                        {student.submitted && (student.fileUrl || student.file) && (
+                          <div style={{
+                            marginTop: '6px',
+                            padding: '8px 12px',
+                            background: '#f0f9ff',
+                            borderRadius: '6px',
+                            border: '1px solid #bae6fd',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                          }}>
+                            <i className="fas fa-file-alt" style={{ color: '#0284c7' }}></i>
+                            <span style={{ 
+                              fontSize: '0.85rem', 
+                              color: '#0369a1',
+                              maxWidth: '200px',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}>
+                              {student.fileName || 'Submitted File'}
+                            </span>
+                          </div>
+                        )}
                       </div>
                       <div className="student-grade">
                         {student.grade ? (
@@ -1213,17 +1409,63 @@ const handleCreateAssignment = async () => {
                       <div className="student-actions">
                         {student.submitted && (
                           <>
-                            <button 
-                              className="action-btn download"
-                              onClick={() => alert(`Downloading ${student.file}`)}
-                            >
-                              <i className="fas fa-download"></i>
-                            </button>
+                            {(student.fileUrl || student.file) && (
+                              <button 
+                                className="action-btn download"
+                                onClick={() => handleDownloadFile(student)}
+                                title={`Download ${student.fileName || 'file'}`}
+                                style={{
+                                  background: '#10b981',
+                                  color: '#fff',
+                                  border: 'none',
+                                  borderRadius: '6px',
+                                  padding: '8px 12px',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '6px',
+                                  fontSize: '0.85rem',
+                                  fontWeight: '500',
+                                  transition: 'all 0.2s ease',
+                                }}
+                                onMouseOver={(e) => {
+                                  e.currentTarget.style.background = '#059669';
+                                }}
+                                onMouseOut={(e) => {
+                                  e.currentTarget.style.background = '#10b981';
+                                }}
+                              >
+                                <i className="fas fa-download"></i>
+                                Download
+                              </button>
+                            )}
                             <button 
                               className="action-btn grade"
                               onClick={() => handleGradeStudent(selectedAssignment, student)}
+                              title="Grade submission"
+                              style={{
+                                background: '#8b5cf6',
+                                color: '#fff',
+                                border: 'none',
+                                borderRadius: '6px',
+                                padding: '8px 12px',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                fontSize: '0.85rem',
+                                fontWeight: '500',
+                                transition: 'all 0.2s ease',
+                              }}
+                              onMouseOver={(e) => {
+                                e.currentTarget.style.background = '#7c3aed';
+                              }}
+                              onMouseOut={(e) => {
+                                e.currentTarget.style.background = '#8b5cf6';
+                              }}
                             >
                               <i className="fas fa-edit"></i>
+                              Grade
                             </button>
                           </>
                         )}
@@ -1531,16 +1773,18 @@ const handleCreateAssignment = async () => {
           </div>
 
           <div className="form-group">
-            <label>Total Students</label>
+            <label>Total Students {loadingStudentCount && <span style={{fontSize: '12px', color: '#666'}}>(loading...)</span>}</label>
             <input
               type="number"
               name="totalStudents"
               className="form-input"
               value={formData.totalStudents}
-              onChange={handleInputChange}
-              min="1"
-              max="100"
+              readOnly
+              disabled
+              style={{ backgroundColor: '#f5f5f5', cursor: 'not-allowed' }}
+              title="Auto-calculated based on grade selection"
             />
+            <small style={{color: '#666', fontSize: '11px'}}>Auto-calculated based on grade</small>
           </div>
         </div>
 
