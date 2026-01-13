@@ -1,12 +1,48 @@
 const Course = require('../models/Course');
+const Chapter = require('../models/Chapter');
 const Notification = require('../models/Notification');
 const User = require('../models/user_model');
 
 exports.createCourse = async (req, res, next) => {
   try {
     console.log('Creating course with data:', req.body);
-    const course = await Course.create(req.body);
-    console.log('Course created:', course);
+    
+    // Extract chapter-based course fields
+    const { subjectType, numberOfChapters = 1, isChapterBased = true, ...courseData } = req.body;
+    
+    // Create the course
+    const course = await Course.create({
+      ...courseData,
+      subjectType,
+      numberOfChapters: Math.max(1, numberOfChapters),
+      isChapterBased,
+      chapters: []
+    });
+    
+    console.log('Course created:', course._id);
+    
+    // Auto-create empty chapters if chapter-based
+    if (isChapterBased && numberOfChapters > 0) {
+      const chapterPromises = [];
+      for (let i = 1; i <= numberOfChapters; i++) {
+        chapterPromises.push(
+          Chapter.create({
+            course: course._id,
+            chapterNumber: i,
+            title: `Chapter ${i}`,
+            description: '',
+            order: i,
+            isLocked: i > 1, // First chapter is unlocked
+            isPublished: false
+          })
+        );
+      }
+      
+      const chapters = await Promise.all(chapterPromises);
+      course.chapters = chapters.map(c => c._id);
+      await course.save();
+      console.log('Created', chapters.length, 'chapters for course');
+    }
     
     // Create notifications for students matching the course's grade
     try {
@@ -51,7 +87,7 @@ exports.createCourse = async (req, res, next) => {
         await Notification.create({
           user: adminUser._id,
           title: 'New course created',
-          message: `Course "${course.title}" was created.`,
+          message: `Course "${course.title}" was created with ${numberOfChapters} chapters.`,
           type: 'course',
           isRead: false,
         });
@@ -60,7 +96,9 @@ exports.createCourse = async (req, res, next) => {
       console.error('Error creating admin notification for course creation:', adminNotifErr);
     }
     
-    res.status(201).json(course);
+    // Populate chapters before returning
+    const populatedCourse = await Course.findById(course._id).populate('chapters');
+    res.status(201).json(populatedCourse);
   } catch (err) {
     console.error('Error creating course:', err);
     next(err);
@@ -112,9 +150,60 @@ exports.getCourses = async (req, res, next) => {
     const courses = await Course.find(filter)
       .populate('teacher', 'firstName lastName email')
       .populate('students', 'firstName lastName email')
+      .populate('chapters', '_id chapterNumber title isPublished')
       .sort({ createdAt: -1 });
 
     console.log('getCourses found', courses.length, 'courses');
+    
+    // For students, sanitize the course data to hide other students' information
+    const userId = req.userId;
+    const userRole = req.User?.role;
+    
+    console.log('getCourses - userId:', userId, 'userRole:', userRole);
+    
+    if (userRole === 'student') {
+      const sanitizedCourses = courses.map(course => {
+        const courseObj = course.toObject();
+        
+        console.log('Course:', course.title, 'students array:', courseObj.students?.map(s => s._id?.toString() || s.toString()));
+        
+        // Check if current student is enrolled BEFORE removing students array
+        const isEnrolled = courseObj.students?.some(
+          s => (s._id?.toString() || s.toString()) === userId
+        );
+        
+        console.log('Course:', course.title, 'isEnrolled:', isEnrolled, 'userId:', userId);
+        
+        // Find only this student's video progress
+        const studentProgress = courseObj.videoProgress?.find(
+          vp => vp.student && vp.student.toString() === userId
+        );
+        
+        // Calculate progress for this student
+        const totalVideos = (courseObj.videoUrls?.length || 0) + (courseObj.uploadedVideos?.length || 0);
+        let watchedCount = 0;
+        if (studentProgress) {
+          watchedCount = 
+            (studentProgress.watchedVideoUrls?.length || 0) + 
+            (studentProgress.watchedUploadedVideos?.length || 0);
+        }
+        const progressPercent = totalVideos > 0 ? Math.round((watchedCount / totalVideos) * 100) : 0;
+        
+        // Remove sensitive data (other students' info)
+        delete courseObj.videoProgress;
+        delete courseObj.students;
+        
+        return {
+          ...courseObj,
+          isEnrolled, // Add enrollment status for frontend
+          progress: progressPercent,
+          totalVideos,
+          watchedVideos: watchedCount,
+        };
+      });
+      return res.json(sanitizedCourses);
+    }
+    
     res.json(courses);
   } catch (err) {
     next(err);
@@ -123,10 +212,51 @@ exports.getCourses = async (req, res, next) => {
 
 exports.getCourseById = async (req, res, next) => {
   try {
+    const userId = req.userId;
+    const userRole = req.User?.role;
+    
     const course = await Course.findById(req.params.id)
       .populate('teacher', 'firstName lastName email')
       .populate('students', 'firstName lastName email');
     if (!course) return res.status(404).json({ message: 'Course not found' });
+    
+    // For students, sanitize the course data
+    if (userRole === 'student') {
+      const courseObj = course.toObject();
+      
+      // Check if current student is enrolled BEFORE removing students array
+      const isEnrolled = courseObj.students?.some(
+        s => (s._id?.toString() || s.toString()) === userId
+      );
+      
+      // Find only this student's video progress
+      const studentProgress = courseObj.videoProgress?.find(
+        vp => vp.student && vp.student.toString() === userId
+      );
+      
+      // Calculate progress for this student
+      const totalVideos = (courseObj.videoUrls?.length || 0) + (courseObj.uploadedVideos?.length || 0);
+      let watchedCount = 0;
+      if (studentProgress) {
+        watchedCount = 
+          (studentProgress.watchedVideoUrls?.length || 0) + 
+          (studentProgress.watchedUploadedVideos?.length || 0);
+      }
+      const progressPercent = totalVideos > 0 ? Math.round((watchedCount / totalVideos) * 100) : 0;
+      
+      // Remove sensitive data (other students' info)
+      delete courseObj.videoProgress;
+      delete courseObj.students;
+      
+      return res.json({
+        ...courseObj,
+        isEnrolled, // Add enrollment status for frontend
+        progress: progressPercent,
+        totalVideos,
+        watchedVideos: watchedCount,
+      });
+    }
+    
     res.json(course);
   } catch (err) {
     next(err);
@@ -207,7 +337,7 @@ exports.getStudentCourses = async (req, res, next) => {
         progress: progressPercent,
         totalVideos,
         watchedVideos: watchedCount,
-        isEnrolled: isEnrolled, // NEW: indicates if student is enrolled
+        isEnrolled: isEnrolled, // indicates if student is enrolled
         isCompleted: studentProgress?.completedAt ? true : false,
         completedAt: studentProgress?.completedAt || null,
         videoUrls: courseObj.videoUrls,
@@ -258,12 +388,27 @@ exports.deleteCourse = async (req, res, next) => {
 exports.enrollStudent = async (req, res, next) => {
   try {
     const { studentId } = req.body;
+    console.log('Enroll request - courseId:', req.params.id, 'studentId:', studentId);
+    
+    if (!studentId) {
+      return res.status(400).json({ message: 'Student ID is required' });
+    }
+    
     const course = await Course.findById(req.params.id);
-    if (!course) return res.status(404).json({ message: 'Course not found' });
+    if (!course) {
+      console.log('Course not found:', req.params.id);
+      return res.status(404).json({ message: 'Course not found' });
+    }
 
-    if (!course.students.includes(studentId)) {
+    console.log('Current students in course:', course.students.map(s => s.toString()));
+    
+    // Check if already enrolled using string comparison
+    const isAlreadyEnrolled = course.students.some(s => s.toString() === studentId.toString());
+    
+    if (!isAlreadyEnrolled) {
       course.students.push(studentId);
       await course.save();
+      console.log('Student enrolled successfully. Updated students:', course.students.map(s => s.toString()));
       
       try {
         const adminUser = await User.findOne({ email: 'aboodjamal684@gmail.com' }).select('_id');
@@ -283,10 +428,18 @@ exports.enrollStudent = async (req, res, next) => {
       } catch (adminNotifErr) {
         console.error('Error creating admin notification for enrollment:', adminNotifErr);
       }
+    } else {
+      console.log('Student already enrolled in course');
     }
 
-    res.json(course);
+    // Return course with isEnrolled status
+    res.json({
+      ...course.toObject(),
+      isEnrolled: true,
+      message: isAlreadyEnrolled ? 'Already enrolled' : 'Successfully enrolled'
+    });
   } catch (err) {
+    console.error('Error in enrollStudent:', err);
     next(err);
   }
 };

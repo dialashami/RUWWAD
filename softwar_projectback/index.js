@@ -96,6 +96,10 @@ const adminDashboardRoutes = require('./routes/adminDashboardRoutes');
 const aiConversationRoutes = require('./routes/aiConversationRoutes');
 const systemSettingsRoutes = require('./routes/systemSettingsRoutes');
 
+// Chapter-based course routes
+const chapterRoutes = require('./routes/chapterRoutes');
+const quizRoutes = require('./routes/quizRoutes');
+
 // Error handling middleware
 const errorHandler = require('./middleware/errorMiddleware');
 
@@ -120,6 +124,10 @@ app.use('/api', parentDashboardRoutes);
 app.use('/api', adminDashboardRoutes);
 app.use('/api', aiConversationRoutes);
 app.use('/api', systemSettingsRoutes);
+
+// Chapter-based course system routes
+app.use('/api/chapters', chapterRoutes);
+app.use('/api/quiz', quizRoutes);
 
 // ========= Ollama Chat Route =========
 

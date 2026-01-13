@@ -774,6 +774,7 @@ import { useNavigate } from 'react-router-dom';
 import '../styles/lesson-management.css';
 import LessonVideoEditor from './LessonVideoEditor';
 import CourseDetail from './CourseDetail';
+import CourseChaptersManager from './CourseChaptersManager';
 
 function LessonManagement({ onNavigate }) {
   const navigate = useNavigate();
@@ -781,6 +782,7 @@ function LessonManagement({ onNavigate }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [showVideoEditor, setShowVideoEditor] = useState(false);
   const [showCourseDetail, setShowCourseDetail] = useState(false);
+  const [showChaptersManager, setShowChaptersManager] = useState(false);
   const [selectedLesson, setSelectedLesson] = useState(null);
 
   const [lessons, setLessons] = useState([]);
@@ -790,9 +792,11 @@ function LessonManagement({ onNavigate }) {
   const [formData, setFormData] = useState({
     title: '',
     subject: '',
+    subjectType: 'other',
     grade: '',
     universityMajor: '',
     duration: '',
+    numberOfChapters: 1,
     status: 'Draft',
     description: '',
     objectives: '',
@@ -878,8 +882,10 @@ function LessonManagement({ onNavigate }) {
         // Map to display format
         const mapped = filtered.map((course) => ({
           id: course._id || course.id,
+          _id: course._id || course.id,
           title: course.title || 'Untitled Course',
           subject: course.subject || 'Course',
+          subjectType: course.subjectType || 'other',
           grade: course.grade || 'All Grades',
           status: course.isActive === false ? 'draft' : 'published',
           duration: course.duration || '45 min',
@@ -889,6 +895,9 @@ function LessonManagement({ onNavigate }) {
           description: course.description || 'No description provided.',
           students: course.students?.length || 0,
           zoomLink: course.zoomLink || null,
+          isChapterBased: course.isChapterBased || false,
+          numberOfChapters: course.numberOfChapters || 0,
+          chapters: course.chapters || [],
         }));
 
         setLessons(mapped);
@@ -999,9 +1008,11 @@ function LessonManagement({ onNavigate }) {
       setFormData({
         title: '',
         subject: '',
+        subjectType: 'other',
         grade: '',
         universityMajor: '',
         duration: '',
+        numberOfChapters: 1,
         status: 'Draft',
         description: '',
         objectives: '',
@@ -1018,9 +1029,12 @@ function LessonManagement({ onNavigate }) {
         description: formData.description,
         teacher: teacherId,
         subject: formData.subject,
+        subjectType: formData.subjectType || 'other',
         grade: formData.grade,
         universityMajor: formData.grade === 'University' ? formData.universityMajor : null,
         duration: formData.duration,
+        numberOfChapters: parseInt(formData.numberOfChapters) || 1,
+        isChapterBased: true,
         isActive: formData.status?.toLowerCase() === 'published',
       };
 
@@ -1046,25 +1060,38 @@ function LessonManagement({ onNavigate }) {
 
       const newLesson = {
         id: created._id || created.id || Date.now(),
+        _id: created._id || created.id || Date.now(),
         title: created.title || formData.title,
         subject: created.subject || formData.subject,
+        subjectType: created.subjectType || formData.subjectType || 'other',
         status: created.isActive === false ? 'draft' : 'published',
         duration: created.duration || formData.duration,
         lastEdited: created.updatedAt
           ? new Date(created.updatedAt).toLocaleDateString('en-US')
           : 'just now',
         description: created.description || formData.description || 'No description provided.',
+        isChapterBased: created.isChapterBased !== false,
+        numberOfChapters: created.numberOfChapters || parseInt(formData.numberOfChapters) || 1,
+        chapters: created.chapters || [],
+        grade: created.grade || formData.grade,
       };
 
       setLessons([newLesson, ...lessons]);
+      
+      // Automatically open chapters manager for the new course
+      setSelectedLesson(newLesson);
+      setShowChaptersManager(true);
+      
       setShowModal(false);
 
       setFormData({
         title: '',
         subject: '',
+        subjectType: 'other',
         grade: '',
         universityMajor: '',
         duration: '',
+        numberOfChapters: 1,
         status: 'Draft',
         description: '',
         objectives: '',
@@ -1262,14 +1289,38 @@ function LessonManagement({ onNavigate }) {
                   key={lesson.id}
                   className="lesson-card"
                   onClick={() => handleOpenLesson(lesson.id)}
-                  style={{ cursor: 'pointer' }}
+                  style={{ cursor: 'pointer', position: 'relative' }}
                 >
+                  {/* Chapter-based badge */}
+                  {lesson.isChapterBased && lesson.numberOfChapters > 0 && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '10px',
+                      right: '10px',
+                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      color: 'white',
+                      padding: '4px 10px',
+                      borderRadius: '12px',
+                      fontSize: '0.75rem',
+                      fontWeight: '600',
+                      boxShadow: '0 2px 8px rgba(102, 126, 234, 0.4)',
+                      zIndex: 1
+                    }}>
+                      <i className="fas fa-book-open" style={{ marginRight: '5px' }}></i>
+                      {lesson.numberOfChapters} Chapters
+                    </div>
+                  )}
                   <div className="lesson-card-header">
                     <div className="lesson-header-section">
                       <div className="lesson-title-section">
                         <h3>{lesson.title}</h3>
                         <p className="lesson-subject">
                           <i className="fas fa-book-open"></i> {lesson.subject}
+                          {lesson.subjectType && lesson.subjectType !== 'other' && (
+                            <span style={{ marginLeft: '8px', color: '#667eea' }}>
+                              ({lesson.subjectType})
+                            </span>
+                          )}
                         </p>
                       </div>
                       <span className={`status-badge ${lesson.status}`}>
@@ -1311,6 +1362,27 @@ function LessonManagement({ onNavigate }) {
                         onClick={(e) => {
                           e.stopPropagation();
                           setSelectedLesson(lesson);
+                          setShowChaptersManager(true);
+                        }}
+                        style={{
+                          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: '6px',
+                          padding: '6px 12px',
+                          fontSize: '12px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}
+                      >
+                        <i className="fas fa-layer-group"></i> Manage Chapters
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedLesson(lesson);
                           setShowVideoEditor(true);
                         }}
                         style={{
@@ -1341,8 +1413,8 @@ function LessonManagement({ onNavigate }) {
                 borderRadius: '12px'
               }}>
                 <i className="fas fa-book" style={{ fontSize: '48px', color: '#ccc', marginBottom: '16px' }}></i>
-                <h3 style={{ color: '#666', marginBottom: '8px' }}>No Lessons Yet</h3>
-                <p style={{ color: '#999' }}>Click "Create New Lesson" to add your first lesson.</p>
+                <h3 style={{ color: '#666', marginBottom: '8px' }}>No Courses Yet</h3>
+                <p style={{ color: '#999' }}>Click "Create New Course" to add your first course with chapters.</p>
               </div>
             )}
           </div>
@@ -1353,22 +1425,46 @@ function LessonManagement({ onNavigate }) {
       {showModal && (
         <div className="modal-overlay">
           <div className="create-lesson-modal">
-            <h2>Create New Lesson</h2>
+            <h2>Create New Course</h2>
 
             <div className="modal-form">
               <div className="form-row">
                 <div className="form-group">
-                  <label>Lesson Title *</label>
+                  <label>Course Title *</label>
                   <input
                     name="title"
                     value={formData.title}
                     onChange={handleChange}
                     type="text"
-                    placeholder="Enter lesson title"
+                    placeholder="Enter course title"
                   />
                 </div>
                 <div className="form-group">
-                  <label>Subject *</label>
+                  <label>Subject Type *</label>
+                  <select
+                    name="subjectType"
+                    value={formData.subjectType}
+                    onChange={handleChange}
+                  >
+                    <option value="other">Select subject type</option>
+                    <option value="mathematics">Mathematics</option>
+                    <option value="science">Science</option>
+                    <option value="physics">Physics</option>
+                    <option value="chemistry">Chemistry</option>
+                    <option value="biology">Biology</option>
+                    <option value="english">English</option>
+                    <option value="arabic">Arabic</option>
+                    <option value="history">History</option>
+                    <option value="geography">Geography</option>
+                    <option value="computer_science">Computer Science</option>
+                    <option value="programming">Programming</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-row">
+                <div className="form-group">
+                  <label>Subject Name *</label>
                   <select
                     name="subject"
                     value={formData.subject}
@@ -1389,9 +1485,22 @@ function LessonManagement({ onNavigate }) {
                     <option>Mechanical Engineering</option>
                     <option>Mechatronics Engineering</option>
                     <option>Chemical Engineering</option>
-                    
-                    
                   </select>
+                </div>
+                <div className="form-group">
+                  <label>Number of Chapters *</label>
+                  <input
+                    name="numberOfChapters"
+                    value={formData.numberOfChapters}
+                    onChange={handleChange}
+                    type="number"
+                    min="1"
+                    max="20"
+                    placeholder="e.g., 5"
+                  />
+                  <small style={{color: '#6c757d', fontSize: '0.8rem'}}>
+                    Each chapter will have slides, lectures, and an AI-generated quiz
+                  </small>
                 </div>
               </div>
 
@@ -1554,6 +1663,22 @@ function LessonManagement({ onNavigate }) {
               courseTitle={selectedLesson.title}
               isTeacher={true}
               onClose={() => setShowCourseDetail(false)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Course Chapters Manager Modal */}
+      {showChaptersManager && selectedLesson && (
+        <div className="modal-overlay" onClick={() => setShowChaptersManager(false)}>
+          <div 
+            className="modal chapters-manager-modal" 
+            onClick={(e) => e.stopPropagation()} 
+            style={{ maxWidth: 1000, maxHeight: '95vh', overflow: 'auto', padding: 0, borderRadius: 12 }}
+          >
+            <CourseChaptersManager
+              course={selectedLesson}
+              onBack={() => setShowChaptersManager(false)}
             />
           </div>
         </div>

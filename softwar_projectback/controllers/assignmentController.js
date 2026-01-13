@@ -79,6 +79,8 @@ exports.getAssignments = async (req, res, next) => {
   try {
     let { teacher, course, grade, specialization, subject, status } = req.query;
     const filter = {};
+    const userId = req.userId;
+    const userRole = req.User?.role;
 
     // Resolve teacher ID if it's 'admin' or invalid ObjectId
     if (teacher) {
@@ -122,6 +124,28 @@ exports.getAssignments = async (req, res, next) => {
       .populate('teacher', 'firstName lastName email')
       .sort({ dueDate: 1 });
 
+    // For students, sanitize submissions to only show their own
+    if (userRole === 'student') {
+      const sanitizedAssignments = assignments.map(assignment => {
+        const assignmentObj = assignment.toObject();
+        
+        // Find only this student's submission
+        const studentSubmission = assignmentObj.submissions?.find(
+          s => s.student && s.student.toString() === userId
+        );
+        
+        // Replace submissions array with only the student's submission info
+        return {
+          ...assignmentObj,
+          submissions: undefined, // Remove all submissions
+          mySubmission: studentSubmission || null,
+          hasSubmitted: !!studentSubmission,
+          submittedCount: assignment.submissions?.length || 0, // Keep count for display
+        };
+      });
+      return res.json(sanitizedAssignments);
+    }
+
     res.json(assignments);
   } catch (err) {
     next(err);
@@ -130,11 +154,31 @@ exports.getAssignments = async (req, res, next) => {
 
 exports.getAssignmentById = async (req, res, next) => {
   try {
+    const userId = req.userId;
+    const userRole = req.User?.role;
+    
     const assignment = await Assignment.findById(req.params.id)
       .populate('course', 'title subject grade')
       .populate('teacher', 'firstName lastName email')
       .populate('submissions.student', 'firstName lastName email');
     if (!assignment) return res.status(404).json({ message: 'Assignment not found' });
+    
+    // For students, only show their own submission
+    if (userRole === 'student') {
+      const assignmentObj = assignment.toObject();
+      const studentSubmission = assignmentObj.submissions?.find(
+        s => s.student && (s.student._id?.toString() === userId || s.student.toString() === userId)
+      );
+      
+      return res.json({
+        ...assignmentObj,
+        submissions: undefined,
+        mySubmission: studentSubmission || null,
+        hasSubmitted: !!studentSubmission,
+        submittedCount: assignment.submissions?.length || 0,
+      });
+    }
+    
     res.json(assignment);
   } catch (err) {
     next(err);

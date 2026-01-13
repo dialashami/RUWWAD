@@ -251,7 +251,7 @@ export function StudentProvider({ children }) {
     return 'subj-default';
   };
 
-  // Update student profile
+  // Update student profile (local state + localStorage only)
   const updateStudent = useCallback((updates) => {
     setStudent(prev => ({ ...prev, ...updates }));
     
@@ -265,6 +265,60 @@ export function StudentProvider({ children }) {
       }
     } catch {
       // ignore
+    }
+  }, []);
+
+  // Save student profile to backend (persists changes)
+  const saveStudentProfile = useCallback(async (profileData) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('Not authenticated');
+      }
+
+      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/auth/profile`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(profileData),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to save profile');
+      }
+
+      const savedData = await res.json();
+      
+      // Update local state with saved data
+      const gradeValue = savedData.studentType === 'university' 
+        ? 'University' 
+        : (savedData.schoolGrade?.replace(/\D/g, '') || '');
+      
+      const updatedStudent = {
+        id: savedData._id || savedData.id,
+        firstName: savedData.firstName || '',
+        lastName: savedData.lastName || '',
+        email: savedData.email || '',
+        grade: gradeValue,
+        universityMajor: savedData.universityMajor || '',
+        studentType: savedData.studentType || 'school',
+        profilePicture: savedData.profilePicture || null,
+        bio: savedData.bio || '',
+        phone: savedData.phone || '',
+      };
+      
+      setStudent(updatedStudent);
+      
+      // Update localStorage
+      localStorage.setItem('user', JSON.stringify(savedData));
+      
+      return { success: true, data: savedData };
+    } catch (err) {
+      console.error('Error saving student profile:', err);
+      return { success: false, error: err.message };
     }
   }, []);
 
@@ -340,6 +394,7 @@ export function StudentProvider({ children }) {
     refreshData,
     loadStudentData,
     loadProgressData,
+    saveStudentProfile,
     updateUnreadMessages,
     decrementUnreadMessages,
     updateUnreadNotifications,

@@ -1,0 +1,675 @@
+.chapter-editor-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.chapter-editor-modal {
+  background: #fff;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 900px;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.chapter-editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+}
+
+.chapter-editor-header h2 {
+  margin: 0;
+  font-size: 1.4rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.chapter-editor-header .close-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: #fff;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.chapter-editor-header .close-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.chapter-message {
+  padding: 12px 24px;
+  font-size: 0.9rem;
+}
+
+.chapter-message.success {
+  background: #d4edda;
+  color: #155724;
+  border-bottom: 1px solid #c3e6cb;
+}
+
+.chapter-message.error {
+  background: #f8d7da;
+  color: #721c24;
+  border-bottom: 1px solid #f5c6cb;
+}
+
+.chapter-editor-tabs {
+  display: flex;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.chapter-editor-tabs button {
+  flex: 1;
+  padding: 14px 20px;
+  border: none;
+  background: transparent;
+  color: #6c757d;
+  font-size: 0.95rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s;
+  border-bottom: 3px solid transparent;
+}
+
+.chapter-editor-tabs button:hover {
+  color: #667eea;
+  background: #f1f3f5;
+}
+
+.chapter-editor-tabs button.active {
+  color: #667eea;
+  border-bottom-color: #667eea;
+  background: #fff;
+}
+
+.chapter-editor-content {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.chapter-editor-content h3 {
+  margin: 0 0 8px 0;
+  color: #333;
+  font-size: 1.2rem;
+}
+
+.section-description {
+  color: #6c757d;
+  margin-bottom: 20px;
+  font-size: 0.9rem;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 500;
+  color: #333;
+  font-size: 0.9rem;
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.form-group textarea {
+  resize: vertical;
+  min-height: 150px;
+  font-family: inherit;
+  line-height: 1.5;
+}
+
+.char-count {
+  display: block;
+  text-align: right;
+  font-size: 0.8rem;
+  color: #6c757d;
+  margin-top: 4px;
+}
+
+.form-row {
+  display: flex;
+  gap: 16px;
+}
+
+.form-row .form-group {
+  flex: 1;
+}
+
+.save-btn, .add-btn, .generate-btn, .regenerate-btn {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.95rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s;
+}
+
+.save-btn {
+  background: #667eea;
+  color: #fff;
+}
+
+.save-btn:hover:not(:disabled) {
+  background: #5a6fd6;
+}
+
+.add-btn {
+  background: #28a745;
+  color: #fff;
+}
+
+.add-btn:hover:not(:disabled) {
+  background: #218838;
+}
+
+.generate-btn {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  font-size: 1rem;
+  padding: 14px 28px;
+}
+
+.generate-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.regenerate-btn {
+  background: #fd7e14;
+  color: #fff;
+}
+
+.regenerate-btn:hover:not(:disabled) {
+  background: #e8710c;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Lectures Section */
+.add-lecture-form {
+  background: #f8f9fa;
+  padding: 16px;
+  border-radius: 8px;
+  margin-bottom: 24px;
+}
+
+.lectures-list h4 {
+  margin: 0 0 12px 0;
+  color: #333;
+}
+
+.empty-message {
+  color: #6c757d;
+  font-style: italic;
+}
+
+.lecture-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #fff;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+
+.lecture-item i:first-child {
+  color: #667eea;
+  font-size: 1.2rem;
+}
+
+.lecture-title {
+  flex: 1;
+  font-weight: 500;
+}
+
+.lecture-item a {
+  color: #6c757d;
+  text-decoration: none;
+}
+
+.lecture-item a:hover {
+  color: #667eea;
+}
+
+/* Quiz Section */
+.quiz-status {
+  margin-bottom: 20px;
+}
+
+.quiz-generated, .quiz-not-generated {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 6px;
+}
+
+.quiz-generated {
+  background: #d4edda;
+  color: #155724;
+}
+
+.quiz-generated i {
+  color: #28a745;
+}
+
+.quiz-not-generated {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.quiz-not-generated i {
+  color: #ffc107;
+}
+
+.quiz-settings {
+  background: #f8f9fa;
+  padding: 16px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.quiz-settings h4 {
+  margin: 0 0 16px 0;
+  color: #333;
+}
+
+.quiz-actions {
+  margin-bottom: 16px;
+}
+
+.warning-message {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #856404;
+  background: #fff3cd;
+  padding: 12px 16px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.warning-message i {
+  color: #ffc107;
+}
+
+/* Slides Section Enhanced */
+.slides-upload-area {
+  border: 2px dashed #ced4da;
+  border-radius: 8px;
+  padding: 24px;
+  text-align: center;
+  background: #f8f9fa;
+  margin-bottom: 20px;
+  transition: all 0.2s;
+}
+
+.slides-upload-area:hover {
+  border-color: #667eea;
+  background: #f1f3ff;
+}
+
+.slides-upload-area i {
+  font-size: 2.5rem;
+  color: #667eea;
+  margin-bottom: 12px;
+}
+
+.slides-upload-area p {
+  margin: 0;
+  color: #6c757d;
+}
+
+.file-url-section {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid #e9ecef;
+}
+
+.file-url-section h4 {
+  margin: 0 0 12px 0;
+  color: #333;
+  font-size: 1rem;
+}
+
+.file-url-input {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.file-url-input input {
+  flex: 1;
+  padding: 10px 14px;
+  border: 1px solid #ced4da;
+  border-radius: 6px;
+  font-size: 0.95rem;
+}
+
+.file-url-input input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.file-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: #fff;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+}
+
+.file-item i.fa-file-pdf {
+  color: #dc3545;
+}
+
+.file-item i.fa-file-powerpoint {
+  color: #fd7e14;
+}
+
+.file-item i.fa-file-alt {
+  color: #667eea;
+}
+
+.file-item span {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-item a {
+  color: #667eea;
+  text-decoration: none;
+}
+
+.file-item a:hover {
+  text-decoration: underline;
+}
+
+.file-item .remove-btn {
+  background: none;
+  border: none;
+  color: #dc3545;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.file-item .remove-btn:hover {
+  background: #fee2e2;
+}
+
+/* Char Count Status */
+.char-count.good {
+  color: #28a745;
+}
+
+.char-count.warning {
+  color: #856404;
+}
+
+/* Resources Section */
+.resources-section h4 {
+  margin: 0 0 16px 0;
+  color: #333;
+}
+
+.resource-type-selector {
+  margin-bottom: 20px;
+}
+
+.resource-type-selector label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: #333;
+}
+
+.type-buttons {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.type-buttons button {
+  padding: 10px 16px;
+  border: 2px solid #e9ecef;
+  background: #fff;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s;
+  color: #6c757d;
+}
+
+.type-buttons button:hover {
+  border-color: #667eea;
+  color: #667eea;
+}
+
+.type-buttons button.active {
+  border-color: #667eea;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+}
+
+.add-resource-form {
+  background: #f8f9fa;
+  padding: 16px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.resources-list h4 {
+  margin: 0 0 12px 0;
+  color: #333;
+}
+
+.resource-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #fff;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  margin-bottom: 8px;
+}
+
+.resource-item.image {
+  border-left: 3px solid #28a745;
+}
+
+.resource-item.file {
+  border-left: 3px solid #667eea;
+}
+
+.resource-item.text {
+  border-left: 3px solid #ffc107;
+}
+
+.resource-item.link {
+  border-left: 3px solid #17a2b8;
+}
+
+.resource-item i:first-child {
+  font-size: 1.2rem;
+}
+
+.resource-item i.fa-image {
+  color: #28a745;
+}
+
+.resource-item i.fa-file {
+  color: #667eea;
+}
+
+.resource-item i.fa-align-left {
+  color: #ffc107;
+}
+
+.resource-item i.fa-link {
+  color: #17a2b8;
+}
+
+.resource-info {
+  flex: 1;
+}
+
+.resource-title {
+  font-weight: 500;
+  color: #333;
+  display: block;
+}
+
+.resource-type {
+  font-size: 0.8rem;
+  color: #6c757d;
+  text-transform: capitalize;
+}
+
+.resource-item .preview-btn {
+  background: none;
+  border: none;
+  color: #667eea;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 4px;
+}
+
+.resource-item .preview-btn:hover {
+  background: #f1f3ff;
+}
+
+.resource-item .remove-btn {
+  background: none;
+  border: none;
+  color: #dc3545;
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 4px;
+}
+
+.resource-item .remove-btn:hover {
+  background: #fee2e2;
+}
+
+/* Empty State */
+.empty-resources {
+  text-align: center;
+  padding: 30px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  color: #6c757d;
+}
+
+.empty-resources i {
+  font-size: 2.5rem;
+  margin-bottom: 12px;
+  color: #ced4da;
+}
+
+.empty-resources p {
+  margin: 0;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .chapter-editor-modal {
+    max-height: 95vh;
+  }
+  
+  .form-row {
+    flex-direction: column;
+    gap: 0;
+  }
+  
+  .chapter-editor-tabs button {
+    padding: 12px 10px;
+    font-size: 0.85rem;
+  }
+  
+  .chapter-editor-tabs button span {
+    display: none;
+  }
+  
+  .type-buttons {
+    flex-direction: column;
+  }
+  
+  .type-buttons button {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .file-url-input {
+    flex-direction: column;
+  }
+}

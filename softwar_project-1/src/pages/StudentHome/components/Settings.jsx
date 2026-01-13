@@ -16,7 +16,7 @@ import { useStudent } from '../context/StudentContext';
 
 export default function Settings() {
   // Get student data from context
-  const { student, updateStudent, refreshData } = useStudent();
+  const { student, updateStudent, saveStudentProfile, refreshData } = useStudent();
 
   // STATE
   const [darkMode, setDarkMode] = useState(false);
@@ -200,85 +200,101 @@ export default function Settings() {
     setAvatarUrl(null);
   };
 
+  // State for tracking if there are unsaved changes
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Track changes to enable auto-save detection
+  useEffect(() => {
+    if (student) {
+      const studentGrade = student.studentType === 'university' ? 'University' : (student.grade || '');
+      const hasChanges = 
+        firstName !== (student.firstName || '') ||
+        lastName !== (student.lastName || '') ||
+        email !== (student.email || '') ||
+        phone !== (student.phone || '') ||
+        bio !== (student.bio || '') ||
+        gradeLevel !== studentGrade ||
+        universityMajor !== (student.universityMajor || '');
+      setHasUnsavedChanges(hasChanges);
+    }
+  }, [firstName, lastName, email, phone, bio, gradeLevel, universityMajor, student]);
+
   const handleSaveChanges = async () => {
+    if (isSaving) return;
+    setIsSaving(true);
+    
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        alert('Not authenticated');
-        return;
-      }
-
-      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/auth/profile`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          firstName,
-          lastName,
-          email,
-          phone,
-          bio,
-          profilePicture: avatarUrl,
-          grade: gradeLevel === 'University' ? 'University' : `Grade ${gradeLevel}`,
-          universityMajor: gradeLevel === 'University' ? universityMajor : null,
-        }),
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        if (res.status === 401 || errorData.message?.toLowerCase().includes('expired') || errorData.message?.toLowerCase().includes('jwt')) {
-          alert('Your session has expired. Please log in again.');
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-          window.location.href = '/login';
-          return;
-        }
-        alert(errorData.message || 'Failed to save changes');
-        return;
-      }
-
-      // Update context and localStorage
-      updateStudent({
+      // Use context's saveStudentProfile if available, otherwise direct API call
+      const profileData = {
         firstName,
         lastName,
         email,
         phone,
         bio,
         profilePicture: avatarUrl,
-        grade: gradeLevel === 'University' ? 'University' : gradeLevel,
-        studentType: gradeLevel === 'University' ? 'university' : 'school',
+        grade: gradeLevel === 'University' ? 'University' : `Grade ${gradeLevel}`,
         universityMajor: gradeLevel === 'University' ? universityMajor : null,
-      });
+      };
 
-      // Also update localStorage for persistence
-      try {
-        const storedUser = localStorage.getItem('user');
-        if (storedUser) {
-          const parsed = JSON.parse(storedUser);
-          parsed.firstName = firstName;
-          parsed.lastName = lastName;
-          parsed.email = email;
-          parsed.phone = phone;
-          parsed.bio = bio;
-          parsed.profilePicture = avatarUrl;
-          // Update studentType and grade fields properly
-          if (gradeLevel === 'University') {
-            parsed.studentType = 'university';
-            parsed.schoolGrade = null;
-            parsed.universityMajor = universityMajor || null;
-          } else {
-            parsed.studentType = 'school';
-            parsed.schoolGrade = `grade${gradeLevel}`;
-            parsed.universityMajor = null;
+      if (saveStudentProfile) {
+        const result = await saveStudentProfile(profileData);
+        if (!result.success) {
+          if (result.error?.toLowerCase().includes('expired') || result.error?.toLowerCase().includes('jwt')) {
+            alert('Your session has expired. Please log in again.');
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = '/login';
+            return;
           }
-          localStorage.setItem('user', JSON.stringify(parsed));
+          alert(result.error || 'Failed to save changes');
+          return;
         }
-      } catch {
-        // ignore
+      } else {
+        // Fallback to direct API call
+        const token = localStorage.getItem('token');
+        if (!token) {
+          alert('Not authenticated');
+          return;
+        }
+
+        const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/auth/profile`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(profileData),
+        });
+
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({}));
+          if (res.status === 401 || errorData.message?.toLowerCase().includes('expired') || errorData.message?.toLowerCase().includes('jwt')) {
+            alert('Your session has expired. Please log in again.');
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = '/login';
+            return;
+          }
+          alert(errorData.message || 'Failed to save changes');
+          return;
+        }
+
+        // Update context and localStorage
+        updateStudent({
+          firstName,
+          lastName,
+          email,
+          phone,
+          bio,
+          profilePicture: avatarUrl,
+          grade: gradeLevel === 'University' ? 'University' : gradeLevel,
+          studentType: gradeLevel === 'University' ? 'university' : 'school',
+          universityMajor: gradeLevel === 'University' ? universityMajor : null,
+        });
       }
 
+      setHasUnsavedChanges(false);
       setSaveSuccess(true);
       
       // Refresh data across all components
@@ -288,6 +304,8 @@ export default function Settings() {
     } catch (err) {
       console.error('Error saving profile:', err);
       alert('Error saving changes. Please try again.');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -580,14 +598,26 @@ export default function Settings() {
                 <button
                   className="btn-gradient-primary btn-lg w-full-mobile"
                   onClick={handleSaveChanges}
+                  disabled={isSaving}
+                  style={{ 
+                    opacity: isSaving ? 0.7 : 1,
+                    position: 'relative'
+                  }}
                 >
-                  Save Changes
+                  {isSaving ? 'Saving...' : hasUnsavedChanges ? 'Save Changes *' : 'Save Changes'}
                 </button>
 
                 {saveSuccess && (
                   <div className="save-toast">
                     <span className="save-toast-dot" />
                     <span>Saved</span>
+                  </div>
+                )}
+                
+                {hasUnsavedChanges && !saveSuccess && (
+                  <div className="save-toast" style={{ backgroundColor: '#fef3c7', color: '#92400e' }}>
+                    <span className="save-toast-dot" style={{ backgroundColor: '#f59e0b' }} />
+                    <span>Unsaved changes</span>
                   </div>
                 )}
               </div>

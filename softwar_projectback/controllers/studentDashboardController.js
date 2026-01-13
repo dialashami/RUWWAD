@@ -128,6 +128,56 @@ exports.getDashboard = async (req, res, next) => {
       })),
     ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 10);
 
+    // Sanitize courses - remove other students' progress data and only include current student's progress
+    const sanitizedCourses = courses.slice(0, 6).map(course => {
+      const courseObj = course.toObject();
+      
+      // Find only this student's video progress
+      const studentProgress = courseObj.videoProgress?.find(
+        vp => vp.student && vp.student.toString() === userId
+      );
+      
+      // Calculate progress for this student
+      const totalVideos = (courseObj.videoUrls?.length || 0) + (courseObj.uploadedVideos?.length || 0);
+      let watchedCount = 0;
+      if (studentProgress) {
+        watchedCount = 
+          (studentProgress.watchedVideoUrls?.length || 0) + 
+          (studentProgress.watchedUploadedVideos?.length || 0);
+      }
+      const progressPercent = totalVideos > 0 ? Math.round((watchedCount / totalVideos) * 100) : 0;
+      
+      // Remove all videoProgress data (contains other students' data) and students array
+      delete courseObj.videoProgress;
+      delete courseObj.students;
+      
+      return {
+        ...courseObj,
+        progress: progressPercent,
+        totalVideos,
+        watchedVideos: watchedCount,
+      };
+    });
+
+    // Sanitize assignments - remove other students' submissions
+    const sanitizedAssignments = assignments.slice(0, 6).map(assignment => {
+      const assignmentObj = assignment.toObject();
+      
+      // Find only this student's submission
+      const studentSubmission = assignmentObj.submissions?.find(
+        s => s.student && s.student.toString() === userId
+      );
+      
+      // Remove all submissions (contains other students' data)
+      delete assignmentObj.submissions;
+      
+      return {
+        ...assignmentObj,
+        mySubmission: studentSubmission || null,
+        hasSubmitted: !!studentSubmission,
+      };
+    });
+
     return res.json({
       studentId: userId,
       studentName: `${student.firstName} ${student.lastName}`,
