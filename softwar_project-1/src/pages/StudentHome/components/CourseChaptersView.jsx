@@ -228,8 +228,15 @@ function CourseChaptersView({ course, studentId, onBack }) {
                     {chapter.studentProgress?.allLecturesCompleted && <i className="fas fa-check"></i>}
                   </div>
                   <div className="progress-item">
-                    <i className={`fas fa-question-circle ${chapter.studentProgress?.quizPassed ? 'done' : ''}`}></i>
-                    <span>Quiz {chapter.studentProgress?.quizPassed ? `(${chapter.studentProgress?.bestScore}%)` : ''}</span>
+                    <i className={`fas fa-question-circle ${chapter.studentProgress?.quizPassed ? 'done' : chapter.studentProgress?.quizAttempts > 0 ? 'attempted' : ''}`}></i>
+                    <span>
+                      Quiz 
+                      {chapter.studentProgress?.bestScore > 0 && (
+                        <span className={chapter.studentProgress?.quizPassed ? 'score-passed' : 'score-failed'}>
+                          ({chapter.studentProgress?.bestScore}%)
+                        </span>
+                      )}
+                    </span>
                     {chapter.studentProgress?.quizPassed && <i className="fas fa-check"></i>}
                   </div>
                 </div>
@@ -283,10 +290,14 @@ function CourseChaptersView({ course, studentId, onBack }) {
                     return (
                       <button 
                         onClick={() => handleStartQuiz(chapter)}
-                        className={chapter.studentProgress?.quizPassed ? 'retake' : 'primary'}
+                        className={chapter.studentProgress?.quizPassed ? 'retake' : chapter.studentProgress?.quizAttempts > 0 ? 'retry' : 'primary'}
                       >
                         <i className="fas fa-clipboard-list"></i>
-                        {chapter.studentProgress?.quizPassed ? 'Retake Quiz' : 'Take Quiz'}
+                        {chapter.studentProgress?.quizPassed 
+                          ? 'Retake Quiz' 
+                          : chapter.studentProgress?.quizAttempts > 0 
+                            ? 'Retry Quiz' 
+                            : 'Take Quiz'}
                       </button>
                     );
                   })()}
@@ -548,9 +559,22 @@ function CourseChaptersView({ course, studentId, onBack }) {
           </div>
           
           <div className="view-footer">
-            <button onClick={() => { setQuizState(null); setViewMode('list'); }}>
-              Back to Chapters
-            </button>
+            {quizState.result.passed ? (
+              <>
+                <button className="success-btn" onClick={() => { setQuizState(null); setViewMode('list'); fetchChapters(); }}>
+                  <i className="fas fa-check-circle"></i> Chapter Complete - Continue
+                </button>
+              </>
+            ) : (
+              <>
+                <button onClick={() => { setQuizState(null); handleStartQuiz(selectedChapter); }}>
+                  <i className="fas fa-redo"></i> Retry Quiz
+                </button>
+                <button onClick={() => { setQuizState(null); setViewMode('list'); }}>
+                  Back to Chapters
+                </button>
+              </>
+            )}
           </div>
         </div>
       );

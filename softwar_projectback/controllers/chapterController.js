@@ -406,7 +406,7 @@ exports.extractPdfText = async (req, res, next) => {
     // Convert base64 to buffer
     const pdfBuffer = Buffer.from(base64Data, 'base64');
     
-    // Parse PDF and extract text
+    // Parse PDF and extract text using pdf-parse v1.x API
     const pdfData = await pdfParse(pdfBuffer);
     
     if (!pdfData.text || pdfData.text.trim().length === 0) {
