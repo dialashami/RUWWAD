@@ -367,14 +367,14 @@ export default function LoginScreen({ navigation }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#6a11cb',
+    backgroundColor: '#3498db',
   },
   scrollContent: {
     flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
-    background: 'linear-gradient(135deg, #6a11cb 0%, #2575fc 100%)',
+    background: 'linear-gradient(135deg, #2c3e50 0%, #3498db 100%)',
   },
   loginBox: {
     backgroundColor: '#ffffff',

@@ -137,12 +137,12 @@ background: linear-gradient(180deg, #2c3e50  );
     transition: all 0.2s ease;
 }
 
-.sidebar nav button:hover svg {    background: linear-gradient(180deg, #3498db 0%, #3498db 100%);
+.sidebar nav button:hover svg {    background: linear-gradient(180deg, #2c3e50 0%, #3498db 100%);
 
     color: #2c3e50;
 }
 
-.sidebar nav button.active svg {    background: linear-gradient(180deg, #3498db 0%, #3498db 100%);
+.sidebar nav button.active svg {    background: linear-gradient(180deg, #2c3e50 0%, #3498db 100%);
 
     color: #2c3e50;
 }
@@ -2613,7 +2613,7 @@ button:hover {
   position: fixed;
   bottom: 2rem;
   right: 2rem;
-  background: linear-gradient(135deg, #3498db, #3498db);
+  background: linear-gradient(135deg, #3498db, #2c3e50);
   color: #fff;
   border: none;
   border-radius: 50%;
@@ -2669,7 +2669,7 @@ button:hover {
 
 /* تحسين الأزرار */
 .bg-purple-600 {
-  background: linear-gradient(135deg, #3498db 0%, #3498db 100%);
+  background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
   border: none;
   box-shadow: 
     0 4px 15px rgba(139, 92, 246, 0.3),
@@ -2680,7 +2680,7 @@ button:hover {
 }
 
 .bg-purple-600:hover {
-  background: linear-gradient(135deg, #3498db 0%, #3498db 100%);
+  background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
   transform: translateY(-2px);
   box-shadow: 
     0 8px 25px rgba(139, 92, 246, 0.4),
@@ -2720,7 +2720,7 @@ button:hover {
   left: 0;
   width: 60px;
   height: 4px;
-  background: linear-gradient(135deg, #3498db 0%, #3498db 100%);
+  background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
   border-radius: 2px;
 }
 
@@ -2745,7 +2745,7 @@ button:hover {
   left: 0;
   right: 0;
   height: 3px;
-  background: linear-gradient(135deg, #3498db 0%, #3498db 100%);
+  background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
 }
 
 .bg-green-50::before {
@@ -2791,7 +2791,7 @@ button:hover {
   transform: translateX(-50%);
   width: 0;
   height: 3px;
-  background: linear-gradient(135deg, #3498db 0%, #3498db 100%);
+  background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
   border-radius: 2px;
   transition: width 0.3s ease;
 }
@@ -2826,7 +2826,7 @@ button:hover {
 
 /* تحسين الزر العائم */
 .fixed.bottom-8.right-8 {
-  background: linear-gradient(135deg, #3498db 0%, #3498db 100%);
+  background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
   border: none;
   box-shadow: 
     0 8px 30px rgba(139, 92, 246, 0.4),
@@ -5399,7 +5399,7 @@ transform: none;
 }
 
 .feedback-textarea:focus {
-  border-color: #4f46e5;
+  border-color: #3498db;
   box-shadow: 0 0 0 1px rgba(79, 70, 229, 0.1);
 }
 
@@ -5411,7 +5411,7 @@ transform: none;
   padding: 10px 14px;
   font-weight: 600;
   font-size: 14px;
-  background: #4f46e5;
+  background: #3498db;
   color: white;
   cursor: pointer;
   transition: background 0.15s ease, transform 0.1s ease;

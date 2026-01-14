@@ -1328,7 +1328,7 @@ const handleCreateAssignment = async () => {
                       alignItems: 'center',
                       gap: '8px',
                       padding: '10px 20px',
-                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      background: 'linear-gradient(135deg, #2c3e50 0%, #3498db 100%)',
                       color: '#fff',
                       border: 'none',
                       borderRadius: '8px',
@@ -1444,7 +1444,7 @@ const handleCreateAssignment = async () => {
                               onClick={() => handleGradeStudent(selectedAssignment, student)}
                               title="Grade submission"
                               style={{
-                                background: '#8b5cf6',
+                                background: '#3498db',
                                 color: '#fff',
                                 border: 'none',
                                 borderRadius: '6px',
@@ -1458,10 +1458,10 @@ const handleCreateAssignment = async () => {
                                 transition: 'all 0.2s ease',
                               }}
                               onMouseOver={(e) => {
-                                e.currentTarget.style.background = '#7c3aed';
+                                e.currentTarget.style.background = '#3498db';
                               }}
                               onMouseOut={(e) => {
-                                e.currentTarget.style.background = '#8b5cf6';
+                                e.currentTarget.style.background = '#3498db';
                               }}
                             >
                               <i className="fas fa-edit"></i>

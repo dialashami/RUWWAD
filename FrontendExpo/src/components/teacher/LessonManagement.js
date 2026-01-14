@@ -1782,7 +1782,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#667eea',
+    backgroundColor: '#3498db',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,

@@ -3,7 +3,7 @@ src/pages/TeacherHome/styles/dashboard.css
 /* Reset and Base Styles */
 .dashboard-container {
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
   min-height: 100vh;
   padding: 0;
   margin: 0;
@@ -364,7 +364,7 @@ src/pages/TeacherHome/styles/dashboard.css
   width: 50px;
   height: 50px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -574,13 +574,13 @@ src/pages/TeacherHome/styles/dashboard.css
 }
 
 .card-header h3 svg {
-  color: #667eea;
+  color: #3498db;
 }
 
 .view-all-btn {
   background: none;
   border: none;
-  color: #667eea;
+  color: #3498db;
   font-size: 0.9rem;
   cursor: pointer;
   font-weight: 500;
@@ -599,7 +599,7 @@ src/pages/TeacherHome/styles/dashboard.css
   background: #f8fafc;
   border-radius: 12px;
   margin-bottom: 12px;
-  border-left: 4px solid #667eea;
+  border-left: 4px solid #3498db;
   transition: all 0.3s;
 }
 
@@ -612,7 +612,7 @@ src/pages/TeacherHome/styles/dashboard.css
   display: flex;
   align-items: center;
   gap: 6px;
-  background: #667eea;
+  background: #3498db;
   color: white;
   padding: 8px 12px;
   border-radius: 8px;
@@ -759,7 +759,7 @@ src/pages/TeacherHome/styles/dashboard.css
 
 .weekly-bar {
   width: 30px;
-  background: linear-gradient(to top, #667eea, #764ba2);
+  background: linear-gradient(to top, #3498db, #3498db);
   border-radius: 5px 5px 0 0;
   min-height: 20px;
   transition: height 0.3s;

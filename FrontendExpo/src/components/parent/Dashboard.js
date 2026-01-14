@@ -440,7 +440,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   overallText: {
-    color: '#7c3aed',
+    color: '#3498db',
     fontWeight: '600',
     fontSize: 13,
   },

@@ -21,8 +21,8 @@
 //         {/* Right Section */}
 //         <div className="flex items-center gap-4 flex-shrink-0">
 //           {/* Quick Actions Info */}
-//           <div className="hidden lg:flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-[#4F46E5]/10 to-[#9333EA]/10">
-//             <span className="text-[#4F46E5]" style={{ fontSize: '13px', fontWeight: '600' }}>
+//           <div className="hidden lg:flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-[#3498db]/10 to-[#9333EA]/10">
+//             <span className="text-[#3498db]" style={{ fontSize: '13px', fontWeight: '600' }}>
 //               📚 5 lessons today
 //             </span>
 //           </div>
@@ -31,7 +31,7 @@
 //           <button className="relative p-2 hover:bg-gray-100 rounded-full transition-colors">
 //             <Bell className="w-6 h-6 text-gray-600" />
 //             <Badge 
-//               className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 bg-gradient-to-r from-[#4F46E5] to-[#9333EA] text-white border-2 border-white"
+//               className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 bg-gradient-to-r from-[#3498db] to-[#9333EA] text-white border-2 border-white"
 //               style={{ fontSize: '10px' }}
 //             >
 //               3

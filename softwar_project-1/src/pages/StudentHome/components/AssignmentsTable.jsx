@@ -54,9 +54,9 @@ const statusConfig = {
   },
   upcoming: {
     label: 'Upcoming',
-    color: 'bg-[#4F46E5] text-white',
+    color: 'bg-[#3498db] text-white',
     icon: CheckCircle2,
-    iconColor: 'text-[#4F46E5]',
+    iconColor: 'text-[#3498db]',
   },
   late: {
     label: 'Overdue',
@@ -121,7 +121,7 @@ export function AssignmentsTable() {
                 </div>
                 <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-gradient-to-r from-[#4F46E5] to-[#9333EA] rounded-full transition-all"
+                    className="h-full bg-gradient-to-r from-[#3498db] to-[#9333EA] rounded-full transition-all"
                     style={{ width: `${assignment.progress}%` }}
                   />
                 </div>

@@ -89,7 +89,7 @@ export default function DashboardOverview() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#4f46e5" />
+        <ActivityIndicator size="large" color="#3498db" />
       </View>
     );
   }
@@ -122,7 +122,7 @@ export default function DashboardOverview() {
           <Text style={styles.statLabel}>Total Users</Text>
         </View>
 
-        <View style={[styles.statCard, { borderLeftColor: '#8b5cf6' }]}>
+        <View style={[styles.statCard, { borderLeftColor: '#3498db' }]}>
           <Text style={styles.statIcon}>🎓</Text>
           <Text style={styles.statValue}>{stats.totalStudents}</Text>
           <Text style={styles.statLabel}>Students</Text>
@@ -352,7 +352,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   viewAllBtn: {
-    color: '#4f46e5',
+    color: '#3498db',
     fontSize: 14,
   },
   alertItem: {

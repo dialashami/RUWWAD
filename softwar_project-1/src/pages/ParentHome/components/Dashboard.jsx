@@ -155,7 +155,7 @@ export default function Dashboard() {
               style={{
                 padding: '0.5rem 1rem',
                 borderRadius: '8px',
-                border: selectedChild === child._id ? '2px solid #6366f1' : '1px solid #e5e7eb',
+                border: selectedChild === child._id ? '2px solid #2c3e50' : '1px solid #e5e7eb',
                 backgroundColor: selectedChild === child._id ? '#eef2ff' : 'white',
                 cursor: 'pointer',
                 fontWeight: selectedChild === child._id ? 600 : 400,

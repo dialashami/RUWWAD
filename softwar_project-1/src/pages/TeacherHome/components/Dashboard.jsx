@@ -168,7 +168,7 @@ export function Dashboard() {
       {/* Stats Cards */}
       <div className="stats-grid">
         <div className="stat-card">
-          <div className="stat-icon" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
+          <div className="stat-icon" style={{ background: 'linear-gradient(135deg, #2c3e50 0%, #3498db 100%)' }}>
             <FaUsers />
           </div>
           <div className="stat-content">
@@ -267,7 +267,7 @@ export function Dashboard() {
             {courses.slice(0, 4).map((course) => (
               <div key={course._id} className="course-mini-card">
                 <div className="course-color-bar" style={{ 
-                  background: course.subject === 'Mathematics' ? '#667eea' :
+                  background: course.subject === 'Mathematics' ? '#3498db' :
                              course.subject === 'Physics' ? '#11998e' :
                              course.subject === 'Chemistry' ? '#eb3349' : '#4facfe'
                 }}></div>

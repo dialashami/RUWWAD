@@ -560,7 +560,7 @@ function ChapterDetail({ chapter, courseId, onClose, isTeacher = true }) {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+          background: 'linear-gradient(135deg, #2c3e50 0%, #3498db 100%)',
           color: '#fff',
         }}>
           <div>
@@ -580,7 +580,7 @@ function ChapterDetail({ chapter, courseId, onClose, isTeacher = true }) {
               borderRadius: '12px',
               padding: '10px 18px',
               cursor: 'pointer',
-              color: '#667eea',
+              color: '#3498db',
               fontSize: '0.95rem',
               fontWeight: '600',
               boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
@@ -619,11 +619,11 @@ function ChapterDetail({ chapter, courseId, onClose, isTeacher = true }) {
                 padding: '14px 16px',
                 border: 'none',
                 background: activeTab === tab.id ? '#fff' : 'transparent',
-                borderBottom: activeTab === tab.id ? '3px solid #667eea' : '3px solid transparent',
+                borderBottom: activeTab === tab.id ? '3px solid #3498db' : '3px solid transparent',
                 cursor: 'pointer',
                 fontSize: '0.9rem',
                 fontWeight: activeTab === tab.id ? 600 : 400,
-                color: activeTab === tab.id ? '#667eea' : '#6b7280',
+                color: activeTab === tab.id ? '#3498db' : '#6b7280',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -767,7 +767,7 @@ function ChapterDetail({ chapter, courseId, onClose, isTeacher = true }) {
                                 }}
                                 style={{
                                   padding: '8px 16px',
-                                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                  background: 'linear-gradient(135deg, #2c3e50 0%, #3498db 100%)',
                                   color: 'white',
                                   border: 'none',
                                   borderRadius: '6px',
@@ -824,7 +824,7 @@ function ChapterDetail({ chapter, courseId, onClose, isTeacher = true }) {
             <div>
               <div style={{ marginBottom: '20px' }}>
                 <h3 style={{ margin: '0 0 16px', color: '#1f2937' }}>
-                  <i className="fas fa-video" style={{ marginRight: '8px', color: '#8b5cf6' }}></i>
+                  <i className="fas fa-video" style={{ marginRight: '8px', color: '#3498db' }}></i>
                   Chapter Videos
                 </h3>
                 
@@ -836,7 +836,7 @@ function ChapterDetail({ chapter, courseId, onClose, isTeacher = true }) {
                     border: '1px solid #e9d5ff',
                     marginBottom: '20px',
                   }}>
-                    <label style={{ display: 'block', marginBottom: '10px', fontWeight: 500, color: '#7c3aed' }}>
+                    <label style={{ display: 'block', marginBottom: '10px', fontWeight: 500, color: '#3498db' }}>
                       Add Video URL (YouTube, Vimeo, etc.)
                     </label>
                     <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
@@ -858,7 +858,7 @@ function ChapterDetail({ chapter, courseId, onClose, isTeacher = true }) {
                         disabled={uploadingVideo || !newVideoUrl.trim()}
                         style={{
                           padding: '10px 20px',
-                          background: uploadingVideo ? '#9ca3af' : '#8b5cf6',
+                          background: uploadingVideo ? '#9ca3af' : '#3498db',
                           color: '#fff',
                           border: 'none',
                           borderRadius: '8px',
@@ -893,7 +893,7 @@ function ChapterDetail({ chapter, courseId, onClose, isTeacher = true }) {
                             height: '40px',
                             borderRadius: '8px',
                             background: '#faf5ff',
-                            color: '#8b5cf6',
+                            color: '#3498db',
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
@@ -908,7 +908,7 @@ function ChapterDetail({ chapter, courseId, onClose, isTeacher = true }) {
                               href={video.videoUrl} 
                               target="_blank" 
                               rel="noreferrer"
-                              style={{ fontSize: '0.8rem', color: '#8b5cf6' }}
+                              style={{ fontSize: '0.8rem', color: '#3498db' }}
                             >
                               {video.videoUrl}
                             </a>
@@ -926,7 +926,7 @@ function ChapterDetail({ chapter, courseId, onClose, isTeacher = true }) {
           {activeTab === 'quiz' && (
             <div>
               <h3 style={{ margin: '0 0 20px', color: '#1f2937' }}>
-                <i className="fas fa-clipboard-list" style={{ marginRight: '8px', color: '#8b5cf6' }}></i>
+                <i className="fas fa-clipboard-list" style={{ marginRight: '8px', color: '#3498db' }}></i>
                 Chapter Quiz
               </h3>
 
@@ -981,7 +981,7 @@ function ChapterDetail({ chapter, courseId, onClose, isTeacher = true }) {
                 marginBottom: '24px',
               }}>
                 <label style={{ display: 'block', marginBottom: '12px', fontWeight: 600, color: '#374151' }}>
-                  <i className="fas fa-file-alt" style={{ marginRight: '8px', color: '#667eea' }}></i>
+                  <i className="fas fa-file-alt" style={{ marginRight: '8px', color: '#3498db' }}></i>
                   Slide Content (Required for Quiz Generation)
                 </label>
                 
@@ -1089,7 +1089,7 @@ function ChapterDetail({ chapter, courseId, onClose, isTeacher = true }) {
                     disabled={savingSlideContent || !slideContent.trim()}
                     style={{
                       padding: '10px 20px',
-                      background: slideContent.trim() ? '#667eea' : '#9ca3af',
+                      background: slideContent.trim() ? '#3498db' : '#9ca3af',
                       color: 'white',
                       border: 'none',
                       borderRadius: '8px',
@@ -1110,7 +1110,7 @@ function ChapterDetail({ chapter, courseId, onClose, isTeacher = true }) {
                 border: '1px solid #e9d5ff',
                 marginBottom: '24px',
               }}>
-                <h4 style={{ margin: '0 0 16px', color: '#7c3aed' }}>
+                <h4 style={{ margin: '0 0 16px', color: '#3498db' }}>
                   <i className="fas fa-cog" style={{ marginRight: '8px' }}></i>
                   Quiz Settings
                 </h4>
@@ -1182,7 +1182,7 @@ function ChapterDetail({ chapter, courseId, onClose, isTeacher = true }) {
                     style={{
                       padding: '14px 32px',
                       background: slideContent.length >= 100 
-                        ? 'linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%)'
+                        ? 'linear-gradient(135deg, #3498db 0%, #2c3e50 100%)'
                         : '#9ca3af',
                       color: 'white',
                       border: 'none',
@@ -1193,7 +1193,7 @@ function ChapterDetail({ chapter, courseId, onClose, isTeacher = true }) {
                       display: 'flex',
                       alignItems: 'center',
                       gap: '10px',
-                      boxShadow: slideContent.length >= 100 ? '0 4px 15px rgba(139, 92, 246, 0.4)' : 'none',
+                      boxShadow: slideContent.length >= 100 ? '0 4px 15px #3498db' : 'none',
                     }}
                   >
                     {generatingQuiz ? (

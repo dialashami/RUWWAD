@@ -213,7 +213,7 @@ export default function NotificationManagement({ onUnreadCountChange }) {
       message: { bg: '#dbeafe', text: '#1d4ed8' },
       assignment: { bg: '#fef3c7', text: '#d97706' },
       course: { bg: '#d1fae5', text: '#059669' },
-      enrollment: { bg: '#e0e7ff', text: '#4f46e5' },
+      enrollment: { bg: '#e0e7ff', text: '#3498db' },
       system: { bg: '#fee2e2', text: '#dc2626' },
       grade: { bg: '#fce7f3', text: '#db2777' },
       other: { bg: '#f3f4f6', text: '#6b7280' },

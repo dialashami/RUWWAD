@@ -318,7 +318,7 @@ export default function AITutorPage() {
             Your personal AI assistant for learning
           </p>
         </div>
-        <Badge className="bg-gradient-to-r from-[#4F46E5] to-[#9333EA] text-white border-0 px-4 py-2">
+        <Badge className="bg-gradient-to-r from-[#3498db] to-[#9333EA] text-white border-0 px-4 py-2">
           <Sparkles className="w-4 h-4 mr-2" />
           AI Powered
         </Badge>
@@ -340,7 +340,7 @@ export default function AITutorPage() {
   <div key={conv.id} className="relative group">
     <button
       onClick={() => loadConversation(conv.id)}
-      className="w-full p-3 rounded-xl bg-gray-50 hover:bg-gradient-to-r hover:from-[#4F46E5]/10 hover:to-[#9333EA]/10 transition-all text-left"
+      className="w-full p-3 rounded-xl bg-gray-50 hover:bg-gradient-to-r hover:from-[#3498db]/10 hover:to-[#9333EA]/10 transition-all text-left"
     >
       <div className="flex flex-col">
         <p
@@ -385,7 +385,7 @@ export default function AITutorPage() {
             </div>
             <Button 
               onClick={handleNewConversation}
-              className="w-full mt-4 bg-gradient-to-r from-[#4F46E5] to-[#9333EA] hover:opacity-90 text-white rounded-xl"
+              className="w-full mt-4 bg-gradient-to-r from-[#3498db] to-[#9333EA] hover:opacity-90 text-white rounded-xl"
             >
               <Bot className="w-4 h-4 mr-2" />
               New Conversation
@@ -396,7 +396,7 @@ export default function AITutorPage() {
         {/* Right side */}
         <div className="lg:col-span-3 space-y-6">
           {/* Quick Actions */}
-          <Card className="p-6 rounded-2xl border-0 shadow-lg bg-gradient-to-br from-[#4F46E5] to-[#9333EA]">
+          <Card className="p-6 rounded-2xl border-0 shadow-lg bg-gradient-to-br from-[#3498db] to-[#9333EA]">
             <h3
               className="text-white mb-4"
               style={{ fontSize: '18px', fontWeight: '600' }}
@@ -447,7 +447,7 @@ export default function AITutorPage() {
                         <span style={{ fontSize: '16px' }}>👤</span>
                       </div>
                     ) : (
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#4F46E5] to-[#9333EA] flex items-center justify-center flex-shrink-0">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#3498db] to-[#9333EA] flex items-center justify-center flex-shrink-0">
                         <Bot className="w-6 h-6 text-white" />
                       </div>
                     )}
@@ -489,7 +489,7 @@ export default function AITutorPage() {
                 />
                 <Button
                   onClick={() => handleSend()}
-                  className="w-12 h-12 rounded-full p-0 bg-gradient-to-r from-[#4F46E5] to-[#9333EA] hover:opacity-90"
+                  className="w-12 h-12 rounded-full p-0 bg-gradient-to-r from-[#3498db] to-[#9333EA] hover:opacity-90"
                   disabled={isLoading}
                 >
                   <Send className="w-5 h-5" />

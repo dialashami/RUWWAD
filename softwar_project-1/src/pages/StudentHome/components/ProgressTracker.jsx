@@ -55,7 +55,7 @@ export function ProgressTracker() {
             />
             <defs>
               <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor="#4F46E5" />
+                <stop offset="0%" stopColor="#3498db" />
                 <stop offset="100%" stopColor="#9333EA" />
               </linearGradient>
             </defs>

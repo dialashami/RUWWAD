@@ -219,7 +219,7 @@ function ChapterEditor({ chapter: initialChapter, courseId, onUpdate, onClose })
           </div>
           <div className="chapter-editor-content" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px' }}>
             <div style={{ textAlign: 'center' }}>
-              <i className="fas fa-spinner fa-spin" style={{ fontSize: '2rem', color: '#667eea', marginBottom: '15px', display: 'block' }}></i>
+              <i className="fas fa-spinner fa-spin" style={{ fontSize: '2rem', color: '#3498db', marginBottom: '15px', display: 'block' }}></i>
               <p>Loading chapter data...</p>
             </div>
           </div>

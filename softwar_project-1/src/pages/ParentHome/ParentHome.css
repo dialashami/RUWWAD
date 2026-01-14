@@ -308,12 +308,12 @@ background: linear-gradient(180deg, #2c3e50  );
     transition: all 0.2s ease;
 }
 
-.sidebar nav button:hover svg {    background: linear-gradient(180deg, #3498db 0%, #3498db 100%);
+.sidebar nav button:hover svg {    background: linear-gradient(180deg, #2c3e50 0%, #3498db 100%);
 
     color: #2c3e50;
 }
 
-.sidebar nav button.active svg {    background: linear-gradient(180deg, #3498db 0%, #3498db 100%);
+.sidebar nav button.active svg {    background: linear-gradient(180deg, #2c3e50 0%, #3498db 100%);
 
     color: #2c3e50;
 }
@@ -1607,7 +1607,7 @@ background: linear-gradient(180deg, #2c3e50  );
 }
 
 .icon.unread.indigo {
-  color: #667eea;
+  color: #3498db;
 }
 
 .icon.unread.red {
@@ -1619,7 +1619,7 @@ background: linear-gradient(180deg, #2c3e50  );
 }
 
 .icon.unread.violet {
-  color: #8b5cf6;
+  color: #3498db;
 }
 
 .notification-details {
@@ -1687,7 +1687,7 @@ background: linear-gradient(180deg, #2c3e50  );
   padding: 0.25rem 0.75rem;
   border-radius: 12px;
   border: 1px solid rgba(102, 126, 234, 0.2);
-  color: #667eea;
+  color: #3498db;
   font-size: 0.8rem;
   font-weight: 600;
   background: rgba(102, 126, 234, 0.1);
@@ -2779,7 +2779,7 @@ transform: none;
 }
 
 .feedback-textarea:focus {
-  border-color: #4f46e5;
+  border-color: #3498db;
   box-shadow: 0 0 0 1px rgba(79, 70, 229, 0.1);
 }
 
@@ -2791,7 +2791,7 @@ transform: none;
   padding: 10px 14px;
   font-weight: 600;
   font-size: 14px;
-  background: #4f46e5;
+  background: #3498db;
   color: white;
   cursor: pointer;
   transition: background 0.15s ease, transform 0.1s ease;

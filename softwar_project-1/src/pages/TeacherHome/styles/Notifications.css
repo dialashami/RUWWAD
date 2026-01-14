@@ -216,13 +216,13 @@ color: #ffffff;
 }
 
 .template-card:hover {
-  border-color: #667eea;
+  border-color: #3498db;
   transform: translateY(-2px);
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 
 .template-card.selected {
-  border-color: #667eea;
+  border-color: #3498db;
   background: linear-gradient(135deg, #f8f9ff 0%, #f0f2ff 100%);
 }
 
@@ -292,7 +292,7 @@ color: #ffffff;
 
 .message-textarea:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: #3498db;
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
@@ -379,7 +379,7 @@ color: #ffffff;
 }
 
 .notification-item:hover {
-  border-color: #667eea;
+  border-color: #3498db;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
@@ -391,7 +391,7 @@ color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #667eea;
+  color: #3498db;
 }
 
 .notification-content {

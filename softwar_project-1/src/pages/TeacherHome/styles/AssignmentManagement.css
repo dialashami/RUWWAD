@@ -75,7 +75,7 @@
   width: 45px;
   height: 45px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #3498db, #2980b9);
+  background: linear-gradient(135deg, #3498db, #2c3e50);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -202,7 +202,7 @@
 }
 
 .create-assignment-btn {
-  background: linear-gradient(135deg, #3498db, #2980b9);
+  background: linear-gradient(135deg, #3498db, #2c3e50);
   color: white;
   border: none;
   padding: 12px 24px;
@@ -703,7 +703,7 @@
   left: 0;
   right: 0;
   height: 4px;
-  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(90deg, #3498db 0%, #3498db 100%);
   border-radius: 20px 20px 0 0;
 }
 
@@ -728,7 +728,7 @@
   transform: translateX(-50%);
   width: 60px;
   height: 4px;
-  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(90deg, #3498db 0%, #3498db 100%);
   border-radius: 2px;
 }
 
@@ -778,7 +778,7 @@
 
 .form-input:focus, .form-select:focus, .form-textarea:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: #3498db;
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1),
               0 4px 12px rgba(102, 126, 234, 0.15);
   transform: translateY(-2px);
@@ -888,7 +888,7 @@
 }
 
 .create-btn {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
   color: white;
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
   position: relative;
@@ -1008,7 +1008,7 @@
 }
 
 .modal::-webkit-scrollbar-thumb {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
   border-radius: 3px;
 }
 
@@ -1020,7 +1020,7 @@
 .form-input:focus-visible,
 .form-select:focus-visible,
 .form-textarea:focus-visible {
-  outline: 2px solid #667eea;
+  outline: 2px solid #3498db;
   outline-offset: 2px;
 }
 

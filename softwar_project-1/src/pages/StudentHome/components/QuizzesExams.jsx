@@ -97,9 +97,9 @@ const quizzes = [
 const statusConfig = {
   available: {
     icon: Play,
-    color: 'text-[#4F46E5]',
-    bg: 'bg-[#4F46E5]/10',
-    badge: 'bg-gradient-to-r from-[#4F46E5] to-[#9333EA] text-white',
+    color: 'text-[#3498db]',
+    bg: 'bg-[#3498db]/10',
+    badge: 'bg-gradient-to-r from-[#3498db] to-[#9333EA] text-white',
     label: 'Start Now',
   },
   upcoming: {
@@ -157,11 +157,11 @@ export function QuizzesExams() {
 
         {/* Stats */}
         <div className="flex gap-4">
-          <div className="px-6 py-3 rounded-xl bg-gradient-to-r from-[#4F46E5]/10 to-[#9333EA]/10">
+          <div className="px-6 py-3 rounded-xl bg-gradient-to-r from-[#3498db]/10 to-[#9333EA]/10">
             <p className="text-gray-600" style={{ fontSize: '12px', fontWeight: '600' }}>
               Completed
             </p>
-            <p className="text-[#4F46E5]" style={{ fontSize: '24px', fontWeight: '700' }}>
+            <p className="text-[#3498db]" style={{ fontSize: '24px', fontWeight: '700' }}>
               {stats.completed}/{stats.total}
             </p>
           </div>
@@ -179,16 +179,16 @@ export function QuizzesExams() {
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="bg-gray-100 p-1 rounded-full">
-          <TabsTrigger value="all" className="rounded-full px-6 data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#4F46E5] data-[state=active]:to-[#9333EA] data-[state=active]:text-white">
+          <TabsTrigger value="all" className="rounded-full px-6 data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#3498db] data-[state=active]:to-[#9333EA] data-[state=active]:text-white">
             All
           </TabsTrigger>
-          <TabsTrigger value="quizzes" className="rounded-full px-6 data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#4F46E5] data-[state=active]:to-[#9333EA] data-[state=active]:text-white">
+          <TabsTrigger value="quizzes" className="rounded-full px-6 data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#3498db] data-[state=active]:to-[#9333EA] data-[state=active]:text-white">
             Quizzes
           </TabsTrigger>
-          <TabsTrigger value="exams" className="rounded-full px-6 data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#4F46E5] data-[state=active]:to-[#9333EA] data-[state=active]:text-white">
+          <TabsTrigger value="exams" className="rounded-full px-6 data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#3498db] data-[state=active]:to-[#9333EA] data-[state=active]:text-white">
             Exams
           </TabsTrigger>
-          <TabsTrigger value="completed" className="rounded-full px-6 data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#4F46E5] data-[state=active]:to-[#9333EA] data-[state=active]:text-white">
+          <TabsTrigger value="completed" className="rounded-full px-6 data-[state=active]:bg-gradient-to-r data-[state=active]:from-[#3498db] data-[state=active]:to-[#9333EA] data-[state=active]:text-white">
             Completed
           </TabsTrigger>
         </TabsList>
@@ -277,7 +277,7 @@ export function QuizzesExams() {
                     {/* Actions */}
                     <div className="flex items-center gap-3">
                       {quiz.status === 'available' && (
-                        <Button className="bg-gradient-to-r from-[#4F46E5] to-[#9333EA] hover:opacity-90 text-white rounded-xl">
+                        <Button className="bg-gradient-to-r from-[#3498db] to-[#9333EA] hover:opacity-90 text-white rounded-xl">
                           <Play className="w-4 h-4 mr-2" />
                           Start Quiz
                         </Button>

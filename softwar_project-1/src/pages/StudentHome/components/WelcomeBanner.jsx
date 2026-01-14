@@ -10,7 +10,7 @@ export function WelcomeBanner() {
       transition={{ duration: 0.5 }}
       className="relative rounded-3xl overflow-hidden"
       style={{
-        background: 'linear-gradient(135deg, #4F46E5, #9333EA)',
+        background: 'linear-gradient(135deg, #3498db, #9333EA)',
       }}
     >
       {/* Background Pattern */}

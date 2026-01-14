@@ -95,7 +95,7 @@ export default function Dashboard() {
 
   const getSubjectColor = (subject) => {
     switch (subject) {
-      case 'Mathematics': return '#667eea';
+      case 'Mathematics': return '#3498db';
       case 'Physics': return '#11998e';
       case 'Chemistry': return '#eb3349';
       default: return '#4facfe';
@@ -140,7 +140,7 @@ export default function Dashboard() {
       {/* Stats Cards */}
       <View style={styles.statsGrid}>
         <View style={styles.statCard}>
-          <View style={[styles.statIcon, { backgroundColor: '#667eea' }]}>
+          <View style={[styles.statIcon, { backgroundColor: '#3498db' }]}>
             <Text style={styles.iconText}>👥</Text>
           </View>
           <View style={styles.statContent}>
@@ -692,7 +692,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   weeklyBar: {
-    backgroundColor: '#667eea',
+    backgroundColor: '#3498db',
     borderRadius: 12,
     width: '100%',
   },

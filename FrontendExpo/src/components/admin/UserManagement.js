@@ -97,7 +97,7 @@ export default function UserManagement() {
   const getRoleColor = (role) => {
     switch (role) {
       case 'student': return '#3b82f6';
-      case 'teacher': return '#8b5cf6';
+      case 'teacher': return '#3498db';
       case 'parent': return '#10b981';
       case 'admin': return '#ef4444';
       default: return '#6b7280';
@@ -107,7 +107,7 @@ export default function UserManagement() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#4f46e5" />
+        <ActivityIndicator size="large" color="#3498db" />
       </View>
     );
   }
@@ -144,7 +144,7 @@ export default function UserManagement() {
           </Text>
         </View>
         <View style={[styles.statPill, { backgroundColor: '#f3e8ff' }]}>
-          <Text style={[styles.statPillText, { color: '#8b5cf6' }]}>
+          <Text style={[styles.statPillText, { color: '#3498db' }]}>
             🎓 Students: {users.filter(u => u.role === 'student').length}
           </Text>
         </View>
@@ -430,7 +430,7 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   filterTabActive: {
-    backgroundColor: '#4f46e5',
+    backgroundColor: '#3498db',
   },
   filterTabText: {
     fontSize: 13,

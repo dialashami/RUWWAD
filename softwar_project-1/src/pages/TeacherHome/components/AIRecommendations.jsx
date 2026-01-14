@@ -60,7 +60,7 @@ export default function AIRecommendations() {
             AI Recommendations
           </h2>
         </div>
-        <Button variant="ghost" className="text-[#4F46E5]">
+        <Button variant="ghost" className="text-[#3498db]">
           View All
         </Button>
       </div>
@@ -84,7 +84,7 @@ export default function AIRecommendations() {
                 <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-[#F9FAFB] to-gray-100 flex items-center justify-center">
                   <span style={{ fontSize: '28px' }}>{rec.icon}</span>
                 </div>
-                <Badge variant="secondary" className="bg-[#4F46E5]/10 text-[#4F46E5] border-0">
+                <Badge variant="secondary" className="bg-[#3498db]/10 text-[#3498db] border-0">
                   {rec.difficulty}
                 </Badge>
               </div>
@@ -117,7 +117,7 @@ export default function AIRecommendations() {
               {/* Progress */}
               <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
                 <div
-                  className="h-full bg-gradient-to-r from-[#4F46E5] to-[#9333EA] rounded-full transition-all"
+                  className="h-full bg-gradient-to-r from-[#3498db] to-[#9333EA] rounded-full transition-all"
                   style={{ width: `${rec.progress}%` }}
                 />
               </div>

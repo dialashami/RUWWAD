@@ -1319,7 +1319,7 @@ html, body, #root {
   left: -2px;
   right: -2px;
   bottom: -2px;
-  background: linear-gradient(135deg, #00b0ff, #667eea);
+  background: linear-gradient(135deg, #00b0ff, #3498db);
   border-radius: 32px;
   z-index: -1;
   opacity: 0.1;
@@ -1383,7 +1383,7 @@ html, body, #root {
 }
 
 .chat-icon {
-  background: linear-gradient(135deg, #00b0ff 0%, #667eea 100%);
+  background: linear-gradient(135deg, #00b0ff 0%, #3498db 100%);
   color: white;
   font-size: 24px;
   width: 70px;

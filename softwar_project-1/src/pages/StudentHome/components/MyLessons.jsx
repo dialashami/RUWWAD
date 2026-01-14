@@ -405,7 +405,7 @@ export function MyLessons() {
                         style={{
                           flex: 1,
                           padding: '8px 16px',
-                          backgroundColor: '#667eea',
+                          backgroundColor: '#3498db',
                           color: 'white',
                           border: 'none',
                           borderRadius: '6px',
@@ -809,7 +809,7 @@ export function MyLessons() {
                     style={{
                       flex: 1,
                       padding: '12px 20px',
-                      backgroundColor: '#667eea',
+                      backgroundColor: '#3498db',
                       color: 'white',
                       border: 'none',
                       borderRadius: '10px',

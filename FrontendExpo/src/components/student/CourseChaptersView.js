@@ -181,7 +181,7 @@ export default function CourseChaptersView({ course, studentId, onBack }) {
         <View style={styles.progressContainer}>
           <View style={styles.progressBar}>
             <LinearGradient
-              colors={['#4F46E5', '#9333EA']}
+              colors={['#3498db', '#9333EA']}
               style={[
                 styles.progressFill,
                 { width: `${courseProgress?.overallProgress || 0}%` },
@@ -697,7 +697,7 @@ const styles = StyleSheet.create({
   },
   backButtonText: {
     fontSize: 16,
-    color: '#4F46E5',
+    color: '#3498db',
     fontWeight: '600',
   },
   courseTitle: {
@@ -810,7 +810,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   actionBtn: {
-    backgroundColor: '#4F46E5',
+    backgroundColor: '#3498db',
     paddingVertical: 10,
     paddingHorizontal: 14,
     borderRadius: 10,
@@ -860,7 +860,7 @@ const styles = StyleSheet.create({
   },
   closeBtn: {
     fontSize: 16,
-    color: '#4F46E5',
+    color: '#3498db',
     fontWeight: '600',
   },
   modalTitle: {
@@ -900,7 +900,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   viewSlideBtn: {
-    backgroundColor: '#4F46E5',
+    backgroundColor: '#3498db',
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 8,
@@ -954,7 +954,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   watchBtn: {
-    backgroundColor: '#4F46E5',
+    backgroundColor: '#3498db',
     paddingVertical: 10,
     paddingHorizontal: 16,
     borderRadius: 8,
@@ -973,7 +973,7 @@ const styles = StyleSheet.create({
   markWatchedBtnText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#4F46E5',
+    color: '#3498db',
   },
   // Quiz
   quizProgress: {
@@ -988,7 +988,7 @@ const styles = StyleSheet.create({
   },
   quizProgressFill: {
     height: '100%',
-    backgroundColor: '#4F46E5',
+    backgroundColor: '#3498db',
     borderRadius: 3,
   },
   quizContainer: {
@@ -1019,8 +1019,8 @@ const styles = StyleSheet.create({
     borderColor: '#e5e7eb',
   },
   optionSelected: {
-    backgroundColor: '#4F46E5',
-    borderColor: '#4F46E5',
+    backgroundColor: '#3498db',
+    borderColor: '#3498db',
   },
   optionText: {
     fontSize: 16,
@@ -1044,7 +1044,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   navBtnNext: {
-    backgroundColor: '#4F46E5',
+    backgroundColor: '#3498db',
   },
   navBtnText: {
     fontSize: 16,
@@ -1094,7 +1094,7 @@ const styles = StyleSheet.create({
   resultScore: {
     fontSize: 36,
     fontWeight: '700',
-    color: '#4F46E5',
+    color: '#3498db',
     marginBottom: 4,
   },
   resultDetails: {

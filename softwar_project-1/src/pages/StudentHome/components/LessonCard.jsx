@@ -20,7 +20,7 @@
 // const statusConfig = {
 //   new: {
 //     label: 'New',
-//     className: 'bg-gradient-to-r from-[#4F46E5] to-[#9333EA] text-white',
+//     className: 'bg-gradient-to-r from-[#3498db] to-[#9333EA] text-white',
 //   },
 //   'in-progress': {
 //     label: 'In Progress',
@@ -52,7 +52,7 @@
 //       <Card className="overflow-hidden rounded-2xl border-0 shadow-lg bg-white transition-all duration-300 group-hover:shadow-2xl relative">
 //         {/* Gradient Shadow on Hover */}
 //         <div className="absolute inset-0 -z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-xl">
-//           <div className="absolute inset-0 bg-gradient-to-br from-[#4F46E5] to-[#9333EA]" />
+//           <div className="absolute inset-0 bg-gradient-to-br from-[#3498db] to-[#9333EA]" />
 //         </div>
 
 //         {/* Thumbnail */}
@@ -103,7 +103,7 @@
 //               <span className="text-gray-600" style={{ fontSize: '12px', fontWeight: '600' }}>
 //                 Progress
 //               </span>
-//               <span className="text-[#4F46E5]" style={{ fontSize: '12px', fontWeight: '600' }}>
+//               <span className="text-[#3498db]" style={{ fontSize: '12px', fontWeight: '600' }}>
 //                 {progress}%
 //               </span>
 //             </div>
@@ -113,7 +113,7 @@
 //           {/* Action Buttons */}
 //           <div className="flex gap-2 pt-2">
 //             <Button
-//               className="flex-1 bg-gradient-to-r from-[#4F46E5] to-[#9333EA] hover:opacity-90 text-white rounded-xl"
+//               className="flex-1 bg-gradient-to-r from-[#3498db] to-[#9333EA] hover:opacity-90 text-white rounded-xl"
 //             >
 //               <Play className="w-4 h-4 mr-2" />
 //               Continue
@@ -163,7 +163,7 @@ const Button = ({ children, className = "", variant = "default", ...props }) => 
 const Progress = ({ value, className = "" }) => (
   <div className={`w-full bg-gray-200 rounded-full h-2 ${className}`}>
     <div 
-      className="bg-gradient-to-r from-[#4F46E5] to-[#9333EA] h-2 rounded-full transition-all duration-300"
+      className="bg-gradient-to-r from-[#3498db] to-[#9333EA] h-2 rounded-full transition-all duration-300"
       style={{ width: `${value}%` }}
     />
   </div>
@@ -172,7 +172,7 @@ const Progress = ({ value, className = "" }) => (
 const statusConfig = {
   new: {
     label: 'New',
-    className: 'bg-gradient-to-r from-[#4F46E5] to-[#9333EA] text-white',
+    className: 'bg-gradient-to-r from-[#3498db] to-[#9333EA] text-white',
   },
   'in-progress': {
     label: 'In Progress',
@@ -204,7 +204,7 @@ export function LessonCard({
       <Card className="overflow-hidden rounded-2xl border-0 shadow-lg bg-white transition-all duration-300 group-hover:shadow-2xl relative">
         {/* Gradient Shadow on Hover */}
         <div className="absolute inset-0 -z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-xl">
-          <div className="absolute inset-0 bg-gradient-to-br from-[#4F46E5] to-[#9333EA]" />
+          <div className="absolute inset-0 bg-gradient-to-br from-[#3498db] to-[#9333EA]" />
         </div>
 
         {/* Thumbnail */}
@@ -255,7 +255,7 @@ export function LessonCard({
               <span className="text-gray-600" style={{ fontSize: '12px', fontWeight: '600' }}>
                 Progress
               </span>
-              <span className="text-[#4F46E5]" style={{ fontSize: '12px', fontWeight: '600' }}>
+              <span className="text-[#3498db]" style={{ fontSize: '12px', fontWeight: '600' }}>
                 {progress}%
               </span>
             </div>
@@ -265,7 +265,7 @@ export function LessonCard({
           {/* Action Buttons */}
           <div className="flex gap-2 pt-2">
             <Button
-              className="flex-1 bg-gradient-to-r from-[#4F46E5] to-[#9333EA] hover:opacity-90 text-white rounded-xl"
+              className="flex-1 bg-gradient-to-r from-[#3498db] to-[#9333EA] hover:opacity-90 text-white rounded-xl"
               onClick={() => console.log('Continue lesson:', title)}
             >
               <Play className="w-4 h-4 mr-2" />

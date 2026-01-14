@@ -47,7 +47,7 @@
 
 .tab-button.active {
   background: rgba(255, 255, 255, 0.95);
-  color: #667eea;
+  color: #3498db;
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
 }
 
@@ -71,7 +71,7 @@
   transform: translateX(-50%);
   width: 0;
   height: 3px;
-  background: #667eea;
+  background: #3498db;
   border-radius: 2px;
   transition: width 0.3s ease;
 }
@@ -156,7 +156,7 @@ select.form-input {
 .form-textarea:focus,
 select.form-input:focus {
   outline: none;
-  border-color: #667eea;
+  border-color: #3498db;
   box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
   transform: translateY(-2px);
 }
@@ -282,7 +282,7 @@ select.form-input:focus {
 .preference-item:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-  border-color: #667eea;
+  border-color: #3498db;
 }
 
 .preference-info h4 {
@@ -685,7 +685,7 @@ display: grid;
 .info-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
-  border-color: #667eea;
+  border-color: #3498db;
 }
 
 .info-icon {

@@ -78,9 +78,9 @@ const defaultQuizzes = [
 const statusConfig = {
   available: {
     icon: '▶️',
-    color: '#4F46E5',
+    color: '#3498db',
     bg: 'rgba(79, 70, 229, 0.1)',
-    badgeGradient: ['#4F46E5', '#9333EA'],
+    badgeGradient: ['#3498db', '#9333EA'],
     label: 'Start Now',
   },
   upcoming: {
@@ -293,7 +293,7 @@ export default function QuizzesExams() {
           <Text style={[styles.statLabel, isDarkMode && { color: theme.textSecondary }]}>
             Completed
           </Text>
-          <Text style={[styles.statValue, { color: '#4F46E5' }]}>
+          <Text style={[styles.statValue, { color: '#3498db' }]}>
             {stats.completed}/{stats.total}
           </Text>
         </LinearGradient>
@@ -327,7 +327,7 @@ export default function QuizzesExams() {
           >
             {activeTab === tab ? (
               <LinearGradient
-                colors={['#4F46E5', '#9333EA']}
+                colors={['#3498db', '#9333EA']}
                 style={styles.tabGradient}
               >
                 <Text style={styles.tabTextActive}>
@@ -449,7 +449,7 @@ export default function QuizzesExams() {
                     >
                       {quiz.status === 'available' && (
                         <LinearGradient
-                          colors={['#4F46E5', '#9333EA']}
+                          colors={['#3498db', '#9333EA']}
                           style={styles.actionButtonGradient}
                         >
                           <Text style={styles.actionButtonText}>▶️ Start Quiz</Text>

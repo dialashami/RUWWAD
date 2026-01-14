@@ -1340,7 +1340,7 @@ function LessonManagement({ onNavigate }) {
                         <p className="lesson-subject">
                           <i className="fas fa-book-open"></i> {lesson.subject}
                           {lesson.subjectType && lesson.subjectType !== 'other' && (
-                            <span style={{ marginLeft: '8px', color: '#667eea' }}>
+                            <span style={{ marginLeft: '8px', color: '#3498db' }}>
                               ({lesson.subjectType})
                             </span>
                           )}
@@ -1388,7 +1388,7 @@ function LessonManagement({ onNavigate }) {
                           setShowCourseDetail(true);
                         }}
                         style={{
-                          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                          background: 'linear-gradient(135deg, #2c3e50 0%, #3498db 100%)',
                           color: '#fff',
                           border: 'none',
                           borderRadius: '6px',

@@ -297,7 +297,7 @@ function CourseDetail({ courseId, courseTitle, onClose, isTeacher = true }) {
             <button 
               onClick={onClose}
               style={{
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                background: 'linear-gradient(135deg, #2c3e50 0%, #3498db 100%)',
                 border: 'none',
                 borderRadius: '12px',
                 padding: '10px 18px',
@@ -381,7 +381,7 @@ function CourseDetail({ courseId, courseTitle, onClose, isTeacher = true }) {
         {/* Chapters Section - Always visible for managing chapters */}
         <div style={{ marginBottom: '20px', padding: '20px', background: '#faf5ff', borderRadius: '12px', border: '1px solid #e9d5ff' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-            <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#7c3aed' }}>
+            <h3 style={{ margin: 0, fontSize: '1.1rem', color: '#3498db' }}>
               <i className="fas fa-layer-group" style={{ marginRight: '8px' }}></i>
               Chapters ({chapters.length})
             </h3>
@@ -390,7 +390,7 @@ function CourseDetail({ courseId, courseTitle, onClose, isTeacher = true }) {
                 onClick={() => setShowAddChapter(!showAddChapter)}
                 style={{
                   padding: '8px 16px',
-                  background: showAddChapter ? '#dc2626' : 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  background: showAddChapter ? '#dc2626' : 'linear-gradient(135deg, #2c3e50 0%, #3498db 100%)',
                   color: '#fff',
                   border: 'none',
                   borderRadius: '8px',
@@ -504,7 +504,7 @@ function CourseDetail({ courseId, courseTitle, onClose, isTeacher = true }) {
                       alignItems: 'center',
                       gap: '10px',
                       padding: '12px 18px',
-                      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                      background: 'linear-gradient(135deg, #2c3e50 0%, #3498db 100%)',
                       color: '#fff',
                       border: 'none',
                       borderRadius: '10px',

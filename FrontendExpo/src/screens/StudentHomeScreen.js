@@ -401,7 +401,7 @@ const styles = StyleSheet.create({
     width: 70,
     height: 70,
     borderRadius: 35,
-    backgroundColor: 'linear-gradient(135deg, #007bff, #8b5cf6)',
+    backgroundColor: 'linear-gradient(135deg, #007bff, #3498db)',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 10,

@@ -117,7 +117,7 @@ export default function SystemSettings({ navigation }) {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#4f46e5" />
+        <ActivityIndicator size="large" color="#3498db" />
       </View>
     );
   }
@@ -472,7 +472,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   saveButton: {
-    backgroundColor: '#4f46e5',
+    backgroundColor: '#3498db',
     marginHorizontal: 15,
     padding: 16,
     borderRadius: 10,

@@ -118,7 +118,7 @@ export default function VerifyEmailScreen({ navigation, route }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#667eea',
+    backgroundColor: '#3498db',
   },
   scrollContent: {
     flexGrow: 1,
@@ -154,7 +154,7 @@ const styles = StyleSheet.create({
   },
   emailText: {
     fontWeight: 'bold',
-    color: '#667eea',
+    color: '#3498db',
   },
   label: {
     fontSize: 14,
@@ -200,7 +200,7 @@ const styles = StyleSheet.create({
   verifyBtn: {
     width: '100%',
     height: 50,
-    backgroundColor: '#667eea',
+    backgroundColor: '#3498db',
     borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
   },
   resendLink: {
     fontSize: 14,
-    color: '#667eea',
+    color: '#3498db',
     fontWeight: '600',
   },
   backButton: {
@@ -234,7 +234,7 @@ const styles = StyleSheet.create({
   },
   backButtonText: {
     fontSize: 14,
-    color: '#667eea',
+    color: '#3498db',
     fontWeight: '500',
   },
 });

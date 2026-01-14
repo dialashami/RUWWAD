@@ -73,7 +73,7 @@ export function RecentActivity() {
         <h3 className="text-[#0F172A]" style={{ fontSize: '20px', fontWeight: '600' }}>
           Recent Activity
         </h3>
-        <button className="text-[#4F46E5]" style={{ fontSize: '14px', fontWeight: '600' }}>
+        <button className="text-[#3498db]" style={{ fontSize: '14px', fontWeight: '600' }}>
           View All
         </button>
       </div>

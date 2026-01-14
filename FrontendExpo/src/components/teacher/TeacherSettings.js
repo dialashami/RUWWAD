@@ -463,7 +463,7 @@ export default function TeacherSettings({ navigation }) {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6366f1" />
+        <ActivityIndicator size="large" color="#2c3e50" />
         <Text style={styles.loadingText}>Loading settings...</Text>
       </View>
     );
@@ -660,7 +660,7 @@ export default function TeacherSettings({ navigation }) {
             <Switch
               value={emailNotifications}
               onValueChange={setEmailNotifications}
-              trackColor={{ false: '#e5e7eb', true: '#6366f1' }}
+              trackColor={{ false: '#e5e7eb', true: '#2c3e50' }}
               thumbColor="#fff"
             />
           </View>
@@ -676,7 +676,7 @@ export default function TeacherSettings({ navigation }) {
             <Switch
               value={pushNotifications}
               onValueChange={setPushNotifications}
-              trackColor={{ false: '#e5e7eb', true: '#6366f1' }}
+              trackColor={{ false: '#e5e7eb', true: '#2c3e50' }}
               thumbColor="#fff"
             />
           </View>
@@ -693,7 +693,7 @@ export default function TeacherSettings({ navigation }) {
             <Switch
               value={assignmentReminders}
               onValueChange={setAssignmentReminders}
-              trackColor={{ false: '#e5e7eb', true: '#6366f1' }}
+              trackColor={{ false: '#e5e7eb', true: '#2c3e50' }}
               thumbColor="#fff"
             />
           </View>
@@ -708,7 +708,7 @@ export default function TeacherSettings({ navigation }) {
             <Switch
               value={gradeNotifications}
               onValueChange={setGradeNotifications}
-              trackColor={{ false: '#e5e7eb', true: '#6366f1' }}
+              trackColor={{ false: '#e5e7eb', true: '#2c3e50' }}
               thumbColor="#fff"
             />
           </View>
@@ -749,7 +749,7 @@ export default function TeacherSettings({ navigation }) {
             <Switch
               value={isDarkMode}
               onValueChange={setDarkMode}
-              trackColor={{ false: '#e5e7eb', true: '#6366f1' }}
+              trackColor={{ false: '#e5e7eb', true: '#2c3e50' }}
               thumbColor="#fff"
             />
           </View>
@@ -891,7 +891,7 @@ export default function TeacherSettings({ navigation }) {
                     <Switch
                       value={twoFAEnabled}
                       onValueChange={setTwoFAEnabled}
-                      trackColor={{ false: '#e5e7eb', true: '#6366f1' }}
+                      trackColor={{ false: '#e5e7eb', true: '#2c3e50' }}
                       thumbColor="#fff"
                     />
                   </View>
@@ -1130,7 +1130,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#6366f1',
+    backgroundColor: '#2c3e50',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
@@ -1159,7 +1159,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   btnPrimary: {
-    backgroundColor: '#6366f1',
+    backgroundColor: '#2c3e50',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
@@ -1241,7 +1241,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   btnSave: {
-    backgroundColor: '#6366f1',
+    backgroundColor: '#2c3e50',
     paddingHorizontal: 24,
     paddingVertical: 14,
     borderRadius: 10,
@@ -1331,7 +1331,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   badge: {
-    backgroundColor: '#6366f1',
+    backgroundColor: '#2c3e50',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 10,
@@ -1444,7 +1444,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   btnModalConfirm: {
-    backgroundColor: '#6366f1',
+    backgroundColor: '#2c3e50',
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 8,
@@ -1475,19 +1475,19 @@ const styles = StyleSheet.create({
   },
   optionItemActive: {
     backgroundColor: '#eef2ff',
-    borderColor: '#6366f1',
+    borderColor: '#2c3e50',
   },
   optionText: {
     fontSize: 15,
     color: '#1f2937',
   },
   optionTextActive: {
-    color: '#6366f1',
+    color: '#2c3e50',
     fontWeight: '600',
   },
   checkmark: {
     fontSize: 16,
-    color: '#6366f1',
+    color: '#2c3e50',
     fontWeight: 'bold',
   },
 });

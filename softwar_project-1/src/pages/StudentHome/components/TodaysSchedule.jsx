@@ -49,7 +49,7 @@ export function TodaysSchedule() {
         <h3 className="text-[#0F172A]" style={{ fontSize: '20px', fontWeight: '600' }}>
           Today's Schedule
         </h3>
-        <Badge variant="secondary" className="bg-[#4F46E5]/10 text-[#4F46E5] border-0">
+        <Badge variant="secondary" className="bg-[#3498db]/10 text-[#3498db] border-0">
           {schedule.length} Classes
         </Badge>
       </div>

@@ -233,7 +233,7 @@ export function StudentProvider({ children }) {
   const getSubjectColorClass = (subject) => {
     const subjectLower = subject.toLowerCase();
     if (subjectLower.includes('math')) return '#3b82f6';
-    if (subjectLower.includes('phys')) return '#8b5cf6';
+    if (subjectLower.includes('phys')) return '#3498db';
     if (subjectLower.includes('chem')) return '#10b981';
     if (subjectLower.includes('bio')) return '#22c55e';
     if (subjectLower.includes('eng')) return '#f59e0b';

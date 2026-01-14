@@ -77,7 +77,7 @@ export default function AITutorWidget() {
       <motion.button
         onClick={() => setIsOpen(!isOpen)}
         className="fixed bottom-8 right-8 w-16 h-16 rounded-full shadow-2xl flex items-center justify-center z-50"
-        style={{ background: 'linear-gradient(135deg, #4F46E5, #9333EA)' }}
+        style={{ background: 'linear-gradient(135deg, #3498db, #9333EA)' }}
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.95 }}
       >
@@ -120,7 +120,7 @@ export default function AITutorWidget() {
           >
             <Card className="border-0 shadow-2xl rounded-2xl overflow-hidden">
               {/* Header */}
-              <div className="p-4 text-white" style={{ background: 'linear-gradient(135deg, #4F46E5, #9333EA)' }}>
+              <div className="p-4 text-white" style={{ background: 'linear-gradient(135deg, #3498db, #9333EA)' }}>
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center backdrop-blur-sm">
                     <Bot className="w-6 h-6" />
@@ -145,7 +145,7 @@ export default function AITutorWidget() {
                     <div
                       className={`max-w-[80%] p-3 rounded-2xl ${
                         message.type === 'user'
-                          ? 'bg-gradient-to-r from-[#4F46E5] to-[#9333EA] text-white'
+                          ? 'bg-gradient-to-r from-[#3498db] to-[#9333EA] text-white'
                           : 'bg-white text-[#0F172A] shadow-sm'
                       }`}
                     >
@@ -194,7 +194,7 @@ export default function AITutorWidget() {
                   />
                   <Button
                     onClick={handleSend}
-                    className="w-10 h-10 rounded-full p-0 bg-gradient-to-r from-[#4F46E5] to-[#9333EA] hover:opacity-90"
+                    className="w-10 h-10 rounded-full p-0 bg-gradient-to-r from-[#3498db] to-[#9333EA] hover:opacity-90"
                     disabled={isLoading}
                   >
                     <Send className="w-5 h-5" />
