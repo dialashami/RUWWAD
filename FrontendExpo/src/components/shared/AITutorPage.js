@@ -360,47 +360,9 @@ export default function AITutorPage() {
   );
 }
 
-      {/* Quick Actions - shown only at start */}
-      {messages.length <= 1 && (
-        <View style={styles.quickActionsContainer}>
-          <Text style={styles.quickActionsTitle}>Quick Actions:</Text>
-          <View style={styles.quickActionsGrid}>
-            {quickActions.map((action, index) => (
-              <TouchableOpacity
-                key={index}
-                style={styles.quickActionChip}
-                onPress={() => handleQuickAction(action.prompt)}
-              >
-                <Text style={styles.quickActionIcon}>{action.icon}</Text>
-                <Text style={styles.quickActionText}>{action.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </View>
-      )}
+     
 
-      {/* Input */}
-      <View style={styles.inputContainer}>
-        <TextInput
-          style={styles.input}
-          placeholder="Ask me anything..."
-          placeholderTextColor="#999"
-          value={inputText}
-          onChangeText={setInputText}
-          multiline
-          onSubmitEditing={() => sendMessage(inputText)}
-        />
-        <TouchableOpacity
-          style={[styles.sendBtn, !inputText.trim() && styles.sendBtnDisabled]}
-          onPress={() => sendMessage(inputText)}
-          disabled={!inputText.trim() || isLoading}
-        >
-          <Text style={styles.sendIcon}>📤</Text>
-        </TouchableOpacity>
-      </View>
-    </KeyboardAvoidingView>
-  );
-}
+
 
 const styles = StyleSheet.create({
   container: {

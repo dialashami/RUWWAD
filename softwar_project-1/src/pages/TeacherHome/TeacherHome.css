@@ -5305,6 +5305,12 @@ transform: none;
 .cancel-btn:hover {
   background: #e5e7eb;
 }
+.lesson-header .header-text h1,
+.lesson-header .header-text p {
+  background: none !important;
+  -webkit-text-fill-color: unset;
+}
+
 
 .create-btn {
   background: linear-gradient(135deg, #3498db, #2c3e50);
