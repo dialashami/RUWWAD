@@ -363,6 +363,13 @@ const statusConfig = {
     badge: 'badge-primary',
     label: 'Pending',
   },
+  submitted: {
+    icon: CheckCircle2,
+    color: 'text-info',
+    bg: 'bg-info-light',
+    badge: 'badge-info',
+    label: 'Submitted',
+  },
   late: {
     icon: AlertCircle,
     color: 'text-danger',
@@ -385,11 +392,12 @@ export function Assignments() {
 
   const [activeTab, setActiveTab] = useState('all');
   const [selectedAssignment, setSelectedAssignment] = useState(null);
-  const [assignmentsList, setAssignmentsList] = useState(initialAssignments);
+  const [assignmentsList, setAssignmentsList] = useState([]);
   const [activeModal, setActiveModal] = useState(null); // 'submit', 'details', 'submission'
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [submissionText, setSubmissionText] = useState('');
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
 
   // Fetch assignments from backend based on student's grade/major
   useEffect(() => {
@@ -424,12 +432,23 @@ export function Assignments() {
         });
 
         if (!res.ok) {
+          console.error('Failed to fetch assignments:', res.status);
           setLoading(false);
           return;
         }
 
         const data = await res.json();
-        if (!Array.isArray(data) || data.length === 0) {
+        console.log('Fetched assignments:', data);
+        
+        if (!Array.isArray(data)) {
+          console.error('Invalid assignments response:', data);
+          setLoading(false);
+          return;
+        }
+        
+        if (data.length === 0) {
+          // No assignments found - keep empty list
+          setAssignmentsList([]);
           setLoading(false);
           return;
         }
@@ -439,10 +458,11 @@ export function Assignments() {
           const dueDate = new Date(assignment.dueDate);
           const now = new Date();
           
-          // Check if student has submitted
-          const studentSubmission = assignment.submissions?.find(
+          // Check if student has submitted (use mySubmission from sanitized response)
+          const studentSubmission = assignment.mySubmission || assignment.submissions?.find(
             s => s.student === studentId || s.student?._id === studentId
           );
+          const hasSubmitted = assignment.hasSubmitted || !!studentSubmission;
           
           // Determine status
           let status = 'pending';
@@ -451,7 +471,7 @@ export function Assignments() {
           let studentGrade = null;
           let feedback = null;
 
-          if (studentSubmission) {
+          if (hasSubmitted && studentSubmission) {
             submittedDate = new Date(studentSubmission.submittedAt).toLocaleDateString('en-US', {
               year: 'numeric',
               month: 'short',
@@ -464,7 +484,7 @@ export function Assignments() {
               studentGrade = studentSubmission.grade;
               feedback = studentSubmission.feedback;
             } else {
-              status = 'pending'; // submitted but not graded yet
+              status = 'submitted'; // submitted but not graded yet
             }
           } else if (dueDate < now) {
             status = 'late';
@@ -517,6 +537,7 @@ export function Assignments() {
   const filteredAssignments = assignmentsList.filter((assignment) => {
     if (activeTab === 'all') return true;
     if (activeTab === 'pending') return assignment.status === 'pending';
+    if (activeTab === 'submitted') return assignment.status === 'submitted';
     if (activeTab === 'graded') return assignment.status === 'graded';
     if (activeTab === 'late') return assignment.status === 'late';
     return true;
@@ -525,6 +546,7 @@ export function Assignments() {
   const stats = {
     total: assignmentsList.length,
     pending: assignmentsList.filter(a => a.status === 'pending').length,
+    submitted: assignmentsList.filter(a => a.status === 'submitted').length,
     graded: assignmentsList.filter(a => a.status === 'graded').length,
     late: assignmentsList.filter(a => a.status === 'late').length,
   };
@@ -571,23 +593,38 @@ export function Assignments() {
   };
 
   const handleFinalSubmit = async () => {
-    if (!selectedAssignment) return;
+    if (!selectedAssignment || submitting) return;
 
+    // Check if assignment has a valid MongoDB ObjectId (24 hex characters)
+    const assignmentId = selectedAssignment.id;
+    const isValidObjectId = /^[a-fA-F0-9]{24}$/.test(assignmentId);
+    
+    if (!isValidObjectId) {
+      alert('This is a sample assignment. Please refresh to load real assignments from the server.');
+      return;
+    }
+
+    setSubmitting(true);
     try {
       const token = localStorage.getItem('token');
-      let studentId = null;
-      try {
-        const storedUser = localStorage.getItem('user');
-        if (storedUser) {
-          const parsed = JSON.parse(storedUser);
-          studentId = parsed?._id || parsed?.id || null;
+      
+      // Get student ID from context first, then localStorage as fallback
+      let studentId = student.id || null;
+      if (!studentId) {
+        try {
+          const storedUser = localStorage.getItem('user');
+          if (storedUser) {
+            const parsed = JSON.parse(storedUser);
+            studentId = parsed?._id || parsed?.id || null;
+          }
+        } catch {
+          // ignore
         }
-      } catch {
-        // ignore
       }
 
       if (!token || !studentId) {
         alert('You must be logged in to submit assignments.');
+        setSubmitting(false);
         return;
       }
 
@@ -609,7 +646,10 @@ export function Assignments() {
       }
 
       // Submit to backend
-      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000'}/api/assignments/${selectedAssignment.id}/submit`, {
+      const apiUrl = `${process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000'}/api/assignments/${assignmentId}/submit`;
+      console.log('Submitting assignment:', { apiUrl, assignmentId, studentId, fileName });
+      
+      const res = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -625,11 +665,29 @@ export function Assignments() {
 
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
+        console.error('Submission failed:', res.status, errorData);
         if (errorData.message === 'Already submitted') {
           alert('You have already submitted this assignment.');
+        } else if (errorData.message === 'Student ID is required') {
+          alert('Error: Could not identify your student account. Please log out and log in again.');
+        } else if (errorData.message === 'Assignment not found') {
+          alert('Error: This assignment no longer exists. Please refresh the page.');
         } else {
           alert(errorData.message || 'Failed to submit assignment. Please try again.');
         }
+        setSubmitting(false);
+        return;
+      }
+
+      // Parse successful response
+      const responseData = await res.json();
+      console.log('Submission successful:', responseData);
+      
+      // Check if response indicates success
+      if (!responseData.success && !responseData.assignment && !responseData._id) {
+        console.error('Unexpected response format:', responseData);
+        alert('Submission may have failed. Please check your submissions.');
+        setSubmitting(false);
         return;
       }
 
@@ -638,7 +696,7 @@ export function Assignments() {
         assignment.id === selectedAssignment.id 
           ? { 
               ...assignment, 
-              status: 'pending', // submitted but awaiting grade
+              status: 'submitted', // submitted and awaiting grade
               progress: 100,
               submittedDate: new Date().toLocaleDateString('en-US', { 
                 year: 'numeric', 
@@ -654,6 +712,7 @@ export function Assignments() {
       setSelectedAssignment(null);
       setUploadedFiles([]);
       setSubmissionText('');
+      setSubmitting(false);
       
       alert('Assignment submitted successfully!');
       
@@ -664,6 +723,7 @@ export function Assignments() {
     } catch (err) {
       console.error('Error submitting assignment:', err);
       alert('Error submitting assignment. Please try again.');
+      setSubmitting(false);
     }
   };
 
@@ -704,6 +764,12 @@ export function Assignments() {
             Pending ({stats.pending})
           </button>
           <button 
+            className={`tab-trigger ${activeTab === 'submitted' ? 'active' : ''}`}
+            onClick={() => setActiveTab('submitted')}
+          >
+            Submitted ({stats.submitted})
+          </button>
+          <button 
             className={`tab-trigger ${activeTab === 'graded' ? 'active' : ''}`}
             onClick={() => setActiveTab('graded')}
           >
@@ -737,10 +803,7 @@ export function Assignments() {
                 className="assignment-card"
               >
                 <div className="assignment-content">
-                  {/* Icon */}
-                  <div className={`assignment-icon ${config.bg}`}>
-                    <Icon className={`assignment-icon-svg ${config.color}`} />
-                  </div>
+                
 
                   {/* Content */}
                   <div className="assignment-details">
@@ -780,6 +843,19 @@ export function Assignments() {
                                 className="progress-fill"
                                 style={{ width: `${assignment.progress}%` }}
                               ></div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Submitted status info */}
+                        {assignment.status === 'submitted' && (
+                          <div className="submitted-section">
+                            <div className="submitted-content">
+                              <CheckCircle2 className="submitted-icon" />
+                              <div className="submitted-info">
+                                <p className="submitted-label">Submitted on {assignment.submittedDate}</p>
+                                <p className="submitted-status">Waiting for teacher to grade</p>
+                              </div>
                             </div>
                           </div>
                         )}
@@ -839,6 +915,20 @@ export function Assignments() {
                                 <FileText className="btn-icon" />
                                 View Details
                               </button>
+                            </>
+                          )}
+                          {assignment.status === 'submitted' && (
+                            <>
+                              <button 
+                                className="btn-outline btn-info"
+                                onClick={() => handleViewSubmission(assignment)}
+                              >
+                                <CheckCircle2 className="btn-icon" />
+                                View Submission
+                              </button>
+                              <span className="awaiting-grade-text">
+                                Awaiting grade from teacher
+                              </span>
                             </>
                           )}
                           {assignment.status === 'late' && (
@@ -901,17 +991,18 @@ export function Assignments() {
                     multiple
                     onChange={handleFileUpload}
                     className="file-input"
+                    accept=".pdf,.doc,.docx,.zip,.txt,.png,.jpg,.jpeg"
                   />
                   <label htmlFor="file-upload" className="upload-label">
                     <Upload size={48} className="upload-icon" />
                     <span>Click to upload or drag and drop</span>
-                    <span className="file-types">PDF, DOC, DOCX, ZIP (Max: 10MB)</span>
+                    <span className="file-types">PDF, DOC, DOCX, ZIP, Images (Max: 10MB)</span>
                   </label>
                 </div>
 
                 {uploadedFiles.length > 0 && (
                   <div className="uploaded-files">
-                    <h5>Uploaded Files:</h5>
+                    <h5>✓ Files Ready to Submit:</h5>
                     {uploadedFiles.map((file, index) => (
                       <div key={index} className="file-item">
                         <FileText size={16} />
@@ -925,6 +1016,7 @@ export function Assignments() {
                         </button>
                       </div>
                     ))}
+                    <p className="upload-hint">Click "Save & Submit" below to submit your assignment</p>
                   </div>
                 )}
               </div>
@@ -942,15 +1034,25 @@ export function Assignments() {
             </div>
 
             <div className="modal-footer">
-              <button className="btn-outline" onClick={closeModal}>
+              <button className="btn-outline" onClick={closeModal} disabled={submitting}>
                 Cancel
               </button>
               <button 
-                className="btn-primary" 
+                className="btn-primary btn-save-submit" 
                 onClick={handleFinalSubmit}
-                disabled={uploadedFiles.length === 0 && submissionText.trim() === ''}
+                disabled={submitting || (uploadedFiles.length === 0 && submissionText.trim() === '')}
               >
-                Submit Assignment
+                {submitting ? (
+                  <>
+                    <span className="spinner"></span>
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 size={18} className="btn-icon" />
+                    Save & Submit
+                  </>
+                )}
               </button>
             </div>
           </div>
@@ -1042,10 +1144,17 @@ export function Assignments() {
             <div className="modal-body">
               <div className="submission-header">
                 <h3>{selectedAssignment.title}</h3>
-                <div className="grade-display">
-                  <span className="grade-label">Final Grade:</span>
-                  <span className="grade-value">{selectedAssignment.grade}%</span>
-                </div>
+                {selectedAssignment.status === 'graded' ? (
+                  <div className="grade-display">
+                    <span className="grade-label">Final Grade:</span>
+                    <span className="grade-value">{selectedAssignment.grade}%</span>
+                  </div>
+                ) : (
+                  <div className="grade-display pending">
+                    <span className="grade-label">Status:</span>
+                    <span className="awaiting-text">Awaiting Grade</span>
+                  </div>
+                )}
               </div>
 
               <div className="submission-info">
@@ -1055,34 +1164,42 @@ export function Assignments() {
                 </div>
                 <div className="info-item">
                   <strong>Status:</strong>
-                  <span className="status-graded">Graded</span>
+                  <span className={`status-${selectedAssignment.status}`}>
+                    {selectedAssignment.status === 'graded' ? 'Graded' : 'Submitted - Awaiting Review'}
+                  </span>
                 </div>
               </div>
 
-              <div className="feedback-section">
-                <h4>Teacher Feedback</h4>
-                <div className="feedback-content">
-                  <p>{selectedAssignment.feedback}</p>
+              {selectedAssignment.status === 'graded' && selectedAssignment.feedback && (
+                <div className="feedback-section">
+                  <h4>Teacher Feedback</h4>
+                  <div className="feedback-content">
+                    <p>{selectedAssignment.feedback}</p>
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {selectedAssignment.status === 'submitted' && (
+                <div className="pending-feedback-section">
+                  <div className="pending-notice">
+                    <CheckCircle2 className="pending-icon" />
+                    <div>
+                      <p className="pending-title">Your assignment has been submitted!</p>
+                      <p className="pending-text">The teacher will review and grade your submission soon.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="submission-preview">
                 <h4>Your Submission</h4>
                 <div className="preview-content">
-                  <p>📄 assignment_submission.pdf</p>
-                  <p>📄 additional_materials.zip</p>
-                  <p className="submission-comment">
-                    <strong>Your comments:</strong> "I have completed the assignment as per the requirements."
-                  </p>
+                  <p>📄 Your submitted files will be shown here</p>
                 </div>
               </div>
             </div>
 
             <div className="modal-footer">
-              <button className="btn-outline">
-                <Download size={16} />
-                Download Submission
-              </button>
               <button className="btn-primary" onClick={closeModal}>
                 Close
               </button>

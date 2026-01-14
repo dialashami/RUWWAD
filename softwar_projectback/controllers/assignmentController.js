@@ -212,28 +212,66 @@ exports.deleteAssignment = async (req, res, next) => {
 exports.submitAssignment = async (req, res, next) => {
   try {
     const { studentId, file, fileName, comment } = req.body;
+    console.log('Submission request received:', { 
+      assignmentId: req.params.id, 
+      studentId, 
+      hasFile: !!file, 
+      fileName,
+      hasComment: !!comment 
+    });
+    
+    // Validate studentId
+    if (!studentId) {
+      console.log('Missing studentId in request');
+      return res.status(400).json({ message: 'Student ID is required' });
+    }
+    
+    // Validate assignment ID format
+    if (!req.params.id || !/^[a-fA-F0-9]{24}$/.test(req.params.id)) {
+      console.log('Invalid assignment ID format:', req.params.id);
+      return res.status(400).json({ message: 'Invalid assignment ID' });
+    }
+    
     const assignment = await Assignment.findById(req.params.id);
-    if (!assignment) return res.status(404).json({ message: 'Assignment not found' });
+    if (!assignment) {
+      console.log('Assignment not found:', req.params.id);
+      return res.status(404).json({ message: 'Assignment not found' });
+    }
 
-    // Check if already submitted
+    // Check if already submitted - convert both to string for comparison
     const existingSubmission = assignment.submissions.find(
-      s => s.student.toString() === studentId
+      s => s.student && s.student.toString() === studentId.toString()
     );
     if (existingSubmission) {
+      console.log('Student already submitted:', studentId);
       return res.status(400).json({ message: 'Already submitted' });
     }
 
-    assignment.submissions.push({
-      student: studentId,
+    // Create submission object with proper ObjectId conversion
+    const mongoose = require('mongoose');
+    const submissionData = {
+      student: new mongoose.Types.ObjectId(studentId),
       file: file || null,
       fileName: fileName || null,
       comment: comment || null,
       submittedAt: new Date(),
-    });
+    };
+    
+    console.log('Adding submission:', { studentId: submissionData.student, fileName: submissionData.fileName });
+    
+    assignment.submissions.push(submissionData);
 
     await assignment.save();
-    res.json(assignment);
+    console.log('Submission saved successfully. Total submissions:', assignment.submissions.length);
+    
+    // Return success with updated assignment
+    res.status(200).json({ 
+      success: true, 
+      message: 'Assignment submitted successfully',
+      assignment: assignment 
+    });
   } catch (err) {
+    console.error('Error in submitAssignment:', err);
     next(err);
   }
 };

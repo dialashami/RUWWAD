@@ -237,13 +237,7 @@ background: linear-gradient(180deg, #2c3e50  );
   gap: 1rem;
 }
 
-.tabs-list {
-  display: inline-flex;
-  background-color: #F1F5F9; /* bg-gray-100 */
-  padding: .25rem;
-  border-radius: 999px;
-  gap: .25rem;
-}
+ 
 
 .tabs-trigger {
   border-radius: 999px;
@@ -1307,6 +1301,8 @@ button:hover {
   gap: 24px;
   max-width: 1200px;
   margin: 0 auto;
+  background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+
 }
 
 /* ====== Search Bar ====== */
@@ -2944,15 +2940,17 @@ button:hover {
 
 /* Assignment Content 1*/
 /* Assignments.css */
-.assignments-container {
+
+/* test */
+
+/* .assignments-container {
   padding: 2rem;
   max-width: 1200px;
   margin: 0 auto;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-/* Header Styles */
- /* Header Styles */
+ 
 .assignments-header {
   display: flex;
   align-items: flex-start;
@@ -2987,7 +2985,7 @@ button:hover {
   margin: 0;
 }
  
-/* Stats Container */
+/* Stats Container *
 .stats-container {
   display: flex;
   gap: 15px;
@@ -3020,7 +3018,7 @@ button:hover {
   font-size: 0.9rem;
   color: #7f8c8d;
 }
-/* Tabs */
+/* Tabs *
 .tabs-container {
   margin-bottom: 2rem;
 }
@@ -3055,7 +3053,7 @@ button:hover {
   background-color: rgba(255, 255, 255, 0.5);
   color: #374151;
 }
-/* === TABS === */
+/* === TABS === *
 .tabs-container {
   margin-top: 1rem;
 }
@@ -3089,7 +3087,7 @@ button:hover {
   background-color: rgba(124, 58, 237, 0.1);
   color: #4c1d95;
 }
-/* Assignment Cards */
+/* Assignment Cards *
 .assignments-list {
   display: flex;
   flex-direction: column;
@@ -3116,21 +3114,10 @@ button:hover {
   align-items: flex-start;
 }
 
-/* Assignment Icon */
-.assignment-icon {
-  width: 4rem;
-  height: 4rem;
-  border-radius: 1rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
+/* Assignment Icon *
+ 
 
-.assignment-icon-svg {
-  width: 2rem;
-  height: 2rem;
-}
+ 
 
 .bg-primary-light {
   background-color: rgba(79, 70, 229, 0.1);
@@ -3156,7 +3143,7 @@ button:hover {
   color: #22c55e;
 }
 
-/* Assignment Details */
+/* Assignment Details *
 .assignment-details {
   flex: 1;
   min-width: 0;
@@ -3182,7 +3169,7 @@ button:hover {
   line-height: 1.4;
 }
 
-/* Status Badges */
+/* Status Badges *
 .status-badge {
   padding: 0.25rem 0.75rem;
   border-radius: 9999px;
@@ -3195,6 +3182,10 @@ button:hover {
   background-color: #2c3e50;
 }
 
+.badge-info {
+  background-color: #0ea5e9;
+}
+
 .badge-danger {
   background-color: #ef4444;
 }
@@ -3203,7 +3194,35 @@ button:hover {
   background-color: #22c55e;
 }
 
-/* Assignment Meta */
+/* Info color classes for submitted status *
+.text-info {
+  color: #0ea5e9;
+}
+
+.bg-info-light {
+  background-color: #e0f2fe;
+}
+
+.btn-info {
+  border-color: #0ea5e9 !important;
+  color: #0ea5e9 !important;
+}
+
+.btn-info:hover {
+  background-color: #0ea5e9 !important;
+  color: white !important;
+}
+
+/* Awaiting grade text *
+.awaiting-grade-text {
+  font-size: 0.75rem;
+  color: #6b7280;
+  font-style: italic;
+  display: flex;
+  align-items: center;
+}
+
+/* Assignment Meta *
 .assignment-meta {
   display: flex;
   align-items: center;
@@ -3238,6 +3257,374 @@ button:hover {
   font-size: 0.875rem;
   line-height: 1.5;
   margin: 0 0 1rem 0;
+} */
+
+
+
+/* new new  */
+
+
+/* =========================
+   LUXURY THEME OVERRIDES
+   (No JSX edits required)
+   ========================= */
+
+/* Page container */
+ 
+
+ /* Make the inner assignment header follow the card width */
+  /* ✅ Assignment card width */
+.assignment-card{
+  width: 100% !important;
+  max-width: 980px !important;
+  margin: 0 auto !important;
+  box-sizing: border-box !important;
+}
+
+/* ✅ content layout (HORIZONTAL) + fixed padding */
+.assignment-content{
+  display: flex !important;           /* مهم لو مش موجود */
+  flex-direction: row !important;     /* 👈 بالعرض بدل بالطول */
+  align-items: flex-start !important;
+  justify-content: space-between !important;
+
+  flex-wrap: wrap !important;         /* 👈 حتى ما يطلع برا */
+  column-gap: 1rem !important;
+  row-gap: 1rem !important;
+
+  padding: 18px 20px !important;
+  box-sizing: border-box !important;
+}
+
+/* ✅ (اختياري) خلي كل عنصرين جنب بعض نصف/ثلث حسب اللي بدك */
+.assignment-content > *{
+  flex: 1 1 320px !important;         /* يطلعوا جنب بعض، وبنزلوا تحت إذا ضاق المكان */
+  min-width: 280px !important;
+  box-sizing: border-box !important;
+}
+
+/* ✅ make header match assignment-content width exactly */
+ .assignment-card .assignment-header{
+  width: 100% !important;
+  max-width: 100% !important;
+
+  padding: 0 !important;
+  margin: 0 !important;
+
+  border: none !important;        /* اخفاء الحدود */
+  outline: none !important;       /* اخفاء الإطار */
+  box-shadow: none !important;    /* اخفاء الظل اللي ممكن يبين كحدود */
+  background: transparent !important; /* لو الخلفية عاملة مربع */
+
+  box-sizing: border-box !important;
+}
+
+/* OPTIONAL: إذا بدك كل شيء داخل الهيدر يصير بنفس عرض الـ content */
+.assignment-card .assignment-header > *{
+  width: 100% !important;
+  box-sizing: border-box !important;
+
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
+
+/* make the content area use full card width cleanly */
+ 
+
+.assignments-title{
+  margin: 0 !important;
+  font-size: 42px !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.03em;
+  color: rgba(255,255,255,0.95) !important;
+}
+
+.assignments-subtitle{
+  margin-top: 10px !important;
+  color: rgba(226,232,240,0.82) !important;
+  font-size: 15.5px !important;
+  max-width: 600px;
+  line-height: 1.55;
+}
+
+ 
+
+ 
+/* Tab buttons */
+.tab-trigger{
+  border-radius: 999px !important;
+  padding: 10px 14px !important;
+  font-weight: 700 !important;
+  font-size: 13.5px !important;
+  color: rgba(15,23,42,0.72) !important;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  transition: all .25s ease;
+}
+
+.tab-trigger:hover{
+  background: rgba(15,23,42,0.05) !important;
+  transform: translateY(-1px);
+}
+
+.tab-trigger.active{
+  color: rgba(255,255,255,0.95) !important;
+  background: linear-gradient(135deg, #2563eb 0%, #4f46e5 60%, #7c3aed 100%) !important;
+  border: 1px solid rgba(255,255,255,0.18) !important;
+  box-shadow: 0 14px 35px rgba(37,99,235,0.25) !important;
+}
+
+/* List spacing */
+.assignments-list{
+  margin-top: 18px !important;
+  display: grid !important;
+  gap: 14px !important;
+  
+}
+
+/* Assignment cards: luxurious glass */
+/* .assignment-card{
+  border-radius: 24px !important;
+  background: rgba(255,255,255,0.72) !important;
+  border: 1px solid rgba(15,23,42,0.08) !important;
+  backdrop-filter: blur(14px);
+  box-shadow:
+    0 20px 60px rgba(2,6,23,0.08),
+    inset 0 1px 0 rgba(255,255,255,0.65) !important;
+  overflow: hidden;
+  position: relative;
+  transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
+}
+
+/* subtle accent line on the left *
+.assignment-card::before{
+  content:"";
+  position:absolute;
+  left:0;
+  top:0;
+  height:100%;
+  width:4px;
+  background: linear-gradient(180deg, #2563eb 0%, #7c3aed 100%);
+  opacity: .22;
+}
+
+.assignment-card:hover{
+  transform: translateY(-3px);
+  border-color: rgba(37,99,235,0.18) !important;
+  box-shadow:
+    0 30px 90px rgba(2,6,23,0.12),
+    0 0 0 1px rgba(37,99,235,0.08),
+    inset 0 1px 0 rgba(255,255,255,0.7) !important;
+}
+
+/* inner layout polish *
+.assignment-content{
+  padding: 18px 18px !important;
+  gap: 14px !important;
+} */
+
+
+/* ✅ Card should NOT be white at all */
+/* .assignment-card{
+  border-radius: 24px !important;
+  background: transparent !important;  /* remove white *
+  border: none !important;            /* remove white border *
+  box-shadow: none !important;        /* remove white card shadow *
+
+  padding: 0 !important;              /* remove the white frame space *
+  overflow: hidden !important;
+  position: relative;
+  transition: transform .22s ease;
+}
+
+ 
+.assignment-card::before{
+  content:"";
+  position:absolute;
+  left: 0;
+  top: 14px;
+  bottom: 14px;
+  width: 3px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.55), rgba(255,255,255,0.10));
+  opacity: .35;
+  pointer-events: none;
+}
+ 
+.assignment-card:hover{
+  transform: translateY(-2px);
+} */
+
+/* Icon bubble becomes premium */
+ 
+
+ 
+/* title row */
+.assignment-title-text{
+  font-size: 17px !important;
+  font-weight: 800 !important;
+  color: rgba(15,23,42,0.92) !important;
+  letter-spacing: -0.01em;
+}
+
+.assignment-meta{
+  margin-top: 6px !important;
+  color: rgba(51,65,85,0.78) !important;
+  font-size: 13px !important;
+}
+
+.assignment-description{
+  margin-top: 10px !important;
+  color: rgba(30,41,59,0.78) !important;
+  line-height: 1.6;
+}
+
+/* Badges become premium pills */
+.status-badge{
+  border-radius: 999px !important;
+  padding: 6px 12px !important;
+  font-weight: 800 !important;
+  font-size: 12px !important;
+  border: 1px solid rgba(15,23,42,0.08) !important;
+  box-shadow: 0 10px 25px rgba(2,6,23,0.06);
+}
+
+/* If you already have badge-* classes, we enrich them */
+.badge-primary{
+  color: #1d4ed8 !important;
+  background: rgba(37,99,235,0.10) !important;
+  border-color: rgba(37,99,235,0.18) !important;
+}
+.badge-info{
+  color: #0f766e !important;
+  background: rgba(20,184,166,0.10) !important;
+  border-color: rgba(20,184,166,0.18) !important;
+}
+.badge-success{
+  color: #047857 !important;
+  background: rgba(16,185,129,0.10) !important;
+  border-color: rgba(16,185,129,0.18) !important;
+}
+.badge-danger{
+  color: #b91c1c !important;
+  background: rgba(239,68,68,0.10) !important;
+  border-color: rgba(239,68,68,0.18) !important;
+}
+
+/* Progress */
+.progress-section{
+  margin-top: 14px !important;
+  background: rgba(15,23,42,0.03);
+  border: 1px solid rgba(15,23,42,0.06);
+  border-radius: 16px;
+  padding: 12px 14px;
+}
+
+.progress-bar{
+  height: 10px !important;
+  border-radius: 999px !important;
+  background: rgba(15,23,42,0.08) !important;
+  overflow: hidden;
+}
+
+.progress-fill{
+  height: 10px !important;
+  border-radius: 999px !important;
+  background: linear-gradient(90deg, #2563eb 0%, #7c3aed 100%) !important;
+  box-shadow: 0 8px 20px rgba(37,99,235,0.25);
+}
+
+/* Attachments look like pills */
+.attachment-button,
+.attachment-download{
+  border-radius: 14px !important;
+  padding: 10px 12px !important;
+  background: rgba(255,255,255,0.65) !important;
+  border: 1px solid rgba(15,23,42,0.08) !important;
+  box-shadow: 0 12px 30px rgba(2,6,23,0.06) !important;
+  transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+}
+
+.attachment-button:hover,
+.attachment-download:hover{
+  transform: translateY(-2px);
+  border-color: rgba(37,99,235,0.16) !important;
+  box-shadow: 0 18px 45px rgba(2,6,23,0.10) !important;
+}
+
+/* Buttons: premium */
+.btn-primary{
+  border-radius: 14px !important;
+  padding: 12px 18px !important;
+  font-weight: 800 !important;
+  background: linear-gradient(135deg, #2563eb 0%, #4f46e5 60%, #7c3aed 100%) !important;
+  box-shadow: 0 18px 45px rgba(37,99,235,0.25) !important;
+}
+
+.btn-primary:hover:not(:disabled){
+  transform: translateY(-2px);
+  box-shadow: 0 26px 70px rgba(37,99,235,0.32) !important;
+}
+
+.btn-outline{
+  border-radius: 14px !important;
+  padding: 12px 18px !important;
+  font-weight: 800 !important;
+  background: rgba(255,255,255,0.55) !important;
+  border: 1px solid rgba(15,23,42,0.10) !important;
+  box-shadow: 0 14px 40px rgba(2,6,23,0.06) !important;
+  color: rgba(15,23,42,0.78) !important;
+}
+
+.btn-outline:hover{
+  transform: translateY(-2px);
+  border-color: rgba(37,99,235,0.14) !important;
+  box-shadow: 0 20px 60px rgba(2,6,23,0.10) !important;
+}
+
+/* Danger button: premium red */
+.btn-danger{
+  border-radius: 14px !important;
+  padding: 12px 18px !important;
+  font-weight: 800 !important;
+  background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%) !important;
+  box-shadow: 0 18px 45px rgba(239,68,68,0.22) !important;
+    color: #ffffff !important;  
+}
+.btn-danger:hover{
+  transform: translateY(-2px);
+  box-shadow: 0 26px 70px rgba(239,68,68,0.28) !important;
+}
+
+/* Empty state */
+.empty-state{
+  border-radius: 24px;
+  background: rgba(255,255,255,0.70);
+  border: 1px solid rgba(15,23,42,0.08);
+  box-shadow: 0 18px 55px rgba(2,6,23,0.08);
+}
+
+/* Modals: make them feel premium (your modal styles already good, but enhance a bit) */
+.modal-content{
+  border-radius: 26px !important;
+  border: 1px solid rgba(255,255,255,0.18) !important;
+  box-shadow:
+    0 35px 90px rgba(2,6,23,0.35),
+    0 0 0 1px rgba(255,255,255,0.08) !important;
+}
+
+/* little tweak: make close button more luxury */
+.close-button{
+  border-radius: 14px !important;
+  background: rgba(255,255,255,0.10) !important;
+  border: 1px solid rgba(255,255,255,0.14) !important;
+  color: rgba(100,116,139,0.95) !important;
+}
+.close-button:hover{
+  background: rgba(255,255,255,0.16) !important;
 }
 
 /* Progress Section 1*/
@@ -3668,6 +4055,46 @@ button:hover {
 
 /* Progress Section 2*/
 
+/* Submitted Section */
+.submitted-section {
+  background-color: rgba(14, 165, 233, 0.1);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  border: 1px solid rgba(14, 165, 233, 0.2);
+}
+
+.submitted-content {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.submitted-icon {
+  width: 2rem;
+  height: 2rem;
+  color: #0ea5e9;
+  flex-shrink: 0;
+}
+
+.submitted-info {
+  flex: 1;
+}
+
+.submitted-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #0369a1;
+  margin: 0 0 0.25rem 0;
+}
+
+.submitted-status {
+  font-size: 0.75rem;
+  color: #6b7280;
+  margin: 0;
+  font-style: italic;
+}
+
 /* Grade Section */
 .grade-section {
   background-color: rgba(34, 197, 94, 0.1);
@@ -3814,12 +4241,12 @@ button:hover {
   .assignments-container {
     padding: 1rem;
   }
-
+/* 
   .assignments-header {
     flex-direction: column;
     gap: 1rem;
   align-items: flex-start;
-  }
+  } */
 
   .stats-container {
     width: 100%;
@@ -3831,9 +4258,7 @@ button:hover {
     gap: 1rem;
   }
 
-  .assignment-icon {
-    align-self: flex-start;
-  }
+ 
 
   .title-row {
     flex-direction: column;
@@ -3862,10 +4287,7 @@ button:hover {
     justify-content: center;
   }
 
-  .tabs-list {
-    flex-wrap: wrap;
-    gap: 0.5rem;
-  }
+ 
 
   .tab-trigger {
     flex: 1;
@@ -5434,3 +5856,119 @@ transform: none;
   color: #374151;
 }
 
+/* Pending Feedback Section for Submitted Assignments */
+.pending-feedback-section {
+  margin: 1rem 0;
+}
+
+.pending-notice {
+  display: flex;
+  gap: 1rem;
+  padding: 1rem;
+  background: linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 100%);
+  border-radius: 0.75rem;
+  border: 1px solid #bae6fd;
+  align-items: flex-start;
+}
+
+.pending-icon {
+  width: 2rem;
+  height: 2rem;
+  color: #0ea5e9;
+  flex-shrink: 0;
+}
+
+.pending-title {
+  font-weight: 600;
+  color: #0369a1;
+  margin: 0 0 0.25rem 0;
+  font-size: 0.9rem;
+}
+
+.pending-text {
+  font-size: 0.8rem;
+  color: #6b7280;
+  margin: 0;
+}
+
+.grade-display.pending .awaiting-text {
+  color: #0ea5e9;
+  font-weight: 600;
+}
+
+.status-submitted {
+  color: #0ea5e9;
+  font-weight: 500;
+}
+
+/* Upload hint text */
+.upload-hint {
+  margin-top: 12px;
+  padding: 10px 14px;
+  background: linear-gradient(135deg, #dcfce7 0%, #f0fdf4 100%);
+  border-radius: 8px;
+  font-size: 0.85rem;
+  color: #166534;
+  font-weight: 500;
+  text-align: center;
+  border: 1px solid #bbf7d0;
+}
+
+/* Save & Submit button styles */
+.btn-save-submit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-width: 160px;
+  padding: 12px 24px;
+  font-size: 1rem;
+  font-weight: 600;
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  border: none;
+  border-radius: 10px;
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+}
+
+.btn-save-submit:hover:not(:disabled) {
+  background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(34, 197, 94, 0.4);
+}
+
+.btn-save-submit:disabled {
+  background: #9ca3af;
+  cursor: not-allowed;
+  box-shadow: none;
+  transform: none;
+}
+
+/* Spinner animation for loading */
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Uploaded files success state */
+.uploaded-files h5 {
+  color: #16a34a;
+  font-size: 0.95rem;
+  margin-bottom: 12px;
+}
+.assignment-title-section{
+  background: linear-gradient( #fff  );
+
+}
