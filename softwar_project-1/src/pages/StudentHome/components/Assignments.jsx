@@ -578,22 +578,42 @@ export function Assignments() {
     document.body.removeChild(link);
   };
 
+  const handleDownloadSubmittedFile = (fileUrl, fileName) => {
+    if (!fileUrl) return;
+    const link = document.createElement('a');
+    link.href = fileUrl;
+    link.download = fileName || 'submission';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const handleSubmitLate = (assignment) => {
     setSelectedAssignment(assignment);
     setActiveModal('submit');
   };
 
   const handleFileUpload = (event) => {
-    const files = Array.from(event.target.files);
+    const files = Array.from(event.target.files || []);
+    if (files.length === 0) return;
+
     setUploadedFiles(prev => [...prev, ...files]);
+
+    // Auto-submit when a homework file is uploaded
+    submitAssignment(files);
   };
 
   const removeUploadedFile = (index) => {
     setUploadedFiles(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handleFinalSubmit = async () => {
+  const submitAssignment = async (filesOverride = null) => {
     if (!selectedAssignment || submitting) return;
+
+    const filesToSubmit = Array.isArray(filesOverride) ? filesOverride : uploadedFiles;
+    if (filesToSubmit.length === 0 && submissionText.trim() === '') {
+      return;
+    }
 
     // Check if assignment has a valid MongoDB ObjectId (24 hex characters)
     const assignmentId = selectedAssignment.id;
@@ -632,8 +652,8 @@ export function Assignments() {
       let fileData = null;
       let fileName = null;
       
-      if (uploadedFiles.length > 0) {
-        const file = uploadedFiles[0];
+      if (filesToSubmit.length > 0) {
+        const file = filesToSubmit[0];
         fileName = file.name;
         
         // Read file as base64
@@ -703,6 +723,8 @@ export function Assignments() {
                 month: 'short', 
                 day: 'numeric' 
               }),
+              submissionFileName: fileName || assignment.submissionFileName || null,
+              submissionFile: fileData || assignment.submissionFile || null,
             }
           : assignment
       );
@@ -725,6 +747,10 @@ export function Assignments() {
       alert('Error submitting assignment. Please try again.');
       setSubmitting(false);
     }
+  };
+
+  const handleFinalSubmit = async () => {
+    await submitAssignment();
   };
 
   const closeModal = () => {
@@ -1016,7 +1042,7 @@ export function Assignments() {
                         </button>
                       </div>
                     ))}
-                    <p className="upload-hint">Click "Save & Submit" below to submit your assignment</p>
+                    <p className="upload-hint">Uploading your homework file saves it and submits it to your teacher automatically.</p>
                   </div>
                 )}
               </div>
@@ -1194,7 +1220,26 @@ export function Assignments() {
               <div className="submission-preview">
                 <h4>Your Submission</h4>
                 <div className="preview-content">
-                  <p>📄 Your submitted files will be shown here</p>
+                  {(selectedAssignment.submissionFileName || selectedAssignment.submissionFile || selectedAssignment.fileName || selectedAssignment.file) ? (
+                    <div className="file-item">
+                      <FileText size={16} />
+                      <span className="file-name">
+                        {selectedAssignment.submissionFileName || selectedAssignment.fileName || 'Submitted File'}
+                      </span>
+                      <button
+                        className="attachment-download"
+                        onClick={() => handleDownloadSubmittedFile(
+                          selectedAssignment.submissionFile || selectedAssignment.file,
+                          selectedAssignment.submissionFileName || selectedAssignment.fileName
+                        )}
+                      >
+                        <Download size={16} />
+                        Download
+                      </button>
+                    </div>
+                  ) : (
+                    <p>📄 Your submitted files will be shown here</p>
+                  )}
                 </div>
               </div>
             </div>

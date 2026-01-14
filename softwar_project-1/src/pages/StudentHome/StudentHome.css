@@ -1604,14 +1604,15 @@ button:hover {
 
 .progress-header h3 {
   margin: 0;
-  font-size: 1.1rem;
-  color: #2d3748;
+  font-size: 0.9rem;
+  color: #000000;
+  font-weight: 600;
 }
 
 .progress-percent {
-  font-weight: bold;
+  font-weight: 200;
   color: #2c3e50;
-  font-size: 1.2rem;
+  font-size: 0.9rem;
 }
 
 .progress-bar {
@@ -1640,15 +1641,15 @@ button:hover {
 
 .stat-value {
   display: block;
-  font-weight: bold;
+  font-weight: 200;
   color: #2d3748;
-  font-size: 1rem;
+  font-size: 0.8rem;
 }
 
 .stat-label {
   display: block;
   font-size: 0.8rem;
-  color: #718096;
+  color: #6b7280;
   margin-top: 0.25rem;
 }
 

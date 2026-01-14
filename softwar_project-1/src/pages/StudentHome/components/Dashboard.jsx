@@ -10,6 +10,7 @@ export function Dashboard() {
     getFullName,
     stats: contextStats, 
     courses: contextCourses,
+    assignments: contextAssignments,
     todaySchedule: contextTodaySchedule,
     recentActivities: contextRecentActivities,
     loading: contextLoading,
@@ -163,6 +164,121 @@ export function Dashboard() {
       }
     }
   }, [contextCourses, progressData]);
+
+  const getStudentId = () => {
+    if (student?.id) return student.id;
+    try {
+      const storedUser = localStorage.getItem('user');
+      if (!storedUser) return null;
+      const parsed = JSON.parse(storedUser);
+      return parsed?._id || parsed?.id || null;
+    } catch {
+      return null;
+    }
+  };
+
+  const getStudentVideoProgress = (course, userId) => {
+    if (!course?.videoProgress || !userId) return null;
+    return course.videoProgress.find(vp => vp.student?.toString() === userId?.toString());
+  };
+
+  const getStudentCourseProgress = (course, userId) => {
+    if (!course?.studentCourseProgress || !userId) return null;
+    return course.studentCourseProgress.find(p => p.student?.toString() === userId?.toString());
+  };
+
+  const getLectureStats = (course, progressFromApi, userId) => {
+    const totalLectures = (course?.videoUrls?.length || 0) + (course?.uploadedVideos?.length || 0);
+    const studentVideoProgress = getStudentVideoProgress(course, userId);
+    const completedLectures = studentVideoProgress
+      ? (studentVideoProgress.watchedVideoUrls?.length || 0) + (studentVideoProgress.watchedUploadedVideos?.length || 0)
+      : 0;
+
+    if (totalLectures > 0) {
+      return { totalLectures, completedLectures };
+    }
+
+    return {
+      totalLectures: progressFromApi?.totalLessons ?? course?.totalLessons ?? course?.lessons?.length ?? 0,
+      completedLectures: progressFromApi?.completedLessons ?? course?.completedLessons ?? 0,
+    };
+  };
+
+  const getQuizStats = (course, progressFromApi, userId) => {
+    const studentCourseProgress = getStudentCourseProgress(course, userId);
+    if (course?.isChapterBased && course?.numberOfChapters) {
+      return {
+        totalQuizzes: course.numberOfChapters,
+        completedQuizzes: studentCourseProgress?.chaptersCompleted?.length || 0,
+      };
+    }
+
+    return {
+      totalQuizzes: progressFromApi?.totalQuizzes ?? course?.totalQuizzes ?? course?.quizzes?.length ?? 0,
+      completedQuizzes: progressFromApi?.completedQuizzes ?? course?.completedQuizzes ?? 0,
+    };
+  };
+
+  const getAverageQuizScore = (course, progressFromApi) => {
+    if (typeof progressFromApi?.avgScore === 'number') return progressFromApi.avgScore;
+    if (typeof course?.averageScore === 'number') return course.averageScore;
+    return 0;
+  };
+
+  const isCourseStarted = (course) => {
+    if (!course) return false;
+    if (course.startedAt || course.enrolledAt) return true;
+    if (typeof course.progress === 'number' && course.progress > 0) return true;
+    if ((course.completedLessons || 0) > 0) return true;
+    if ((course.completedQuizzes || 0) > 0) return true;
+    if (course.status && ['in-progress', 'active', 'started'].includes(course.status.toLowerCase())) return true;
+    return false;
+  };
+
+  const buildProgressCards = () => {
+    const progressMapById = {};
+    const progressMapByName = {};
+    const userId = getStudentId();
+
+    Object.entries(progressData || {}).forEach(([key, value]) => {
+      if (value?.courseId) {
+        progressMapById[value.courseId] = value;
+      }
+      progressMapByName[key.toLowerCase()] = value;
+    });
+
+    const startedCourses = (contextCourses || []).filter(isCourseStarted);
+    const coursesToDisplay = startedCourses.length > 0 ? startedCourses : (contextCourses || []);
+
+    return coursesToDisplay.map(course => {
+      const courseKey = course._id || course.title || course.subject || 'course';
+      const courseName = course.title || course.subject || 'Course';
+      const normalizedKey = courseName.toLowerCase();
+      const progressFromApi = (course._id && progressMapById[course._id]) || progressMapByName[normalizedKey];
+
+      const lectureStats = getLectureStats(course, progressFromApi, userId);
+      const quizStats = getQuizStats(course, progressFromApi, userId);
+      const percent = progressFromApi?.percent ?? (lectureStats.totalLectures > 0
+        ? Math.round((lectureStats.completedLectures / lectureStats.totalLectures) * 100)
+        : 0);
+      const avgScore = getAverageQuizScore(course, progressFromApi);
+      const grade = progressFromApi?.grade ?? course.grade ?? '-';
+      const subjectKey = (course.subject || course.title || 'course').toLowerCase();
+
+      return {
+        key: courseKey,
+        courseName,
+        subjectKey,
+        percent,
+        completedLessons: lectureStats.completedLectures,
+        totalLessons: lectureStats.totalLectures,
+        completedQuizzes: quizStats.completedQuizzes,
+        totalQuizzes: quizStats.totalQuizzes,
+        avgScore,
+        grade,
+      };
+    });
+  };
 
   // State for current lesson/quiz/assignment
   const [currentContent, setCurrentContent] = useState(null);
@@ -460,45 +576,39 @@ export function Dashboard() {
           </button>
         </div>
         <div className="progress-tracker">
-          {Object.keys(progressData).length === 0 ? (
+          {buildProgressCards().length === 0 ? (
             <Card className="progress-card empty-state">
               <p style={{ padding: '20px', textAlign: 'center', color: '#666' }}>
                 No courses enrolled yet. Enroll in courses to track your progress!
               </p>
             </Card>
           ) : (
-            Object.entries(progressData).map(([subject, data]) => (
-              <Card key={subject} className="progress-card">
+            buildProgressCards().map((data) => (
+              <Card key={data.key} className="progress-card">
                 <div className="progress-header">
-                  <h3>{getSubjectIcon(subject)} {data.courseName || subject.charAt(0).toUpperCase() + subject.slice(1)}</h3>
-                  <span className="progress-percent">{data.percent || 0}%</span>
+                  <h3>{getSubjectIcon(data.subjectKey)} {data.courseName}</h3>
+                  <span className="progress-percent">{data.percent}%</span>
                 </div>
                 <div className="progress-bar">
                   <div 
                     className="progress-fill" 
-                    style={{width: `${data.percent || 0}%`}}
+                    style={{width: `${data.percent}%`}}
                   ></div>
                 </div>
                 <div className="progress-stats">
                   <div className="stat">
-                    <span className="stat-value">{data.completedLessons || 0}/{data.totalLessons || data.lessons || 0}</span>
-                    <span className="stat-label">Lessons</span>
+                    <span className="stat-value">{data.completedLessons}/{data.totalLessons}</span>
+                    <span className="stat-label">Lectures</span>
                   </div>
                   <div className="stat">
-                    <span className="stat-value">{data.completedQuizzes || 0}/{data.totalQuizzes || data.quizzes || 0}</span>
+                    <span className="stat-value">{data.completedQuizzes}/{data.totalQuizzes}</span>
                     <span className="stat-label">Quizzes</span>
                   </div>
                   <div className="stat">
-                    <span className="stat-value">{data.avgScore || 0}%</span>
-                    <span className="stat-label">Avg. Score</span>
+                    <span className="stat-value">{data.avgScore}%</span>
+                    <span className="stat-label">Avg. Grade</span>
                   </div>
                 </div>
-                {data.grade && data.grade !== '-' && (
-                  <div className="progress-grade">
-                    <span className="grade-label">Grade:</span>
-                    <span className="grade-value">{data.grade}</span>
-                  </div>
-                )}
               </Card>
             ))
           )}
