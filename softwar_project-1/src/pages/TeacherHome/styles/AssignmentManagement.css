@@ -110,7 +110,7 @@
 
 /* Header Section */
 .assignment-header {
-   /* background: linear-gradient(135deg, #3498db, #2c3e50); */
+   background: linear-gradient(135deg, #3498db, #2c3e50);
     border-radius: 40px;
  padding:48px 360px;
   display: flex;
@@ -123,11 +123,12 @@
   margin-left: calc( -38vw + 50%);  
 }
 
-.header-content {
-  flex: 1;
+.header-content {  
+  flex: 1; background: transparent;
 }
 /* ألغِ فقط المربع خلف الكتابة */
  
+
 .header-text h1 {
    color: #ffffff;
   margin: 0 0 10px 0;

@@ -31,6 +31,8 @@
     overflow-y: auto;
   background: linear-gradient(180deg, #2c3e50 0%, #3498db 100%);
 }
+ 
+
 html, body, #root {
   margin: 0;
   padding: 0;
@@ -1291,7 +1293,7 @@ button:hover {
   position: sticky;
   top: 0;
   z-index: 50;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid #f3f4f6; 
 }
 
 .header-content {
@@ -1302,7 +1304,7 @@ button:hover {
   max-width: 1200px;
   margin: 0 auto;
   background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
-
+color: #000;
 }
 
 /* ====== Search Bar ====== */
@@ -1521,6 +1523,7 @@ button:hover {
   background: #f7f7ff;
   border-radius: 12px;
   padding: 10px 16px;
+  
 }
 
 .search-bar input {
@@ -1530,6 +1533,8 @@ button:hover {
   flex: 1;
   font-size: 14px;
   color: #444;
+    justify-content: flex-end;   /* إلى اليمين */
+
 }
 
 /* ====== Dashboard Sections ====== */
@@ -2446,7 +2451,7 @@ button:hover {
 
  
 .my-lessons-header {
-  margin-top: 2rem;
+  margin-top: 0 !important;
 }
 
 .my-lessons-header h1 {
@@ -3003,16 +3008,33 @@ button:hover {
  
 
 .assignments-title{
-  margin: 0 !important;
-  font-size: 42px !important;
+  /* margin: 0 !important;
+  font-size: 2rem;
   font-weight: 800 !important;
   letter-spacing: -0.03em;
-  color: rgba(255,255,255,0.95) !important;
-}
+  color: rgba(0, 0, 0, 0.95) !important; */
+  align-self: flex-start;
 
+}
+.assignments-title h1{
+    font-size: 24px;
+  font-weight: 700;
+  margin: 0;
+  color: #0f172a;
+}
+.assignments-title p{
+   margin: 4px 0 0;
+  color: #64748b;
+  font-size: 14px;
+}
+.textai{
+
+    transform: translateY(-20px);
+
+}
 .assignments-subtitle{
   margin-top: 10px !important;
-  color: rgba(226,232,240,0.82) !important;
+  color: rgba(0, 0, 0, 0.82) !important;
   font-size: 15.5px !important;
   max-width: 600px;
   line-height: 1.55;
@@ -3050,7 +3072,7 @@ button:hover {
   margin-top: 18px !important;
   display: grid !important;
   gap: 14px !important;
-  
+    transform: translateY(-60px);
 }
  
  
@@ -3224,6 +3246,7 @@ button:hover {
    GLOBAL PAGE LAYOUT
    ========================= */
 .progress-page-wrapper {
+  
   display: flex;
   flex-direction: column;
   gap: 2rem;
@@ -3827,7 +3850,22 @@ button:hover {
   width: 1rem;
   height: 1rem;
 }
+.assignments-header{
+  padding: 20px 24px;
+  height: 50%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: #f5f7fb;
+    /* background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%); */
+  transform: translateY(-80px);
 
+}
+.tabs-container{
+    transform: translateY(-70px);
+
+}
 /* Responsive Design */
 @media (max-width: 768px) {
   .assignments-container {
@@ -3888,9 +3926,7 @@ button:hover {
 }
 
 @media (max-width: 480px) {
-  .assignments-title {
-    font-size: 1.5rem;
-  }
+  
 
   .stat-card {
     padding: 0.5rem 1rem;

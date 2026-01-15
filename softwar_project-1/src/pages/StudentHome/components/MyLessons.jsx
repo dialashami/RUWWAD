@@ -279,7 +279,24 @@ export function MyLessons() {
 
   return (
     <div className="my-lessons-container">
-      {/* Search bar */}
+      
+
+      {/* Header */}
+      <div className="my-lessons-header">
+        <h1>My Lessons</h1>
+        <p>Continue your learning journey</p>
+      </div>
+
+      {/* Stats */}
+      <div className="stats-container">
+        <div className="stat-box stat-inprogress">
+          In Progress <span>{inProgressCount}</span>
+        </div>
+        <div className="stat-box stat-completed">
+          Completed <span>{completedCount}</span>
+        </div>
+      </div>
+{/* Search bar */}
       <div className="search-bar">
         <div style={{ position: "relative", flex: 1 }}>
           <Search
@@ -302,23 +319,6 @@ export function MyLessons() {
 
         <button>{todayLessonsCount} {todayLessonsCount === 1 ? 'lesson' : 'lessons'} today</button>
       </div>
-
-      {/* Header */}
-      <div className="my-lessons-header">
-        <h1>My Lessons</h1>
-        <p>Continue your learning journey</p>
-      </div>
-
-      {/* Stats */}
-      <div className="stats-container">
-        <div className="stat-box stat-inprogress">
-          In Progress <span>{inProgressCount}</span>
-        </div>
-        <div className="stat-box stat-completed">
-          Completed <span>{completedCount}</span>
-        </div>
-      </div>
-
       {/* Tabs */}
       <div className="tabs">
         {["all", "in-progress", "completed", "recommended"].map((tab) => (

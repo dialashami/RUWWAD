@@ -300,8 +300,8 @@ export default function AITutorPage() {
   return (
     <div className="AITutorPage">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex items-start justify-between">
+        <div >
           <h1
             className="text-[#0F172A] flex items-center gap-2"
             style={{ fontSize: '32px', fontWeight: '700' }}
