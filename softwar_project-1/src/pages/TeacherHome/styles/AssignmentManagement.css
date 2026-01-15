@@ -70,6 +70,12 @@
   align-items: center;
   background-color: rgba(0, 0, 0, 0.1);
 }
+.assignment-header .header-content {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+  transform: translateY(-50px);
+}
 
 .profile-avatar {
   width: 45px;
@@ -110,7 +116,7 @@
 
 /* Header Section */
 .assignment-header {
-   background: linear-gradient(135deg, #3498db, #2c3e50);
+   
     border-radius: 40px;
  padding:48px 360px;
   display: flex;
@@ -118,30 +124,29 @@
   align-items: center;
   color: #fff;
   margin-bottom: 40px;
-  box-shadow: 0 8px 30px rgba(99, 102, 241, 0.3);
+ margin-left: -380px;
   width: 76vw; 
-  margin-left: calc( -38vw + 50%);  
+   
 }
 
-.header-content {  
-  flex: 1; background: transparent;
+.header-content {
+  flex: 1;
 }
 /* ألغِ فقط المربع خلف الكتابة */
  
-
 .header-text h1 {
-   color: #ffffff;
+   color: #000000;
   margin: 0 0 10px 0;
   font-size: 2rem;
   text-align: center;
-  font-weight: 700; 
+  font-weight: 700; margin-left: -700px;
 }
 
 .header-text p {
-   color: #ffffff;
+   color: #000000;
   margin: 0;
   font-size: 1.1rem;
-   text-align: center;
+   text-align: center;margin-left: -700px;
 }
 
  
@@ -193,6 +198,7 @@
 
 /* Action Bar */
 .action-bar {
+  transform: translateY(-70px);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -265,6 +271,7 @@
 
 /* Assignment Tabs */
 .assignment-tabs {
+  transform: translateY(-70px);
   display: flex;
   background: white;
   border-radius: 12px;
@@ -310,6 +317,7 @@
 
 /* Assignments Grid */
 .assignments-grid {
+  transform: translateY(-70px);
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(400px, 1fr));
   gap: 25px;
@@ -1288,6 +1296,13 @@
   background: #fff;
   border-radius: 16px;
   width: 100%;
+}
+.assignment-header .header-text h1 {
+  color: #000 !important;
+}
+
+.assignment-header .header-text p {
+  color: #000 !important;
 }
 
 .video-editor-content {

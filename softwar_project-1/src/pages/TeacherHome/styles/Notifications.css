@@ -117,8 +117,8 @@
 
 /* رأس الصفحة */
 .notifications-header {
-  
-   background: linear-gradient(135deg, #3498db, #2c3e50);
+   
+   transform: translateY(-80px);
     border-radius: 40px;
  padding:48px 340px;
   display: flex;
@@ -131,11 +131,11 @@
   margin-left: calc( -38vw + 50%);  
 }
 .notifications-header .header-text h1{
-color: #ffffff;
+color: #000000;
   margin: 0 0 10px 0;
   font-size: 2rem;
   text-align: center;
-  font-weight: 700; 
+  font-weight: 700; margin-left: -700px;
 }
 .header-content {
   display: flex;
@@ -143,17 +143,25 @@ color: #ffffff;
   align-items: center;
   
 }
+.notifications-header,
+.notifications-header .header-content,
+.notifications-header .header-text {
+  background: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+}
 
 .notifications-header .header-text p {
   margin: 0;
-  color: #ffffff;
+  color: #000000;
   font-size: 1rem;
     text-align: center;
-
+margin-left: -650px;
 }
 
 /* تبويبات الصفحة */
 .notifications-tabs {
+  transform: translateY(-110px);
   display: flex;
   background: white;
   border-radius: 12px;
@@ -182,6 +190,7 @@ color: #ffffff;
 
 /* محتوى التبويبات */
 .tab-content {
+  transform: translateY(-100px);
   background: white;
   border-radius: 12px;
   padding: 30px;

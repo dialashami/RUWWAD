@@ -525,6 +525,7 @@ background: linear-gradient(180deg, #2c3e50  );
 }
 
 .chat-header-parent {
+  transform: translateY(-10px);
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(10px);
   padding: 1.5rem 2rem;
@@ -540,6 +541,8 @@ background: linear-gradient(180deg, #2c3e50  );
   color: #2d3748;
   font-size: 2rem;
   font-weight: 700;
+  margin-left: -900px;
+  transform: translateY(50px);
 }
 
 .parent-info {
@@ -580,6 +583,7 @@ background: linear-gradient(180deg, #2c3e50  );
 
 /* Sidebar Styles */
 .chat-sidebar-parent {
+ 
   width: 400px;
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(10px);
@@ -1195,6 +1199,14 @@ background: linear-gradient(180deg, #2c3e50  );
   border-radius: 999px;
   padding: 0.12rem 0.6rem;
   font-size: 0.72rem;
+}
+.chat-page-parent,
+.chat-header-parent,
+.chat-header-parent .header-content {
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
 }
 
 /* البار تبع التقدم (Progress) */
@@ -2812,4 +2824,17 @@ transform: none;
   text-align: center;
   font-size: 14px;
   color: #374151;
+}
+ 
+.parent-banner {
+  margin-left: -700px;
+  
+  background: transparent !important;
+  background-color: transparent !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+.parent-banner h1,
+.parent-banner p {
+  color: #000; /* أسود */
 }
