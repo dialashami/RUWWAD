@@ -13,7 +13,7 @@ const userSchema = new mongoose.Schema({
     validate: [validator.isEmail, 'Please provide a valid email'] 
   },
   password: { type: String, required: true, minlength: 6, select: false },
-  role: { type: String, enum: ['student','parent','teacher','trainee','admin'], required: true },
+  role: { type: String, enum: ['student','parent','teacher','admin'], required: true },
 
   // الحقول الخاصة بالطلاب والمتدربين
   studentType: {

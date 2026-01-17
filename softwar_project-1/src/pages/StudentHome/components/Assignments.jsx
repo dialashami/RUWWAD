@@ -768,9 +768,7 @@ export function Assignments() {
           <h1 className="assignments-title">
             Assignments 
           </h1>
-          <p className="assignments-subtitle">
-            Manage your assignments and submissions
-          </p>
+          
         </div>
       </div>
 
