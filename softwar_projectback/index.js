@@ -28,9 +28,11 @@ const corsOptions = {
   origin: [
     'http://localhost:3000', // Web frontend (if on same port)
     'http://localhost:3001', // Web frontend (on different port)
+    'http://localhost:3002', // Web frontend (alternate port)
     'http://localhost:5173', // Vite dev server
     'http://localhost:8081', // Expo local
     'http://localhost:19000', // Expo tunnel
+    'http://localhost:19006', // Expo web
     /^http:\/\/\d+\.\d+\.\d+\.\d+:/, // Local network IPs (192.168.x.x, etc)
     'https://olive-coats-report.loca.lt', // Localtunnel URL
     'exp://', // Expo Go on physical devices
@@ -68,8 +70,6 @@ const MONGODB_URI =
 
 mongoose
   .connect(MONGODB_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
     maxPoolSize: 10,
   })
   .then(() => console.log('✅ MongoDB connected'))

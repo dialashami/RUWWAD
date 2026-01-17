@@ -143,6 +143,9 @@ color: #000000;
   align-items: center;
   
 }
+.header-content h1{
+  transform: translateY(10px);
+}
 .notifications-header,
 .notifications-header .header-content,
 .notifications-header .header-text {

@@ -533,27 +533,6 @@ exports.startQuiz = async (req, res, next) => {
     }
     
     // Create new attempt
-    const shuffleArray = (items) => {
-      const array = [...items];
-      for (let i = array.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [array[i], array[j]] = [array[j], array[i]];
-      }
-      return array;
-    };
-
-    const shuffleOptionsWithCorrect = (options, correctIndex) => {
-      const optionObjects = options.map((text, index) => ({
-        text,
-        isCorrect: index === correctIndex
-      }));
-      const shuffled = shuffleArray(optionObjects);
-      return {
-        options: shuffled.map(item => item.text),
-        correctAnswer: shuffled.findIndex(item => item.isCorrect)
-      };
-    };
-
     const questions = chapter.quiz.questions.map(q => {
       const options = Array.isArray(q.options) ? [...q.options] : [];
       const { options: shuffledOptions, correctAnswer } = shuffleOptionsWithCorrect(options, q.correctAnswer);

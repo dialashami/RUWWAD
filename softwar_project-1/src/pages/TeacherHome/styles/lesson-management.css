@@ -108,6 +108,7 @@ max-width: none;
 
 /* Header Section */
 .lesson-header {
+  transform: translateY(-20px);
   margin-top: 0;
   padding: 24px 32px; /* نفس إحساس الصورة */
   border-radius: 0;   /* الصورة بدون زوايا */
@@ -129,15 +130,16 @@ max-width: none;
   font-size: 2rem;
   font-weight: 700;
   color: #111;
-    margin-left: -700px;
-
+    margin-left: -650px;
+transform: translateY(-10px);
 }
 
 .lesson-header .header-text p {
   margin: 0;
   font-size: 1rem;
   color: #555;
-   margin-left: -700px;
+     margin-left: -650px;
+transform: translateY(-10px);
 
 }
 
@@ -202,6 +204,7 @@ max-width: none;
 
 /* Lessons Grid */
 .lessons-grid {
+  transform: translateY(-20px);
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
   gap: 25px;
@@ -645,7 +648,8 @@ max-width: none;
 
 /* Action Bar */
 .action-bar {
- 
+    
+
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -654,6 +658,7 @@ max-width: none;
   background: white;
   border-radius: 15px;
   box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+
 }
 
 .filter-options {

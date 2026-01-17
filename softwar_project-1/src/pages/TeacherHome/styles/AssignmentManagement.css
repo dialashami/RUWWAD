@@ -1299,10 +1299,12 @@
 }
 .assignment-header .header-text h1 {
   color: #000 !important;
+  transform: translateY(10px);
 }
 
 .assignment-header .header-text p {
   color: #000 !important;
+  transform: translateY(20px);
 }
 
 .video-editor-content {
