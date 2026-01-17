@@ -4,6 +4,41 @@ const QuizAttempt = require('../models/QuizAttempt');
 
 // AI Quiz Generation using OpenAI or Gemini
 const generateQuizQuestions = async (slideContent, subjectType, chapterTitle, numQuestions = 20) => {
+  const shuffleArray = (items) => {
+    const array = [...items];
+    for (let i = array.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+  };
+
+  const shuffleOptionsWithCorrect = (options, correctIndex) => {
+    const optionObjects = options.map((text, index) => ({
+      text,
+      isCorrect: index === correctIndex
+    }));
+    const shuffled = shuffleArray(optionObjects);
+    return {
+      options: shuffled.map(item => item.text),
+      correctAnswer: shuffled.findIndex(item => item.isCorrect)
+    };
+  };
+
+  const normalizeAndShuffleQuestions = (questions) => {
+    if (!Array.isArray(questions)) return [];
+
+    return questions
+      .filter(q => q && Array.isArray(q.options) && q.options.length === 4 && Number.isInteger(q.correctAnswer))
+      .map(q => {
+        const { options, correctAnswer } = shuffleOptionsWithCorrect(q.options, q.correctAnswer);
+        return {
+          ...q,
+          options,
+          correctAnswer
+        };
+      });
+  };
   // Try to use OpenAI API if available
   const apiKey = process.env.OPENAI_API_KEY || process.env.GEMINI_API_KEY;
   
@@ -15,7 +50,7 @@ const generateQuizQuestions = async (slideContent, subjectType, chapterTitle, nu
   
   const isGemini = process.env.GEMINI_API_KEY && !process.env.OPENAI_API_KEY;
   
-  const prompt = `You are an expert educational quiz creator. Generate exactly ${numQuestions} multiple-choice questions based on the following educational content from a ${subjectType} course, chapter titled "${chapterTitle}".
+  const prompt = `You are an expert educational quiz creator. Generate exactly ${numQuestions} multiple-choice questions based on the core topics and key concepts in the following educational content from a ${subjectType} course, chapter titled "${chapterTitle}".
 
 CONTENT:
 ${slideContent.substring(0, 8000)} 
@@ -24,9 +59,10 @@ REQUIREMENTS:
 1. Create exactly ${numQuestions} questions
 2. Each question should have exactly 4 options (A, B, C, D)
 3. Only one option should be correct
-4. Questions should test understanding, not just memorization
+4. Questions should test understanding of the core topics, not just memorization
 5. Include a mix of easy (30%), medium (50%), and hard (20%) questions
 6. Questions should be clear and unambiguous
+7. Distribute the correct answer across options; avoid always using the same option
 
 Return the questions in this exact JSON format (no markdown, just pure JSON):
 {
@@ -65,7 +101,7 @@ The correctAnswer should be the index (0-3) of the correct option.`;
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0]);
-        return parsed.questions || [];
+        return normalizeAndShuffleQuestions(parsed.questions || []);
       }
     } else {
       // Use OpenAI API
@@ -93,7 +129,7 @@ The correctAnswer should be the index (0-3) of the correct option.`;
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0]);
-        return parsed.questions || [];
+        return normalizeAndShuffleQuestions(parsed.questions || []);
       }
     }
   } catch (err) {
@@ -107,10 +143,70 @@ The correctAnswer should be the index (0-3) of the correct option.`;
 // Fallback question generation when AI is not available
 const generateFallbackQuestions = (slideContent, subjectType, chapterTitle, numQuestions) => {
   const questions = [];
-  const content = slideContent.toLowerCase();
   
+  const normalizeWord = (word) => word.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+  const stopWords = new Set([
+    'the', 'and', 'that', 'with', 'this', 'from', 'into', 'your', 'have', 'has', 'was', 'were',
+    'will', 'shall', 'should', 'could', 'would', 'can', 'may', 'might', 'about', 'when', 'where',
+    'what', 'which', 'while', 'their', 'there', 'then', 'than', 'them', 'these', 'those', 'over',
+    'under', 'between', 'within', 'without', 'also', 'because', 'since', 'such', 'more', 'most',
+    'least', 'some', 'many', 'much', 'very', 'into', 'onto', 'each', 'every', 'another', 'other'
+  ]);
+
+  const shuffleArray = (items) => {
+    const array = [...items];
+    for (let i = array.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+  };
+
+  const distributeCorrectAnswer = (question) => {
+    const correctOption = question.options[question.correctAnswer];
+    const shuffledOptions = shuffleArray(question.options);
+    return {
+      ...question,
+      options: shuffledOptions,
+      correctAnswer: shuffledOptions.indexOf(correctOption)
+    };
+  };
+
   // Extract key terms and concepts from content
   const sentences = slideContent.split(/[.!?]/).filter(s => s.trim().length > 20);
+  const wordCounts = new Map();
+  slideContent.split(/\s+/).forEach(raw => {
+    const word = normalizeWord(raw);
+    if (!word || word.length < 4 || stopWords.has(word)) return;
+    wordCounts.set(word, (wordCounts.get(word) || 0) + 1);
+  });
+  const topKeywords = [...wordCounts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 12)
+    .map(([word]) => word);
+
+  const keywordDistractors = shuffleArray(topKeywords).slice(0, 6);
+
+  const buildKeywordQuestion = (keyword, sentence) => {
+    const correctOption = sentence
+      ? sentence.substring(0, 70).trim() + (sentence.length > 70 ? '...' : '')
+      : `A concept that explains ${keyword}`;
+    const distractors = shuffleArray([
+      `A topic unrelated to ${keyword}`,
+      `A minor detail not central to the chapter`,
+      `A definition from a different subject`,
+      `An example that does not match ${keyword}`,
+      ...keywordDistractors.map(k => `A concept focused on ${k}`)
+    ]).slice(0, 3);
+
+    return {
+      question: `Which statement best reflects the core idea of "${keyword}" in this chapter?`,
+      options: [correctOption, ...distractors],
+      correctAnswer: 0,
+      difficulty: 'medium',
+      explanation: 'This question is based on a key topic from the slides.'
+    };
+  };
   
   // Generate questions based on content patterns
   const questionTemplates = [
@@ -180,30 +276,35 @@ const generateFallbackQuestions = (slideContent, subjectType, chapterTitle, numQ
     difficulty: i % 3 === 0 ? 'easy' : i % 3 === 1 ? 'medium' : 'hard',
     explanation: 'This is a fundamental concept from the chapter content.'
   })));
+
+  // Add core-topic keyword questions
+  topKeywords.forEach((keyword, i) => {
+    if (questions.length >= numQuestions) return;
+    const sentence = sentences.find(s => s.toLowerCase().includes(keyword))?.trim();
+    questions.push({
+      ...buildKeywordQuestion(keyword, sentence),
+      difficulty: i % 3 === 0 ? 'easy' : i % 3 === 1 ? 'medium' : 'hard'
+    });
+  });
   
-  // Generate more questions from content
+  // Generate more questions from content patterns
   for (let i = 0; i < sentences.length && questions.length < numQuestions; i++) {
     const sentence = sentences[i].trim();
     if (sentence.length < 30) continue;
     
-    // Extract key words
-    const words = sentence.split(/\s+/).filter(w => w.length > 4);
-    if (words.length < 3) continue;
+    for (const template of questionTemplates) {
+      const match = template.pattern.exec(sentence);
+      if (match) {
+        questions.push({
+          ...template.template(...match),
+          difficulty: questions.length % 3 === 0 ? 'easy' : questions.length % 3 === 1 ? 'medium' : 'hard',
+          explanation: 'This information is directly from the chapter slides.'
+        });
+        break;
+      }
+    }
     
-    const keyWord = words[Math.floor(words.length / 2)];
-    
-    questions.push({
-      question: `According to the chapter content, what relates to "${keyWord}"?`,
-      options: [
-        sentence.substring(0, 50) + '...',
-        'An unrelated concept',
-        'A different topic entirely',
-        'None of the above'
-      ],
-      correctAnswer: 0,
-      difficulty: questions.length % 3 === 0 ? 'easy' : questions.length % 3 === 1 ? 'medium' : 'hard',
-      explanation: 'This information is directly from the chapter slides.'
-    });
+    if (questions.length >= numQuestions) break;
   }
   
   // Fill remaining with generic questions
@@ -222,7 +323,7 @@ const generateFallbackQuestions = (slideContent, subjectType, chapterTitle, numQ
     });
   }
   
-  return questions.slice(0, numQuestions);
+  return questions.slice(0, numQuestions).map(distributeCorrectAnswer);
 };
 
 // Generate quiz for a chapter (teacher action)
@@ -299,6 +400,44 @@ exports.startQuiz = async (req, res, next) => {
     if (!chapter.quiz?.isGenerated) {
       return res.status(400).json({ message: 'Quiz has not been generated for this chapter yet.' });
     }
+
+    const shuffleArray = (items) => {
+      const array = [...items];
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    };
+
+    const shuffleOptionsWithCorrect = (options, correctIndex) => {
+      const optionObjects = options.map((text, index) => ({
+        text,
+        isCorrect: index === correctIndex
+      }));
+      const shuffled = shuffleArray(optionObjects);
+      return {
+        options: shuffled.map(item => item.text),
+        correctAnswer: shuffled.findIndex(item => item.isCorrect)
+      };
+    };
+
+    const shouldRepairQuiz = Array.isArray(chapter.quiz.questions)
+      && chapter.quiz.questions.length > 0
+      && chapter.quiz.questions.every(q => Array.isArray(q.options) && q.options.length === 4)
+      && chapter.quiz.questions.every(q => q.correctAnswer === 0);
+
+    if (shouldRepairQuiz) {
+      chapter.quiz.questions = chapter.quiz.questions.map(q => {
+        const { options, correctAnswer } = shuffleOptionsWithCorrect(q.options, q.correctAnswer);
+        return {
+          ...q,
+          options,
+          correctAnswer
+        };
+      });
+      await chapter.save();
+    }
     
     // Check if student has access to this chapter
     const course = chapter.course;
@@ -365,6 +504,19 @@ exports.startQuiz = async (req, res, next) => {
     });
     
     if (attempt && !attempt.isExpired) {
+      const hasAnswers = attempt.questions.some(q => q.selectedAnswer !== -1);
+      const allCorrectAtA = attempt.questions.every(q => q.correctAnswer === 0);
+
+      if (!hasAnswers && allCorrectAtA) {
+        attempt.questions = attempt.questions.map(q => {
+          return {
+            ...q,
+            ...shuffleOptionsWithCorrect(q.options, q.correctAnswer)
+          };
+        });
+        await attempt.save();
+      }
+
       // Return existing in-progress attempt
       return res.json({
         attemptId: attempt._id,
@@ -381,12 +533,37 @@ exports.startQuiz = async (req, res, next) => {
     }
     
     // Create new attempt
-    const questions = chapter.quiz.questions.map(q => ({
-      questionText: q.question,
-      options: q.options,
-      correctAnswer: q.correctAnswer,
-      explanation: q.explanation
-    }));
+    const shuffleArray = (items) => {
+      const array = [...items];
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    };
+
+    const shuffleOptionsWithCorrect = (options, correctIndex) => {
+      const optionObjects = options.map((text, index) => ({
+        text,
+        isCorrect: index === correctIndex
+      }));
+      const shuffled = shuffleArray(optionObjects);
+      return {
+        options: shuffled.map(item => item.text),
+        correctAnswer: shuffled.findIndex(item => item.isCorrect)
+      };
+    };
+
+    const questions = chapter.quiz.questions.map(q => {
+      const options = Array.isArray(q.options) ? [...q.options] : [];
+      const { options: shuffledOptions, correctAnswer } = shuffleOptionsWithCorrect(options, q.correctAnswer);
+      return {
+        questionText: q.question,
+        options: shuffledOptions,
+        correctAnswer,
+        explanation: q.explanation
+      };
+    });
     
     // Shuffle questions for variety
     const shuffledQuestions = questions.sort(() => Math.random() - 0.5);

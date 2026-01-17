@@ -184,6 +184,44 @@ exports.updateChapter = async (req, res, next) => {
         chapter[field] = updates[field];
       }
     });
+
+    if (updates.quiz) {
+      const nextQuiz = chapter.quiz || {};
+
+      if (Array.isArray(updates.quiz.questions)) {
+        const sanitizedQuestions = updates.quiz.questions
+          .filter(q => q && typeof q.question === 'string' && Array.isArray(q.options))
+          .map(q => {
+            const options = q.options.map(opt => `${opt ?? ''}`.trim()).filter(Boolean);
+            const correctAnswer = Number.isInteger(q.correctAnswer) ? q.correctAnswer : 0;
+
+            return {
+              question: `${q.question}`.trim(),
+              options: options.slice(0, 4),
+              correctAnswer: Math.min(Math.max(correctAnswer, 0), 3),
+              explanation: q.explanation ? `${q.explanation}` : undefined,
+              difficulty: q.difficulty || 'medium'
+            };
+          })
+          .filter(q => q.question && q.options.length === 4);
+
+        nextQuiz.questions = sanitizedQuestions;
+        nextQuiz.isGenerated = sanitizedQuestions.length > 0;
+        nextQuiz.generatedAt = nextQuiz.generatedAt || new Date();
+      }
+
+      if (updates.quiz.passingScore !== undefined) {
+        nextQuiz.passingScore = updates.quiz.passingScore;
+      }
+      if (updates.quiz.maxAttempts !== undefined) {
+        nextQuiz.maxAttempts = updates.quiz.maxAttempts;
+      }
+      if (updates.quiz.timeLimit !== undefined) {
+        nextQuiz.timeLimit = updates.quiz.timeLimit;
+      }
+
+      chapter.quiz = nextQuiz;
+    }
     
     await chapter.save();
     res.json(chapter);

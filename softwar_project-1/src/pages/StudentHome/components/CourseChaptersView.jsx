@@ -55,6 +55,7 @@ function CourseChaptersView({ course, studentId, onBack }) {
         },
         body: JSON.stringify({ studentId })
       });
+      fetchChapters();
     } catch (err) {
       console.error('Error marking slides viewed:', err);
     }
@@ -161,6 +162,38 @@ function CourseChaptersView({ course, studentId, onBack }) {
         detailedResults: data.detailedResults,
         message: data.message
       });
+
+      // Optimistically unlock next chapter when passing score is met
+      const passingScore = data.result?.passingScore ?? quizState.passingScore ?? 60;
+      if ((data.result?.score ?? 0) >= passingScore) {
+        setChapters(prevChapters => {
+          const currentChapterId = selectedChapter?._id;
+          const currentIndex = prevChapters.findIndex(c => c._id === currentChapterId);
+          if (currentIndex === -1) return prevChapters;
+
+          const updatedChapters = [...prevChapters];
+          const currentChapter = { ...updatedChapters[currentIndex] };
+          const currentProgress = { ...(currentChapter.studentProgress || {}) };
+
+          currentProgress.quizPassed = true;
+          currentProgress.bestScore = Math.max(currentProgress.bestScore || 0, data.result.score || 0);
+          currentProgress.quizAttempts = (currentProgress.quizAttempts || 0) + 1;
+          currentProgress.chapterCompleted = true;
+
+          currentChapter.studentProgress = currentProgress;
+          updatedChapters[currentIndex] = currentChapter;
+
+          const nextChapterIndex = currentIndex + 1;
+          if (updatedChapters[nextChapterIndex]) {
+            updatedChapters[nextChapterIndex] = {
+              ...updatedChapters[nextChapterIndex],
+              isUnlocked: true,
+            };
+          }
+
+          return updatedChapters;
+        });
+      }
       
       // Refresh chapters to update progress
       fetchChapters();
@@ -194,10 +227,13 @@ function CourseChaptersView({ course, studentId, onBack }) {
       </div>
       
       <div className="chapters-grid">
-        {chapters.map((chapter, index) => (
+        {chapters.map((chapter, index) => {
+          const prevChapter = index > 0 ? chapters[index - 1] : null;
+          const isUnlocked = chapter.isUnlocked || chapter.chapterNumber === 1 || prevChapter?.studentProgress?.quizPassed || prevChapter?.studentProgress?.chapterCompleted;
+          return (
           <div 
             key={chapter._id} 
-            className={`chapter-card ${chapter.isUnlocked ? 'unlocked' : 'locked'}`}
+            className={`chapter-card ${isUnlocked ? 'unlocked' : 'locked'}`}
           >
             <div className="chapter-header">
               <div className="chapter-number">
@@ -214,7 +250,7 @@ function CourseChaptersView({ course, studentId, onBack }) {
               <h3>{chapter.title}</h3>
             </div>
             
-            {chapter.isUnlocked ? (
+            {isUnlocked ? (
               <div className="chapter-content">
                 <div className="chapter-progress">
                   <div className="progress-item">
@@ -310,7 +346,7 @@ function CourseChaptersView({ course, studentId, onBack }) {
               </div>
             )}
           </div>
-        ))}
+        )})}
       </div>
     </div>
   );
@@ -467,7 +503,7 @@ function CourseChaptersView({ course, studentId, onBack }) {
         </div>
         
         <div className="view-footer">
-          <button className="next-btn" onClick={() => setViewMode('list')}>
+          <button className="next-btn" onClick={() => { setViewMode('list'); fetchChapters(); }}>
             Done Reading <i className="fas fa-check"></i>
           </button>
         </div>

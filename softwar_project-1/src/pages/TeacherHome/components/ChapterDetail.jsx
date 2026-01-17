@@ -80,33 +80,64 @@ function ChapterDetail({ chapter, courseId, onClose, isTeacher = true }) {
     setLoadingStudents(true);
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${API_BASE}/api/courses/${courseId}`, {
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-      });
-      if (res.ok) {
-        const course = await res.json();
+      const chapterId = chapter?._id || chapter?.id;
+      const [courseRes, chapterRes] = await Promise.all([
+        fetch(`${API_BASE}/api/courses/${courseId}`, {
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+        }),
+        chapterId
+          ? fetch(`${API_BASE}/api/chapters/${chapterId}`, {
+              headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`,
+              },
+            })
+          : Promise.resolve(null),
+      ]);
+
+      if (courseRes.ok) {
+        const course = await courseRes.json();
+        const chapterDataResponse = chapterRes && chapterRes.ok ? await chapterRes.json() : null;
+
+        const quizProgressByStudent = new Map();
+        if (chapterDataResponse?.studentProgress?.length) {
+          chapterDataResponse.studentProgress.forEach(progress => {
+            const studentId = progress.student?.toString?.() || progress.student;
+            const bestScore = progress.quizAttempts?.length
+              ? Math.max(...progress.quizAttempts.map(attempt => attempt.score))
+              : null;
+            if (studentId) {
+              quizProgressByStudent.set(studentId.toString(), {
+                bestScore,
+              });
+            }
+          });
+        }
+
         // Get enrolled students with their progress
         const enrolledStudents = course.students || [];
         const studentProgress = course.studentCourseProgress || [];
-        
+
         const studentsWithProgress = enrolledStudents.map(student => {
-          const progress = studentProgress.find(p => 
-            p.student?.toString() === (student._id || student).toString()
+          const studentId = (student._id || student).toString();
+          const progress = studentProgress.find(p =>
+            p.student?.toString() === studentId
           );
+          const quizProgress = quizProgressByStudent.get(studentId);
           return {
             _id: student._id || student,
             firstName: student.firstName || 'Student',
             lastName: student.lastName || '',
             email: student.email || '',
-            status: progress?.chaptersCompleted?.includes(chapter.chapterNumber) 
-              ? 'completed' 
-              : progress?.currentChapter >= chapter.chapterNumber 
-                ? 'in-progress' 
+            status: progress?.chaptersCompleted?.includes(chapter.chapterNumber)
+              ? 'completed'
+              : progress?.currentChapter >= chapter.chapterNumber
+                ? 'in-progress'
                 : 'not-started',
-            quizScore: null, // Will be fetched separately if needed
+            quizScore: quizProgress?.bestScore ?? null,
             overallProgress: progress?.overallProgress || 0,
           };
         });
@@ -332,6 +363,9 @@ function ChapterDetail({ chapter, courseId, onClose, isTeacher = true }) {
     maxAttempts: 0,
     timeLimit: 0
   });
+  const [isQuizPreviewOpen, setIsQuizPreviewOpen] = useState(false);
+  const [quizQuestions, setQuizQuestions] = useState([]);
+  const [savingQuizPreview, setSavingQuizPreview] = useState(false);
 
   // Generate quiz from slides
   const handleGenerateQuiz = async () => {
@@ -378,6 +412,83 @@ function ChapterDetail({ chapter, courseId, onClose, isTeacher = true }) {
       alert('Failed to generate quiz: ' + err.message);
     } finally {
       setGeneratingQuiz(false);
+    }
+  };
+
+  const handleOpenQuizPreview = () => {
+    const existingQuestions = chapterData?.quiz?.questions || [];
+    const normalizedQuestions = existingQuestions.map(q => ({
+      question: q.question || '',
+      options: Array.isArray(q.options) ? [...q.options, '', '', '', ''].slice(0, 4) : ['', '', '', ''],
+      correctAnswer: Number.isInteger(q.correctAnswer) ? q.correctAnswer : 0,
+      explanation: q.explanation || '',
+      difficulty: q.difficulty || 'medium'
+    }));
+    setQuizQuestions(normalizedQuestions);
+    setIsQuizPreviewOpen(true);
+  };
+
+  const handleQuizQuestionChange = (index, value) => {
+    setQuizQuestions(prev => prev.map((q, i) => i === index ? { ...q, question: value } : q));
+  };
+
+  const handleQuizOptionChange = (questionIndex, optionIndex, value) => {
+    setQuizQuestions(prev => prev.map((q, i) => {
+      if (i !== questionIndex) return q;
+      const options = [...q.options];
+      options[optionIndex] = value;
+      return { ...q, options };
+    }));
+  };
+
+  const handleQuizCorrectAnswerChange = (questionIndex, value) => {
+    const parsedValue = Number(value);
+    setQuizQuestions(prev => prev.map((q, i) => i === questionIndex ? { ...q, correctAnswer: parsedValue } : q));
+  };
+
+  const handleSaveQuizPreview = async () => {
+    setSavingQuizPreview(true);
+    try {
+      const token = localStorage.getItem('token');
+      const chapterId = chapter?._id || chapter?.id;
+      const res = await fetch(`${API_BASE}/api/chapters/${chapterId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          quiz: {
+            questions: quizQuestions.map(q => ({
+              question: q.question,
+              options: q.options,
+              correctAnswer: q.correctAnswer,
+              explanation: q.explanation,
+              difficulty: q.difficulty
+            }))
+          }
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.message || 'Failed to save quiz questions');
+        return;
+      }
+
+      setChapterData(data);
+      setQuizState(prev => ({
+        ...prev,
+        isGenerated: data.quiz?.isGenerated || prev.isGenerated,
+        questionsCount: data.quiz?.questions?.length || prev.questionsCount,
+      }));
+      alert('Quiz questions updated successfully!');
+      setIsQuizPreviewOpen(false);
+    } catch (err) {
+      console.error('Error saving quiz questions:', err);
+      alert('Failed to save quiz questions');
+    } finally {
+      setSavingQuizPreview(false);
     }
   };
 
@@ -530,6 +641,7 @@ function ChapterDetail({ chapter, courseId, onClose, isTeacher = true }) {
   ];
 
   return (
+    <>
     <div style={{
       position: 'fixed',
       top: 0,
@@ -1240,7 +1352,7 @@ function ChapterDetail({ chapter, courseId, onClose, isTeacher = true }) {
                       )}
                     </button>
                     <button
-                      onClick={() => alert('Preview feature coming soon!')}
+                      onClick={handleOpenQuizPreview}
                       style={{
                         padding: '14px 28px',
                         background: '#f3f4f6',
@@ -1431,7 +1543,7 @@ function ChapterDetail({ chapter, courseId, onClose, isTeacher = true }) {
                   {/* Table Header */}
                   <div style={{
                     display: 'grid',
-                    gridTemplateColumns: '1fr 1fr 120px 100px',
+                    gridTemplateColumns: '1fr 1fr 120px 110px',
                     padding: '14px 16px',
                     background: '#f9fafb',
                     borderBottom: '1px solid #e5e7eb',
@@ -1442,7 +1554,7 @@ function ChapterDetail({ chapter, courseId, onClose, isTeacher = true }) {
                     <div>Student Name</div>
                     <div>Email</div>
                     <div>Status</div>
-                    <div>Progress</div>
+                    <div>Quiz Grade</div>
                   </div>
                   
                   {/* Table Body */}
@@ -1453,7 +1565,7 @@ function ChapterDetail({ chapter, courseId, onClose, isTeacher = true }) {
                         key={student._id || index}
                         style={{
                           display: 'grid',
-                          gridTemplateColumns: '1fr 1fr 120px 100px',
+                          gridTemplateColumns: '1fr 1fr 120px 110px',
                           padding: '14px 16px',
                           borderBottom: index < students.length - 1 ? '1px solid #f3f4f6' : 'none',
                           alignItems: 'center',
@@ -1494,7 +1606,7 @@ function ChapterDetail({ chapter, courseId, onClose, isTeacher = true }) {
                           </span>
                         </div>
                         <div style={{ fontWeight: 500, color: '#374151' }}>
-                          {student.overallProgress}%
+                          {typeof student.quizScore === 'number' ? `${student.quizScore}%` : '—'}
                         </div>
                       </div>
                     );
@@ -1506,6 +1618,164 @@ function ChapterDetail({ chapter, courseId, onClose, isTeacher = true }) {
         </div>
       </div>
     </div>
+    {isQuizPreviewOpen && (
+      <div
+        onClick={() => setIsQuizPreviewOpen(false)}
+        style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.6)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1200,
+          padding: '20px',
+        }}
+      >
+        <div
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            width: '100%',
+            maxWidth: '900px',
+            maxHeight: '90vh',
+            overflow: 'auto',
+            background: '#fff',
+            borderRadius: '16px',
+            boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
+            padding: '24px',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <h3 style={{ margin: 0, color: '#111827' }}>
+              <i className="fas fa-eye" style={{ marginRight: '8px', color: '#3b82f6' }}></i>
+              Preview & Edit Quiz Questions
+            </h3>
+            <button
+              onClick={() => setIsQuizPreviewOpen(false)}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                fontSize: '1.25rem',
+                cursor: 'pointer',
+                color: '#6b7280',
+              }}
+            >
+              <i className="fas fa-times"></i>
+            </button>
+          </div>
+
+          {quizQuestions.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '24px', color: '#6b7280' }}>
+              <p style={{ margin: 0 }}>No quiz questions available. Generate a quiz first.</p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              {quizQuestions.map((q, qIndex) => (
+                <div
+                  key={`quiz-question-${qIndex}`}
+                  style={{
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '12px',
+                    padding: '16px',
+                    background: '#f9fafb',
+                  }}
+                >
+                  <div style={{ marginBottom: '12px', fontWeight: 600, color: '#1f2937' }}>
+                    Question {qIndex + 1}
+                  </div>
+                  <textarea
+                    value={q.question}
+                    onChange={(e) => handleQuizQuestionChange(qIndex, e.target.value)}
+                    rows={3}
+                    style={{
+                      width: '100%',
+                      borderRadius: '10px',
+                      border: '1px solid #d1d5db',
+                      padding: '10px 12px',
+                      fontSize: '0.95rem',
+                      marginBottom: '12px',
+                    }}
+                  />
+                  <div style={{ display: 'grid', gap: '10px' }}>
+                    {q.options.map((opt, optIndex) => (
+                      <div key={`quiz-option-${qIndex}-${optIndex}`} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span style={{ width: '24px', fontWeight: 600, color: '#374151' }}>
+                          {String.fromCharCode(65 + optIndex)}
+                        </span>
+                        <input
+                          type="text"
+                          value={opt}
+                          onChange={(e) => handleQuizOptionChange(qIndex, optIndex, e.target.value)}
+                          style={{
+                            flex: 1,
+                            borderRadius: '10px',
+                            border: '1px solid #d1d5db',
+                            padding: '8px 10px',
+                            fontSize: '0.95rem',
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <label style={{ fontSize: '0.9rem', color: '#374151', fontWeight: 500 }}>
+                      Correct Answer
+                    </label>
+                    <select
+                      value={q.correctAnswer}
+                      onChange={(e) => handleQuizCorrectAnswerChange(qIndex, e.target.value)}
+                      style={{
+                        borderRadius: '8px',
+                        border: '1px solid #d1d5db',
+                        padding: '6px 10px',
+                      }}
+                    >
+                      <option value={0}>A</option>
+                      <option value={1}>B</option>
+                      <option value={2}>C</option>
+                      <option value={3}>D</option>
+                    </select>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '20px' }}>
+            <button
+              onClick={() => setIsQuizPreviewOpen(false)}
+              style={{
+                padding: '10px 18px',
+                borderRadius: '10px',
+                border: '1px solid #e5e7eb',
+                background: '#fff',
+                cursor: 'pointer',
+                fontWeight: 600,
+                color: '#374151',
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSaveQuizPreview}
+              disabled={savingQuizPreview || quizQuestions.length === 0}
+              style={{
+                padding: '10px 18px',
+                borderRadius: '10px',
+                border: 'none',
+                background: savingQuizPreview ? '#93c5fd' : '#3b82f6',
+                color: '#fff',
+                cursor: savingQuizPreview ? 'not-allowed' : 'pointer',
+                fontWeight: 600,
+              }}
+            >
+              {savingQuizPreview ? 'Saving...' : 'Save Quiz'}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
 
