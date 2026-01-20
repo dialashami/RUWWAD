@@ -128,61 +128,84 @@ export default function QuizzesExams() {
         return;
       }
 
-      // Collect quizzes from enrolled courses' chapters
+      // Collect quizzes from enrolled courses' chapters - fetch all in parallel for speed
       const allQuizzes = [];
       
-      for (const course of courses) {
+      // Filter valid courses and prepare promises
+      const validCourses = courses.filter(course => course._id || course.id);
+      
+      // Fetch chapters for all courses in parallel
+      const chapterPromises = validCourses.map(course => {
         const courseId = course._id || course.id;
-        if (!courseId) continue;
-
-        try {
-          const response = await chapterAPI.getChaptersByCourse(courseId, student.id);
-          const chapters = response.data?.chapters || response.data || [];
-          
-          chapters.forEach((chapter, index) => {
-            if (chapter.quiz?.isGenerated) {
-              const studentProgress = chapter.studentProgress || {};
-              let status = 'available';
-              
-              // Check if quiz is locked (prerequisites not met)
-              const totalLectures = chapter.lectures?.length || 0;
-              const watchedLectures = studentProgress.lecturesWatched?.length || 0;
-              const allLecturesComplete = totalLectures === 0 || watchedLectures >= totalLectures;
-              const hasSlides = (chapter.slides?.length > 0) || chapter.slideContent;
-              const slidesViewed = !hasSlides || studentProgress.slidesViewed;
-              
-              if (!allLecturesComplete || !slidesViewed) {
-                status = 'upcoming'; // Quiz locked
-              } else if (studentProgress.quizPassed) {
-                status = 'completed';
-              } else if (studentProgress.quizAttempts > 0) {
-                status = 'in-progress';
-              }
-
-              allQuizzes.push({
-                id: chapter._id,
-                chapterId: chapter._id,
-                courseId: courseId,
-                title: `${chapter.title} Quiz`,
-                subject: course.subject || course.title,
-                type: 'quiz',
-                questions: chapter.quiz.numberOfQuestions || 10,
-                duration: chapter.quiz.timeLimit || 30,
-                deadline: course.endDate || 'No deadline',
-                status,
-                score: studentProgress.bestScore || null,
-                difficulty: chapter.quiz.difficulty || 'Medium',
-                attempts: studentProgress.quizAttempts || 0,
-                maxAttempts: chapter.quiz.maxAttempts || 3,
-                passingScore: chapter.quiz.passingScore || 70,
-                chapterNumber: chapter.chapterNumber || index + 1,
-              });
-            }
-          });
-        } catch (err) {
-          console.log(`Error fetching chapters for course ${courseId}:`, err.message);
+        return chapterAPI.getChaptersByCourse(courseId, student.id)
+          .then(response => ({ 
+            course, 
+            courseId, 
+            chapters: response.data?.chapters || response.data || [],
+            error: null 
+          }))
+          .catch(err => ({ 
+            course, 
+            courseId, 
+            chapters: [], 
+            error: err.message 
+          }));
+      });
+      
+      const results = await Promise.all(chapterPromises);
+      
+      // Process all results
+      results.forEach(({ course, courseId, chapters, error }) => {
+        if (error) {
+          console.log(`Error fetching chapters for course ${courseId}:`, error);
+          return;
         }
-      }
+        
+        chapters.forEach((chapter, index) => {
+          if (chapter.quiz?.isGenerated) {
+            const studentProgress = chapter.studentProgress || {};
+            let status = 'available';
+            
+            // Check if quiz is locked (prerequisites not met)
+            const totalLectures = chapter.lectures?.length || 0;
+            const watchedLectures = studentProgress.lecturesWatched?.length || 0;
+            const allLecturesComplete = totalLectures === 0 || watchedLectures >= totalLectures;
+            const hasSlides = (chapter.slides?.length > 0) || chapter.slideContent;
+            const slidesViewed = !hasSlides || studentProgress.slidesViewed;
+            
+            if (!allLecturesComplete || !slidesViewed) {
+              status = 'upcoming'; // Quiz locked
+            } else if (studentProgress.quizPassed) {
+              status = 'completed';
+            } else if (studentProgress.quizAttempts > 0) {
+              status = 'in-progress';
+            }
+
+            const deadline = course.endDate
+              ? new Date(course.endDate).toLocaleDateString()
+              : 'No deadline';
+
+            allQuizzes.push({
+              id: chapter._id,
+              chapterId: chapter._id,
+              courseId: courseId,
+              title: `${chapter.title} Quiz`,
+              subject: course.subject || course.title,
+              type: 'quiz',
+              questions: chapter.quiz.numberOfQuestions || 10,
+              duration: chapter.quiz.timeLimit || 30,
+              deadline,
+              status,
+              score: studentProgress.bestScore || null,
+              difficulty: chapter.quiz.difficulty || 'Medium',
+              attempts: studentProgress.quizAttempts || 0,
+              maxAttempts: chapter.quiz.maxAttempts || 3,
+              passingScore: chapter.quiz.passingScore || 70,
+              chapterNumber: chapter.chapterNumber || index + 1,
+            });
+          }
+        });
+      });
 
       if (allQuizzes.length > 0) {
         setQuizzes(allQuizzes);
@@ -277,7 +300,7 @@ export default function QuizzesExams() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={[styles.title, isDarkMode && { color: theme.text }]}>
-          📝 Quizzes & Exams
+          Quizzes & Exams 📝
         </Text>
         <Text style={[styles.subtitle, isDarkMode && { color: theme.textSecondary }]}>
           Test your knowledge and track your progress
@@ -431,7 +454,13 @@ export default function QuizzesExams() {
                         </Text>
                       </View>
                       <View style={styles.detailItem}>
-                        <Text style={styles.detailIcon}>📊</Text>
+                        <Text style={styles.detailIcon}>📅</Text>
+                        <Text style={[styles.detailText, isDarkMode && { color: theme.textSecondary }]}>
+                          Due: {quiz.deadline}
+                        </Text>
+                      </View>
+                      <View style={styles.detailItem}>
+                        <Text style={styles.detailIcon}>⚠️</Text>
                         <Text style={[styles.detailText, isDarkMode && { color: theme.textSecondary }]}>
                           {quiz.attempts}/{quiz.maxAttempts} attempts
                         </Text>
@@ -452,7 +481,7 @@ export default function QuizzesExams() {
                           colors={['#3498db', '#9333EA']}
                           style={styles.actionButtonGradient}
                         >
-                          <Text style={styles.actionButtonText}>▶️ Start Quiz</Text>
+                          <Text style={styles.actionButtonText}>Start Quiz</Text>
                         </LinearGradient>
                       )}
                       {quiz.status === 'in-progress' && (
@@ -460,7 +489,7 @@ export default function QuizzesExams() {
                           colors={['#F97316', '#FB923C']}
                           style={styles.actionButtonGradient}
                         >
-                          <Text style={styles.actionButtonText}>⏱️ Resume</Text>
+                          <Text style={styles.actionButtonText}>Resume</Text>
                         </LinearGradient>
                       )}
                       {quiz.status === 'completed' && (
@@ -473,7 +502,7 @@ export default function QuizzesExams() {
                       {quiz.status === 'upcoming' && (
                         <View style={styles.actionButtonOutline}>
                           <Text style={styles.actionButtonTextDisabled}>
-                            🔒 Not Available Yet
+                            Not Available Yet
                           </Text>
                         </View>
                       )}

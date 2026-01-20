@@ -1,7 +1,9 @@
+const mongoose = require('mongoose');
 const Chapter = require('../models/Chapter');
 const Course = require('../models/Course');
 const QuizAttempt = require('../models/QuizAttempt');
 const pdfParse = require('pdf-parse');
+const { CacheManager } = require('../utils/dbOptimizer');
 
 // Get all chapters for a course
 exports.getChaptersByCourse = async (req, res, next) => {
@@ -9,46 +11,186 @@ exports.getChaptersByCourse = async (req, res, next) => {
     const { courseId } = req.params;
     const studentId = req.query.studentId || req.userId;
     
-    const course = await Course.findById(courseId);
-    if (!course) {
-      return res.status(404).json({ message: 'Course not found' });
+    console.log(`📚 getChaptersByCourse called - CourseID: ${courseId}, StudentID: ${studentId}`);
+    
+    // Validate courseId format
+    if (!mongoose.Types.ObjectId.isValid(courseId)) {
+      console.log(`❌ Invalid course ID format: ${courseId}`);
+      return res.status(400).json({ message: 'Invalid course ID format' });
     }
     
-    const chapters = await Chapter.find({ course: courseId })
-      .sort({ chapterNumber: 1 });
+    // Validate studentId format
+    if (!mongoose.Types.ObjectId.isValid(studentId)) {
+      console.log(`❌ Invalid student ID format: ${studentId}`);
+      return res.status(400).json({ message: 'Invalid student ID format' });
+    }
+    
+    const cacheKey = `chapters:${courseId}:${studentId}`;
+    const cached = CacheManager.get(cacheKey);
+    if (cached) {
+      console.log(`✅ Returning cached chapters for course ${courseId}`);
+      return res.json(cached);
+    }
+
+    console.log(`🔍 Fetching course from database...`);
+    const course = await Course.findById(courseId)
+      .select('isChapterBased numberOfChapters studentCourseProgress')
+      .maxTimeMS(5000) // 5 second timeout
+      .lean();
+    if (!course) {
+      console.log(`❌ Course not found: ${courseId}`);
+      return res.status(404).json({ 
+        message: 'Course not found',
+        courseId: courseId,
+        hint: 'Please check if the course ID is correct'
+      });
+    }
+    
+    console.log(`✅ Course found. Fetching chapters...`);
+
+    const studentObjectId = new mongoose.Types.ObjectId(studentId);
+    const courseObjectId = new mongoose.Types.ObjectId(courseId);
+
+    // Optimized query - fetch chapters with necessary fields only
+    console.log(`🔍 Fetching chapters for course...`);
+    const chapters = await Chapter.find({ course: courseObjectId })
+      .select('course chapterNumber title description slides lectures isPublished isLocked order quiz.isGenerated quiz.passingScore quiz.maxAttempts quiz.timeLimit quiz.questions studentProgress')
+      .sort({ chapterNumber: 1 })
+      .maxTimeMS(5000) // 5 second timeout
+      .lean();
+    
+    console.log(`✅ Found ${chapters.length} chapters`);
+
+    const courseProgress = (course.studentCourseProgress || []).find(
+      p => p.student && p.student.toString() === studentId.toString()
+    );
     
     // Get student's course progress
-    const courseStatus = course.getStudentChapterStatus(studentId);
+    const courseStatus = {
+      isChapterBased: !!course.isChapterBased,
+      totalChapters: course.numberOfChapters || chapters.length,
+      currentChapter: courseProgress?.currentChapter || 1,
+      chaptersCompleted: courseProgress?.chaptersCompleted || [],
+      overallProgress: courseProgress?.overallProgress || 0,
+      lastAccessedAt: courseProgress?.lastAccessedAt,
+      courseCompleted: courseProgress?.courseCompletedAt != null
+    };
+    
+    console.log(`📊 Processing ${chapters.length} chapters...`);
     
     // Add unlock status and progress for each chapter
-    const chaptersWithStatus = chapters.map(chapter => {
-      const chapterObj = chapter.toObject();
-      const isUnlocked = chapter.chapterNumber === 1 || 
-        courseStatus.chaptersCompleted?.includes(chapter.chapterNumber - 1);
-      const progress = chapter.getStudentProgress(studentId);
-      
+    const buildStudentProgress = (chapterObj) => {
+      // Filter student progress array to find this student's progress
+      const progress = chapterObj.studentProgress?.find(
+        p => p.student && p.student.toString() === studentId.toString()
+      );
+
+      if (!progress) {
+        return {
+          slidesViewed: false,
+          lecturesProgress: 0,
+          allLecturesCompleted: false,
+          quizAttempts: 0,
+          quizPassed: false,
+          bestScore: 0,
+          chapterCompleted: false
+        };
+      }
+
+      const totalLectures = chapterObj.lectures?.length || 0;
+      const watchedLectures = progress.lecturesWatched?.length || 0;
+      const lecturesProgress = totalLectures > 0
+        ? Math.round((watchedLectures / totalLectures) * 100)
+        : 100;
+
       return {
-        ...chapterObj,
-        // Include slide content info but not full text in list view
-        slideContent: chapterObj.slideContent ? `${chapterObj.slideContent.length} characters` : null,
-        hasSlideContent: !!(chapterObj.slideContent && chapterObj.slideContent.length > 100),
-        slideContentLength: chapterObj.slideContent?.length || 0,
+        slidesViewed: progress.slidesViewed,
+        slidesViewedAt: progress.slidesViewedAt,
+        lecturesProgress,
+        lecturesWatched: watchedLectures,
+        totalLectures,
+        allLecturesCompleted: progress.allLecturesCompleted,
+        quizAttempts: progress.quizAttempts?.length || 0,
+        quizPassed: progress.quizPassed,
+        quizPassedAt: progress.quizPassedAt,
+        bestScore: progress.bestScore || 0,
+        lastAttempt: progress.quizAttempts && progress.quizAttempts.length > 0
+          ? progress.quizAttempts[progress.quizAttempts.length - 1]
+          : null,
+        chapterCompleted: progress.chapterCompleted,
+        chapterCompletedAt: progress.chapterCompletedAt
+      };
+    };
+
+    const chaptersWithStatus = chapters.map((chapter, index) => {
+      const chapterObj = chapter;
+      
+      // Filter studentProgress to only include this student's data
+      const filteredProgress = chapterObj.studentProgress?.filter(
+        p => p.student && p.student.toString() === studentId.toString()
+      ) || [];
+      
+      const progress = buildStudentProgress({ ...chapterObj, studentProgress: filteredProgress });
+      
+      // Primary check: courseStatus.chaptersCompleted array
+      let isUnlocked = chapter.chapterNumber === 1 || 
+        courseStatus.chaptersCompleted?.includes(chapter.chapterNumber - 1);
+      
+      // Fallback check: Check if previous chapter's quiz was passed
+      if (!isUnlocked && index > 0) {
+        const prevChapter = chapters[index - 1];
+        const prevFilteredProgress = prevChapter.studentProgress?.filter(
+          p => p.student && p.student.toString() === studentId.toString()
+        ) || [];
+        const prevProgress = buildStudentProgress({ ...prevChapter, studentProgress: prevFilteredProgress });
+        if (prevProgress?.quizPassed) {
+          isUnlocked = true;
+        }
+      }
+      
+      // Calculate quiz questions count
+      const questionsCount = chapterObj.quiz?.questions?.length || 0;
+      
+      // Return chapter without exposing other students' progress
+      return {
+        _id: chapterObj._id,
+        course: chapterObj.course,
+        chapterNumber: chapterObj.chapterNumber,
+        title: chapterObj.title,
+        description: chapterObj.description,
+        slides: chapterObj.slides,
+        lectures: chapterObj.lectures,
+        isPublished: chapterObj.isPublished,
+        isLocked: chapterObj.isLocked,
+        order: chapterObj.order,
+        slideContent: undefined,
+        hasSlideContent: false,
+        slideContentLength: 0,
         isUnlocked,
         studentProgress: progress,
         // Don't expose quiz answers
-        quiz: chapter.quiz?.isGenerated ? {
+        quiz: chapterObj.quiz?.isGenerated ? {
           isGenerated: true,
-          questionsCount: chapter.quiz.questions?.length || 0,
-          passingScore: chapter.quiz.passingScore
+          questionsCount,
+          passingScore: chapterObj.quiz.passingScore,
+          maxAttempts: chapterObj.quiz.maxAttempts,
+          timeLimit: chapterObj.quiz.timeLimit
         } : { isGenerated: false }
       };
     });
     
-    res.json({
+    console.log(`✅ Chapters processed successfully. Caching and sending response...`);
+    
+    const responsePayload = {
       chapters: chaptersWithStatus,
       courseProgress: courseStatus
-    });
+    };
+
+    CacheManager.set(cacheKey, responsePayload, 15000);
+
+    res.json(responsePayload);
   } catch (err) {
+    console.error(`❌ Error in getChaptersByCourse:`, err.message);
     next(err);
   }
 };
@@ -82,8 +224,34 @@ exports.getChapter = async (req, res, next) => {
     
     // Check if student has access (chapter is unlocked)
     const courseStatus = course.getStudentChapterStatus(userId);
-    const isUnlocked = chapter.chapterNumber === 1 || 
+    
+    // Primary check: courseStatus.chaptersCompleted array
+    let isUnlocked = chapter.chapterNumber === 1 || 
       courseStatus.chaptersCompleted?.includes(chapter.chapterNumber - 1);
+    
+    // Fallback check: If course progress doesn't show previous chapter complete,
+    // check the previous chapter's studentProgress directly
+    if (!isUnlocked && chapter.chapterNumber > 1) {
+      const previousChapter = await Chapter.findOne({
+        course: course._id,
+        chapterNumber: chapter.chapterNumber - 1
+      });
+      
+      if (previousChapter) {
+        const prevChapterProgress = previousChapter.studentProgress?.find(
+          p => p.student.toString() === userId.toString()
+        );
+        
+        // If previous chapter quiz was passed, unlock this chapter
+        if (prevChapterProgress?.quizPassed) {
+          isUnlocked = true;
+          
+          // Also update the course progress to fix the inconsistency
+          course.updateStudentProgress(userId, chapter.chapterNumber - 1);
+          await course.save();
+        }
+      }
+    }
     
     if (!isUnlocked) {
       return res.status(403).json({ 

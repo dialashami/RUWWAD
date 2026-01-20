@@ -18,8 +18,9 @@ import { Card } from './ui';
 import { Button } from './ui';
 import { Input } from './ui';
 import { Badge } from './ui';
+import { API_CONFIG } from '../../../config/api.config';
 
-const API_BASE_URL = (process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000') + '/api';
+const API_BASE_URL = API_CONFIG.BASE_URL + '/api';
 
 const quickActions = [
  { icon: Calculator, label: 'Explain Math Concepts', prompt: 'I need help creating a lesson to explain calculus derivatives to my students.' },

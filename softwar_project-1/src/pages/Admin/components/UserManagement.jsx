@@ -16,8 +16,9 @@ import {
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { API_CONFIG } from '../../../config/api.config';
 
-const API_BASE = (process.env.REACT_APP_API_BASE_URL || window.location.origin) + '/api';
+const API_BASE = API_CONFIG.BASE_URL + '/api';
 
 // ==================== UserModal Component ====================
 function UserModal({ type, onClose, onSave }) {

@@ -12,6 +12,9 @@ import Constants from 'expo-constants';
 // Backend server port
 const PORT = 5000;
 
+// Fallback IP - Update this to your computer's WiFi IP if auto-detection fails
+const FALLBACK_IP = '192.168.1.115';
+
 // Localtunnel URL (if using tunnel for external access)
 const TUNNEL_URL = 'https://olive-coats-report.loca.lt';
 
@@ -68,18 +71,18 @@ const getExpoHostIP = () => {
     }
 
     console.warn('⚠️ Could not auto-detect IP from Expo');
-    console.warn('   Falling back to localhost');
-    console.warn('   If running on physical device, ensure WiFi is enabled');
+    console.warn(`   Using fallback IP: ${FALLBACK_IP}`);
+    console.warn('   If this doesn\'t work, update FALLBACK_IP in api.config.js');
     console.warn('   Detected Constants:', {
       hostUri: Constants.expoConfig?.hostUri,
       debuggerHost: Constants.manifest?.debuggerHost,
       sessionId: Constants.sessionId ? 'Present' : 'Not found',
     });
-    return 'localhost';
+    return FALLBACK_IP;
   } catch (error) {
     console.error('❌ Error detecting IP:', error.message);
-    console.error('   Falling back to localhost');
-    return 'localhost';
+    console.error(`   Using fallback IP: ${FALLBACK_IP}`);
+    return FALLBACK_IP;
   }
 };
 
@@ -137,11 +140,14 @@ const BASE_URL = getBaseUrl();
 export const API_CONFIG = {
   // Base configuration
   BASE_URL,
-  TIMEOUT: 15000,
+  TIMEOUT: 30000, // Increased from 15000ms to 30000ms to handle slower API responses
   PORT,
   TUNNEL_URL,
   PRODUCTION_URL,
   ENVIRONMENT,
+  // Retry configuration for failed requests
+  MAX_RETRIES: 2,
+  RETRY_DELAY: 1000,
   // Expose the detection function for debugging
   getExpoHostIP,
   

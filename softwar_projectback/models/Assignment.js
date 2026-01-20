@@ -48,4 +48,11 @@ assignmentSchema.virtual('graded').get(function () {
 assignmentSchema.set('toJSON', { virtuals: true });
 assignmentSchema.set('toObject', { virtuals: true });
 
+// Add indexes for better query performance
+assignmentSchema.index({ teacher: 1, dueDate: 1 });
+assignmentSchema.index({ course: 1, dueDate: 1 });
+assignmentSchema.index({ grade: 1, dueDate: 1 });
+assignmentSchema.index({ status: 1, dueDate: 1 });
+assignmentSchema.index({ 'submissions.student': 1 });
+
 module.exports = mongoose.model('Assignment', assignmentSchema);

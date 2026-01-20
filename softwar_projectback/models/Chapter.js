@@ -21,6 +21,7 @@ const chapterProgressSchema = new mongoose.Schema({
       isCorrect: { type: Boolean }
     }]
   }],
+  bestScore: { type: Number, default: 0 }, // Best score achieved across all attempts
   quizPassed: { type: Boolean, default: false },
   quizPassedAt: { type: Date },
   chapterCompleted: { type: Boolean, default: false },
@@ -102,6 +103,7 @@ const chapterSchema = new mongoose.Schema(
 // Index for efficient queries
 chapterSchema.index({ course: 1, chapterNumber: 1 });
 chapterSchema.index({ course: 1, order: 1 });
+chapterSchema.index({ 'studentProgress.student': 1 }, { sparse: true });
 
 // Method to check if a student has unlocked this chapter
 chapterSchema.methods.isUnlockedForStudent = function(studentId) {
@@ -137,9 +139,11 @@ chapterSchema.methods.getStudentProgress = function(studentId) {
     ? Math.round((watchedLectures / totalLectures) * 100) 
     : 100;
   
-  const bestScore = progress.quizAttempts.length > 0
+  // Calculate best score from attempts or use stored bestScore
+  const calculatedBestScore = progress.quizAttempts && progress.quizAttempts.length > 0
     ? Math.max(...progress.quizAttempts.map(a => a.score))
     : 0;
+  const bestScore = Math.max(calculatedBestScore, progress.bestScore || 0);
   
   return {
     slidesViewed: progress.slidesViewed,
@@ -148,11 +152,11 @@ chapterSchema.methods.getStudentProgress = function(studentId) {
     lecturesWatched: watchedLectures,
     totalLectures,
     allLecturesCompleted: progress.allLecturesCompleted,
-    quizAttempts: progress.quizAttempts.length,
+    quizAttempts: progress.quizAttempts?.length || 0,
     quizPassed: progress.quizPassed,
     quizPassedAt: progress.quizPassedAt,
     bestScore,
-    lastAttempt: progress.quizAttempts.length > 0 
+    lastAttempt: progress.quizAttempts && progress.quizAttempts.length > 0 
       ? progress.quizAttempts[progress.quizAttempts.length - 1] 
       : null,
     chapterCompleted: progress.chapterCompleted,

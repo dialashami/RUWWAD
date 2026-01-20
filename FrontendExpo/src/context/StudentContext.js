@@ -77,7 +77,8 @@ export function StudentProvider({ children }) {
     // Check if token exists before making API calls
     const token = await AsyncStorage.getItem('token');
     if (!token || !isMountedRef.current) {
-      return; // User logged out or component unmounted
+      setLoading(false);
+      return;
     }
 
     setLoading(true);
@@ -108,23 +109,62 @@ export function StudentProvider({ children }) {
         });
       }
 
-      // Verify token still exists (user might have logged out)
+      // Verify token still exists
       const currentToken = await AsyncStorage.getItem('token');
       if (!currentToken || !isMountedRef.current) {
         setLoading(false);
         return;
       }
 
-      // Fetch dashboard data
+      // 🚀 OPTIMIZED: Single API call to get ALL data
       try {
-        const dashboardRes = await studentDashboardAPI.getDashboard();
-        const data = dashboardRes.data;
+        const response = await studentDashboardAPI.getFullDashboard();
+        const data = response.data;
+        
+        if (!isMountedRef.current) return;
 
+        // Update profile if available
+        if (data.profile) {
+          setStudent(prev => ({
+            ...prev,
+            id: data.profile.id || prev.id,
+            firstName: data.profile.firstName || prev.firstName,
+            lastName: data.profile.lastName || prev.lastName,
+            email: data.profile.email || prev.email,
+          }));
+        }
+
+        // Helper function to sanitize course IDs
+        const sanitizeCourseId = (id) => {
+          if (!id) return id;
+          const idStr = id.toString();
+          // Fix known corruption: a66ec -> a6ec
+          if (idStr.includes('a66ec')) {
+            console.warn('⚠️  Fixing corrupted course ID:', idStr);
+            return idStr.replace('a66ec', 'a6ec');
+          }
+          return idStr;
+        };
+
+        // Sanitize courses data
+        const sanitizeCourses = (courses) => {
+          if (!courses || !Array.isArray(courses)) return courses;
+          return courses.map(course => ({
+            ...course,
+            _id: sanitizeCourseId(course._id),
+            id: sanitizeCourseId(course.id)
+          }));
+        };
+
+        // Update all state from consolidated response with sanitized data
         if (data.stats) {
-          setStats(prev => ({ ...prev, ...data.stats }));
+          setStats(data.stats);
+        }
+        if (data.progress) {
+          setProgress(data.progress);
         }
         if (data.courses) {
-          setCourses(data.courses);
+          setCourses(sanitizeCourses(data.courses));
         }
         if (data.assignments) {
           setAssignments(data.assignments);
@@ -135,28 +175,15 @@ export function StudentProvider({ children }) {
         if (data.recentActivities) {
           setRecentActivities(data.recentActivities);
         }
-      } catch (dashErr) {
-        console.log('Dashboard fetch error:', dashErr);
-      }
 
-      // Fetch unread notification count
-      try {
-        const notifRes = await notificationAPI.getNotifications();
-        const notifications = notifRes.data?.notifications || notifRes.data || [];
-        const unreadNotifs = notifications.filter(n => !n.isRead).length;
-        setStats(prev => ({ ...prev, unreadNotifications: unreadNotifs }));
-      } catch (notifErr) {
-        console.log('Notification count error:', notifErr);
-      }
-
-      // Fetch unread message count
-      try {
-        const msgRes = await messageAPI.getConversations();
-        const conversations = msgRes.data || [];
-        const unreadMsgs = conversations.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
-        setStats(prev => ({ ...prev, unreadMessages: unreadMsgs }));
-      } catch (msgErr) {
-        console.log('Message count error:', msgErr);
+      } catch (err) {
+        const errorMsg = err.message || 'Unknown error';
+        const isTimeout = err.code === 'ECONNABORTED' || err.message?.includes('timeout');
+        
+        if (!isTimeout && err.response?.status !== 401) {
+          console.log('Full dashboard fetch error:', errorMsg);
+          setError(errorMsg);
+        }
       }
 
     } catch (err) {
@@ -259,19 +286,18 @@ export function StudentProvider({ children }) {
 
   // Refresh all data
   const refreshData = useCallback(async () => {
-    await Promise.all([loadStudentData(), loadProgressData()]);
-  }, [loadStudentData, loadProgressData]);
+    await loadStudentData();
+  }, [loadStudentData]);
 
   // Load data on mount and cleanup on unmount
   useEffect(() => {
     isMountedRef.current = true;
     loadStudentData();
-    loadProgressData();
 
     return () => {
       isMountedRef.current = false;
     };
-  }, []);
+  }, [loadStudentData]);
 
   const contextValue = {
     // Student data
@@ -310,7 +336,6 @@ export function StudentProvider({ children }) {
     // Actions
     refreshData,
     loadStudentData,
-    loadProgressData,
   };
 
   return (

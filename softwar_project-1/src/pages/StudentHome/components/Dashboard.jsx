@@ -2,6 +2,7 @@
 import { Card, Button, Badge } from './ui';
 import { FaBook, FaClipboardList, FaChartBar, FaBell, FaCalendar, FaCheckCircle, FaFileUpload, FaGraduationCap, FaFlask, FaAtom, FaVideo } from "react-icons/fa";
 import { useStudent } from '../context/StudentContext';
+import { API_CONFIG } from '../../../config/api.config';
 
 export function Dashboard() {
   // Get student data from context
@@ -89,7 +90,7 @@ export function Dashboard() {
         const token = localStorage.getItem('token');
         if (!token) return;
 
-        const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/student/progress`, {
+        const res = await fetch(`${API_CONFIG.BASE_URL}/api/student/progress`, {
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
@@ -304,7 +305,7 @@ export function Dashboard() {
     try {
       const token = localStorage.getItem('token');
       if (token) {
-        const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/student/progress`, {
+        const res = await fetch(`${API_CONFIG.BASE_URL}/api/student/progress`, {
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import './CourseChaptersView.css';
+import { API_CONFIG } from '../../../config/api.config';
 
-const API_BASE = process.env.REACT_APP_API_BASE_URL || window.location.origin;
+const API_BASE = API_CONFIG.BASE_URL;
 
 function CourseChaptersView({ course, studentId, onBack }) {
   const [chapters, setChapters] = useState([]);
@@ -210,19 +211,48 @@ function CourseChaptersView({ course, studentId, onBack }) {
   };
   
   // Render chapter list
-  const renderChapterList = () => (
+  const renderChapterList = () => {
+    // Calculate quizzes passed vs total quizzes
+    const chaptersWithQuiz = chapters.filter(ch => ch.quiz?.isGenerated);
+    const totalQuizzes = chaptersWithQuiz.length;
+    const quizzesPassed = chapters.filter(ch => ch.studentProgress?.quizPassed).length;
+    const completionPercentage = totalQuizzes > 0 
+      ? Math.round((quizzesPassed / totalQuizzes) * 100) 
+      : (courseProgress?.overallProgress || 0);
+    
+    return (
     <div className="chapters-list-view">
       <div className="course-header">
         <button className="back-btn" onClick={onBack}>
           <i className="fas fa-arrow-left"></i> Back to Courses
         </button>
         <h2>{course.title}</h2>
-        <div className="course-progress-bar">
-          <div 
-            className="progress-fill" 
-            style={{ width: `${courseProgress?.overallProgress || 0}%` }}
-          />
-          <span>{courseProgress?.overallProgress || 0}% Complete</span>
+        
+        {/* Progress Section */}
+        <div className="progress-section">
+          <div className="stats-row">
+            <div className="stat-item">
+              <span className="stat-number passed">{quizzesPassed}</span>
+              <span className="stat-label">Passed</span>
+            </div>
+            <div className="stat-divider"></div>
+            <div className="stat-item">
+              <span className="stat-number remaining">{totalQuizzes - quizzesPassed}</span>
+              <span className="stat-label">Remaining</span>
+            </div>
+            <div className="stat-divider"></div>
+            <div className="stat-item">
+              <span className="stat-number percentage">{completionPercentage}%</span>
+              <span className="stat-label">Complete</span>
+            </div>
+          </div>
+          <div className="course-progress-bar">
+            <div 
+              className="progress-fill" 
+              style={{ width: `${completionPercentage}%` }}
+            />
+          </div>
+          <p className="progress-subtitle">{quizzesPassed} of {totalQuizzes} quizzes completed</p>
         </div>
       </div>
       
@@ -350,6 +380,7 @@ function CourseChaptersView({ course, studentId, onBack }) {
       </div>
     </div>
   );
+  };
   
   // Render slides view
   const renderSlidesView = () => {

@@ -31,15 +31,41 @@ export default function CourseChaptersView({ course, studentId, onBack }) {
   const [message, setMessage] = useState('');
   const [submittingQuiz, setSubmittingQuiz] = useState(false);
 
-  const courseId = course._id || course.id;
+  // Clean course ID - remove any duplicate characters that might have been introduced
+  let rawCourseId = course._id || course.id;
+  
+  // Fix known issue: 69624d03a66ec (double 6) -> 69624d03a6ec (single 6)
+  if (rawCourseId && rawCourseId.includes('a66ec')) {
+    console.warn('⚠️  Detected malformed course ID, fixing...');
+    console.warn('   Original:', rawCourseId);
+    rawCourseId = rawCourseId.replace('a66ec', 'a6ec');
+    console.warn('   Fixed:', rawCourseId);
+  }
+  
+  const courseId = rawCourseId;
 
+  // Validate course ID format
   useEffect(() => {
+    if (!courseId || courseId.length !== 24) {
+      console.error('Invalid course ID:', courseId);
+      setMessage(`Invalid course ID format. ID: ${courseId}`);
+      setLoading(false);
+      return;
+    }
     fetchChapters();
   }, [courseId]);
 
   const fetchChapters = async () => {
+    if (!courseId || courseId.length !== 24) {
+      setMessage('Invalid course ID format');
+      setLoading(false);
+      return;
+    }
+    
     setLoading(true);
+    setMessage('');
     try {
+      console.log('Fetching chapters for course:', courseId);
       const response = await chapterAPI.getChaptersByCourse(courseId, studentId);
       const data = response.data;
       
@@ -47,7 +73,13 @@ export default function CourseChaptersView({ course, studentId, onBack }) {
       setCourseProgress(data.courseProgress || null);
     } catch (err) {
       console.error('Error fetching chapters:', err);
-      setMessage('Error loading chapters. Please try again.');
+      const errorMsg = err.response?.data?.message || err.message || 'Error loading chapters';
+      setMessage(`${errorMsg}. Please try again or contact support.`);
+      
+      // Log detailed error info
+      if (err.response?.data) {
+        console.error('Server error details:', err.response.data);
+      }
     } finally {
       setLoading(false);
     }
@@ -177,21 +209,68 @@ export default function CourseChaptersView({ course, studentId, onBack }) {
           {course.title}
         </Text>
         
-        {/* Progress Bar */}
-        <View style={styles.progressContainer}>
-          <View style={styles.progressBar}>
-            <LinearGradient
-              colors={['#3498db', '#9333EA']}
-              style={[
-                styles.progressFill,
-                { width: `${courseProgress?.overallProgress || 0}%` },
-              ]}
-            />
-          </View>
-          <Text style={[styles.progressText, isDarkMode && { color: theme.textSecondary }]}>
-            {courseProgress?.overallProgress || 0}% Complete
-          </Text>
-        </View>
+        {/* Progress Section */}
+        {(() => {
+          // Calculate quizzes passed vs total quizzes
+          const chaptersWithQuiz = chapters.filter(ch => ch.quiz?.isGenerated);
+          const totalQuizzes = chaptersWithQuiz.length;
+          const quizzesPassed = chapters.filter(ch => ch.studentProgress?.quizPassed).length;
+          const completionPercentage = totalQuizzes > 0 
+            ? Math.round((quizzesPassed / totalQuizzes) * 100) 
+            : (courseProgress?.overallProgress || 0);
+          
+          return (
+            <View style={styles.progressSection}>
+              {/* Stats Row */}
+              <View style={styles.statsRow}>
+                <View style={styles.statItem}>
+                  <Text style={[styles.statNumber, isDarkMode && { color: theme.text }]}>
+                    {quizzesPassed}
+                  </Text>
+                  <Text style={[styles.statLabel, isDarkMode && { color: theme.textSecondary }]}>
+                    Passed
+                  </Text>
+                </View>
+                <View style={styles.statDivider} />
+                <View style={styles.statItem}>
+                  <Text style={[styles.statNumber, isDarkMode && { color: theme.text }]}>
+                    {totalQuizzes - quizzesPassed}
+                  </Text>
+                  <Text style={[styles.statLabel, isDarkMode && { color: theme.textSecondary }]}>
+                    Remaining
+                  </Text>
+                </View>
+                <View style={styles.statDivider} />
+                <View style={styles.statItem}>
+                  <Text style={[styles.statNumber, { color: '#9333EA' }]}>
+                    {completionPercentage}%
+                  </Text>
+                  <Text style={[styles.statLabel, isDarkMode && { color: theme.textSecondary }]}>
+                    Complete
+                  </Text>
+                </View>
+              </View>
+              
+              {/* Progress Bar */}
+              <View style={styles.progressContainer}>
+                <View style={styles.progressBar}>
+                  <LinearGradient
+                    colors={['#3498db', '#9333EA']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={[
+                      styles.progressFill,
+                      { width: `${completionPercentage}%` },
+                    ]}
+                  />
+                </View>
+                <Text style={[styles.progressText, isDarkMode && { color: theme.textSecondary }]}>
+                  {quizzesPassed} of {totalQuizzes} quizzes completed
+                </Text>
+              </View>
+            </View>
+          );
+        })()}
       </View>
 
       {/* Chapters Grid */}
@@ -706,24 +785,59 @@ const styles = StyleSheet.create({
     color: '#0F172A',
     marginBottom: 12,
   },
+  progressSection: {
+    marginTop: 16,
+    backgroundColor: 'rgba(147, 51, 234, 0.05)',
+    borderRadius: 16,
+    padding: 16,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  statItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  statNumber: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  statLabel: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#64748b',
+    marginTop: 2,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  statDivider: {
+    width: 1,
+    height: 30,
+    backgroundColor: 'rgba(147, 51, 234, 0.2)',
+  },
   progressContainer: {
-    marginTop: 8,
+    marginTop: 4,
   },
   progressBar: {
-    height: 8,
-    backgroundColor: '#e5e7eb',
-    borderRadius: 4,
+    height: 10,
+    backgroundColor: 'rgba(147, 51, 234, 0.15)',
+    borderRadius: 5,
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    borderRadius: 4,
+    borderRadius: 5,
   },
   progressText: {
-    marginTop: 6,
-    fontSize: 14,
+    marginTop: 8,
+    fontSize: 13,
     color: '#64748b',
-    fontWeight: '600',
+    fontWeight: '500',
+    textAlign: 'center',
   },
   chaptersGrid: {
     padding: 16,

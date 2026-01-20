@@ -13,6 +13,7 @@ import {
   X,
 } from "lucide-react";
 import { useStudent } from '../context/StudentContext';
+import { API_CONFIG } from '../../../config/api.config';
 
 export default function Settings() {
   // Get student data from context
@@ -82,7 +83,7 @@ export default function Settings() {
         const token = localStorage.getItem('token');
         if (!token) return;
 
-        const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/users/profile`, {
+        const res = await fetch(`${API_CONFIG.BASE_URL}/api/users/profile`, {
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
@@ -144,7 +145,7 @@ export default function Settings() {
         return;
       }
 
-      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/student/preferences`, {
+      const res = await fetch(`${API_CONFIG.BASE_URL}/api/student/preferences`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -258,7 +259,7 @@ export default function Settings() {
           return;
         }
 
-        const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/auth/profile`, {
+        const res = await fetch(`${API_CONFIG.BASE_URL}/api/auth/profile`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -339,7 +340,7 @@ export default function Settings() {
           return;
         }
 
-        const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/auth/change-password`, {
+        const res = await fetch(`${API_CONFIG.BASE_URL}/api/auth/change-password`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

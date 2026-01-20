@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,22 +7,20 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
+  Linking,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useStudent } from '../../context/StudentContext';
 import { useTheme } from '../../context/ThemeContext';
-import { studentDashboardAPI } from '../../services/api';
 
 export default function Dashboard({ onNavigate }) {
   // Get data from context
   const {
     student,
-    getFullName,
-    stats: contextStats,
     courses: contextCourses,
     todaySchedule: contextTodaySchedule,
     recentActivities: contextRecentActivities,
+    progress: contextProgress,
     loading: contextLoading,
     refreshData,
   } = useStudent();
@@ -31,6 +29,28 @@ export default function Dashboard({ onNavigate }) {
 
   const [refreshing, setRefreshing] = useState(false);
   const [progressData, setProgressData] = useState({});
+
+  // Update progress data when context progress changes
+  useEffect(() => {
+    if (contextProgress?.subjectProgress) {
+      const progressObj = {};
+      contextProgress.subjectProgress.forEach(subject => {
+        const key = subject.name.toLowerCase();
+        progressObj[key] = {
+          percent: subject.progress || 0,
+          completedLessons: subject.watchedVideos || 0,
+          totalLessons: subject.totalVideos || 0,
+          completedQuizzes: 0,
+          totalQuizzes: 0,
+          avgScore: subject.grade
+            ? (subject.grade === 'A+' ? 95 : subject.grade === 'A' ? 90 : subject.grade === 'B+' ? 85 : subject.grade === 'B' ? 80 : subject.grade === 'C' ? 70 : 0)
+            : 0,
+          grade: subject.grade || '-',
+        };
+      });
+      setProgressData(progressObj);
+    }
+  }, [contextProgress]);
 
   // Helper function for activity icons
   const getActivityIcon = (type) => {
@@ -73,60 +93,110 @@ export default function Dashboard({ onNavigate }) {
     }
   };
 
-  // Fetch progress data
-  useEffect(() => {
-    const isMountedRef = { current: true };
-    
-    const fetchProgressData = async () => {
-      // Check if token exists to prevent 401 errors after logout
-      const token = await AsyncStorage.getItem('token');
-      if (!token || !isMountedRef.current) {
-        return;
-      }
-
-      try {
-        const response = await studentDashboardAPI.getProgress();
-        if (!isMountedRef.current) return;
-        
-        if (response.data?.subjectProgress) {
-          const progressObj = {};
-          response.data.subjectProgress.forEach(subject => {
-            const key = subject.name.toLowerCase();
-            progressObj[key] = {
-              percent: subject.progress || 0,
-              completedLessons: subject.completedLessons || 0,
-              totalLessons: subject.totalLessons || 0,
-              grade: subject.grade || '-',
-            };
-          });
-          setProgressData(progressObj);
-        }
-      } catch (err) {
-        // Only log if not a 401 (user logged out)
-        if (err.response?.status !== 401) {
-          console.log('Progress data error:', err);
-        }
-      }
-    };
-    fetchProgressData();
-
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, [student.id]);
-
   const onRefresh = async () => {
     setRefreshing(true);
     await refreshData();
     setRefreshing(false);
   };
 
-  // Build stats from context
-  const stats = [
-    { label: 'Courses', value: contextStats.totalCourses || contextCourses.length || 0, icon: '📚', color: '#007bff' },
-    { label: 'Pending', value: contextStats.pendingAssignments || 0, icon: '📝', color: '#ffc107' },
-    { label: 'Messages', value: contextStats.unreadMessages || 0, icon: '💬', color: '#17a2b8' },
-  ];
+  const getStudentId = () => {
+    if (student?.id) return student.id;
+    return null;
+  };
+
+  const getStudentVideoProgress = (course, userId) => {
+    if (!course?.videoProgress || !userId) return null;
+    return course.videoProgress.find(vp => vp.student?.toString() === userId?.toString());
+  };
+
+  const getStudentCourseProgress = (course, userId) => {
+    if (!course?.studentCourseProgress || !userId) return null;
+    return course.studentCourseProgress.find(p => p.student?.toString() === userId?.toString());
+  };
+
+  const getLectureStats = (course, progressFromApi, userId) => {
+    const totalLectures = (course?.videoUrls?.length || 0) + (course?.uploadedVideos?.length || 0);
+    const studentVideoProgress = getStudentVideoProgress(course, userId);
+    const completedLectures = studentVideoProgress
+      ? (studentVideoProgress.watchedVideoUrls?.length || 0) + (studentVideoProgress.watchedUploadedVideos?.length || 0)
+      : 0;
+
+    if (totalLectures > 0) {
+      return { totalLectures, completedLectures };
+    }
+
+    return {
+      totalLectures: progressFromApi?.totalLessons ?? course?.totalLessons ?? course?.lessons?.length ?? 0,
+      completedLectures: progressFromApi?.completedLessons ?? course?.completedLessons ?? 0,
+    };
+  };
+
+  const getQuizStats = (course, progressFromApi, userId) => {
+    const studentCourseProgress = getStudentCourseProgress(course, userId);
+    if (course?.isChapterBased && course?.numberOfChapters) {
+      return {
+        totalQuizzes: course.numberOfChapters,
+        completedQuizzes: studentCourseProgress?.chaptersCompleted?.length || 0,
+      };
+    }
+
+    return {
+      totalQuizzes: progressFromApi?.totalQuizzes ?? course?.totalQuizzes ?? course?.quizzes?.length ?? 0,
+      completedQuizzes: progressFromApi?.completedQuizzes ?? course?.completedQuizzes ?? 0,
+    };
+  };
+
+  const getAverageQuizScore = (course, progressFromApi) => {
+    if (typeof progressFromApi?.avgScore === 'number') return progressFromApi.avgScore;
+    if (typeof course?.averageScore === 'number') return course.averageScore;
+    return 0;
+  };
+
+  const isCourseStarted = (course) => {
+    if (!course) return false;
+    if (course.startedAt || course.enrolledAt) return true;
+    if (typeof course.progress === 'number' && course.progress > 0) return true;
+    if ((course.completedLessons || 0) > 0) return true;
+    if ((course.completedQuizzes || 0) > 0) return true;
+    if (course.status && ['in-progress', 'active', 'started'].includes(course.status.toLowerCase())) return true;
+    return false;
+  };
+
+  const buildProgressCards = () => {
+    const progressMapByName = {};
+    const userId = getStudentId();
+
+    Object.entries(progressData || {}).forEach(([key, value]) => {
+      progressMapByName[key.toLowerCase()] = value;
+    });
+
+    const startedCourses = (contextCourses || []).filter(isCourseStarted);
+    const coursesToDisplay = startedCourses.length > 0 ? startedCourses : (contextCourses || []);
+
+    return coursesToDisplay.map(course => {
+      const courseName = course.title || course.subject || 'Course';
+      const normalizedKey = courseName.toLowerCase();
+      const progressFromApi = progressMapByName[normalizedKey];
+
+      const lectureStats = getLectureStats(course, progressFromApi, userId);
+      const quizStats = getQuizStats(course, progressFromApi, userId);
+      const avgScore = getAverageQuizScore(course, progressFromApi);
+
+      const percent = progressFromApi?.percent ?? course.progress ?? 0;
+
+      return {
+        key: course._id || courseName,
+        courseName,
+        percent,
+        completedLessons: lectureStats.completedLectures,
+        totalLessons: lectureStats.totalLectures,
+        completedQuizzes: quizStats.completedQuizzes,
+        totalQuizzes: quizStats.totalQuizzes,
+        avgScore,
+        subjectKey: (course.subject || courseName || 'course').toLowerCase(),
+      };
+    });
+  };
 
   // Build schedule from context
   const upcomingClasses = contextTodaySchedule.length > 0
@@ -137,12 +207,14 @@ export default function Dashboard({ onNavigate }) {
           : '09:00 AM',
         subject: item.title || item.subject || 'Course',
         room: item.description || 'Online',
+        zoomLink: item.zoomLink,
       }))
     : contextCourses.slice(0, 3).map((course, index) => ({
         id: course._id || index,
         time: '09:00 AM',
         subject: course.title || course.subject || 'Course',
         room: course.description || 'Online Session',
+        zoomLink: course.zoomLink,
       }));
 
   // Build activities from context
@@ -175,40 +247,79 @@ export default function Dashboard({ onNavigate }) {
         <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#3498db']} />
       }
     >
-      {/* Welcome Banner - styled like web version */}
+      {/* Welcome Banner */}
       <LinearGradient
         colors={['#3498db', '#2c3e50']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.welcomeBanner}
       >
-        {/* Decorative circles */}
         <View style={styles.decorCircle1} />
         <View style={styles.decorCircle2} />
         <View style={styles.decorSquare} />
-        
+
         <View style={styles.bannerContent}>
           <View style={styles.bannerTextContainer}>
-            <Text style={styles.welcomeText}>Hello, {getFullName()} 👋</Text>
-            <Text style={styles.welcomeSubtext}>Ready to continue your learning journey?</Text>
+            <Text style={styles.welcomeText}>
+              Welcome back, {student.firstName || 'Student'}!
+            </Text>
+            <Text style={styles.welcomeSubtext}>
+              Continue your learning journey and achieve your goals today!
+            </Text>
           </View>
+          <Text style={styles.bannerIcon}>📘</Text>
         </View>
       </LinearGradient>
 
-      {/* Stats Cards */}
-      <View style={styles.statsContainer}>
-        {stats.map((stat, index) => (
-          <View key={index} style={[styles.statCard, { borderLeftColor: stat.color }, isDarkMode && { backgroundColor: theme.card }]}>
-            <Text style={styles.statIcon}>{stat.icon}</Text>
-            <Text style={[styles.statValue, isDarkMode && { color: theme.text }]}>{stat.value}</Text>
-            <Text style={[styles.statLabel, isDarkMode && { color: theme.textSecondary }]}>{stat.label}</Text>
-          </View>
-        ))}
+      {/* Progress Tracker */}
+      <View style={styles.section}>
+        <View style={styles.sectionHeaderRow}>
+          <Text style={[styles.sectionTitle, isDarkMode && { color: theme.text }]}>Progress Tracker</Text>
+          <TouchableOpacity onPress={() => onNavigate && onNavigate('progress')}>
+            <Text style={styles.sectionLink}>View Details</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.progressTracker}>
+          {buildProgressCards().length === 0 ? (
+            <View style={[styles.progressCard, styles.progressCardEmpty, isDarkMode && { backgroundColor: theme.card }]}>
+              <Text style={styles.emptyText}>No courses enrolled yet. Enroll in courses to track your progress!</Text>
+            </View>
+          ) : (
+            buildProgressCards().map((data) => (
+              <View key={data.key} style={[styles.progressCard, isDarkMode && { backgroundColor: theme.card }]}>
+                <View style={styles.progressHeaderRow}>
+                  <Text style={[styles.progressTitle, isDarkMode && { color: theme.text }]}>
+                    📊 {data.courseName}
+                  </Text>
+                  <Text style={[styles.progressPercent, isDarkMode && { color: theme.primary }]}>{data.percent}%</Text>
+                </View>
+                <View style={styles.progressBar}>
+                  <View style={[styles.progressFill, { width: `${data.percent}%` }]} />
+                </View>
+                <View style={styles.progressStatsRow}>
+                  <View style={styles.progressStatItem}>
+                    <Text style={styles.progressStatValue}>{data.completedLessons}/{data.totalLessons}</Text>
+                    <Text style={styles.progressStatLabel}>Lectures</Text>
+                  </View>
+                  <View style={styles.progressStatItem}>
+                    <Text style={styles.progressStatValue}>{data.avgScore}%</Text>
+                    <Text style={styles.progressStatLabel}>Avg. Grade</Text>
+                  </View>
+                </View>
+              </View>
+            ))
+          )}
+        </View>
       </View>
 
       {/* Today's Schedule */}
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, isDarkMode && { color: theme.text }]}>Today's Schedule</Text>
+        <View style={styles.sectionHeaderRow}>
+          <Text style={[styles.sectionTitle, isDarkMode && { color: theme.text }]}>Today's Schedule</Text>
+          <TouchableOpacity onPress={() => onNavigate && onNavigate('assignments')}>
+            <Text style={styles.sectionLink}>View Full Schedule</Text>
+          </TouchableOpacity>
+        </View>
         {upcomingClasses.map((cls, index) => (
           <View key={index} style={[styles.scheduleCard, isDarkMode && { backgroundColor: theme.card }]}>
             <View style={styles.scheduleTime}>
@@ -217,6 +328,11 @@ export default function Dashboard({ onNavigate }) {
             <View style={styles.scheduleInfo}>
               <Text style={[styles.subjectText, isDarkMode && { color: theme.text }]}>{cls.subject}</Text>
               <Text style={[styles.roomText, isDarkMode && { color: theme.textSecondary }]}>{cls.room}</Text>
+              {cls.zoomLink && (
+                <TouchableOpacity onPress={() => Linking.openURL(cls.zoomLink)}>
+                  <Text style={styles.zoomLink}>Join Zoom Meeting</Text>
+                </TouchableOpacity>
+              )}
             </View>
           </View>
         ))}
@@ -224,34 +340,18 @@ export default function Dashboard({ onNavigate }) {
 
       {/* Recent Activity */}
       <View style={styles.section}>
-        <Text style={[styles.sectionTitle, isDarkMode && { color: theme.text }]}>Recent Activity</Text>
+        <View style={styles.sectionHeaderRow}>
+          <Text style={[styles.sectionTitle, isDarkMode && { color: theme.text }]}>Recent Activity</Text>
+          <TouchableOpacity onPress={() => onNavigate && onNavigate('notifications')}>
+            <Text style={styles.sectionLink}>View All</Text>
+          </TouchableOpacity>
+        </View>
         {recentActivity.map((activity, index) => (
           <View key={index} style={[styles.activityCard, isDarkMode && { backgroundColor: theme.card }]}>
             <Text style={[styles.activityText, isDarkMode && { color: theme.text }]}>{activity.text}</Text>
             <Text style={[styles.activityTime, isDarkMode && { color: theme.textSecondary }]}>{activity.time}</Text>
           </View>
         ))}
-      </View>
-
-      {/* Quick Actions */}
-      <View style={styles.section}>
-        <Text style={[styles.sectionTitle, isDarkMode && { color: theme.text }]}>Quick Actions</Text>
-        <View style={styles.quickActions}>
-          <TouchableOpacity 
-            style={[styles.actionBtn, { backgroundColor: '#007bff' }]}
-            onPress={() => onNavigate && onNavigate('lessons')}
-          >
-            <Text style={styles.actionIcon}>📚</Text>
-            <Text style={styles.actionText}>Continue Learning</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[styles.actionBtn, { backgroundColor: '#28a745' }]}
-            onPress={() => onNavigate && onNavigate('assignments')}
-          >
-            <Text style={styles.actionIcon}>📝</Text>
-            <Text style={styles.actionText}>View Assignments</Text>
-          </TouchableOpacity>
-        </View>
       </View>
     </ScrollView>
   );
@@ -325,67 +425,79 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: 'rgba(255, 255, 255, 0.85)',
   },
-  bannerIconContainer: {
-    marginLeft: 16,
-  },
-  bannerIconBg: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   bannerIcon: {
     fontSize: 36,
   },
-  header: {
-    padding: 20,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-  },
-  greeting: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1f2937',
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#6b7280',
-    marginTop: 4,
-  },
-  statsContainer: {
+  sectionHeaderRow: {
     flexDirection: 'row',
-    padding: 15,
-    gap: 10,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: '#fff',
-    padding: 15,
-    borderRadius: 12,
+    justifyContent: 'space-between',
     alignItems: 'center',
-    borderLeftWidth: 4,
+    marginBottom: 10,
+  },
+  sectionLink: {
+    fontSize: 13,
+    color: '#3498db',
+    fontWeight: '600',
+  },
+  progressTracker: {
+    gap: 12,
+  },
+  progressCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
-    shadowRadius: 4,
+    shadowRadius: 6,
     elevation: 2,
   },
-  statIcon: {
-    fontSize: 24,
+  progressCardEmpty: {
+    alignItems: 'center',
+  },
+  progressHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 8,
   },
-  statValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1f2937',
+  progressTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#0F172A',
   },
-  statLabel: {
-    fontSize: 12,
+  progressPercent: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#3498db',
+  },
+  progressBar: {
+    height: 8,
+    backgroundColor: '#e5e7eb',
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginBottom: 10,
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#3498db',
+  },
+  progressStatsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  progressStatItem: {
+    alignItems: 'center',
+  },
+  progressStatValue: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  progressStatLabel: {
+    fontSize: 11,
     color: '#6b7280',
-    marginTop: 4,
+    marginTop: 2,
   },
   section: {
     padding: 15,
@@ -435,6 +547,12 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     marginTop: 4,
   },
+  zoomLink: {
+    marginTop: 6,
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#2D8CFF',
+  },
   activityCard: {
     backgroundColor: '#fff',
     borderRadius: 12,
@@ -454,25 +572,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#9ca3af',
     marginTop: 6,
-  },
-  quickActions: {
-    flexDirection: 'row',
-    gap: 10,
-  },
-  actionBtn: {
-    flex: 1,
-    padding: 15,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  actionIcon: {
-    fontSize: 24,
-    marginBottom: 8,
-  },
-  actionText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 14,
   },
   loadingContainer: {
     flex: 1,

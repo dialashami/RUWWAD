@@ -3,6 +3,270 @@ const Assignment = require('../models/Assignment');
 const Message = require('../models/Message');
 const Notification = require('../models/Notification');
 const User = require('../models/user_model');
+const { CacheManager, FastQuery } = require('../utils/dbOptimizer');
+
+// CONSOLIDATED ENDPOINT: All student data in ONE request
+exports.getFullDashboard = async (req, res, next) => {
+  try {
+    const userId = req.userId;
+    const userPayload = req.User;
+
+    if (!userId || !userPayload || userPayload.role !== 'student') {
+      return res.status(403).json({ message: 'Student access required' });
+    }
+
+    // Check cache first
+    const cacheKey = `student-full-dashboard:${userId}`;
+    const cached = CacheManager.get(cacheKey);
+    if (cached) {
+      return res.json(cached);
+    }
+
+    // Get student profile
+    const student = await User.findById(userId).lean();
+    if (!student) {
+      return res.status(404).json({ message: 'Student not found' });
+    }
+
+    // Build grade filter
+    const gradeFilter = {};
+    if (student.studentType === 'school' && student.schoolGrade) {
+      const normalizedGrade = student.schoolGrade.toLowerCase().replace(/\s+/g, '');
+      gradeFilter.$or = [
+        { grade: student.schoolGrade },
+        { grade: new RegExp(normalizedGrade, 'i') },
+        { grade: new RegExp(student.schoolGrade.replace('grade', 'Grade '), 'i') },
+      ];
+    } else if (student.studentType === 'university' && student.universityMajor) {
+      gradeFilter.grade = new RegExp(student.universityMajor, 'i');
+    }
+
+    const enrolledFilter = { students: userId };
+    const enrolledCourseIds = await Course.find(enrolledFilter).distinct('_id');
+
+    // Fetch ALL data in parallel - ONE DATABASE ROUND TRIP
+    const [enrolledCourses, availableCourses, assignments, messages, notifications] = await Promise.all([
+      Course.find({ ...enrolledFilter, isActive: true })
+        .populate('teacher', 'firstName lastName')
+        .sort({ createdAt: -1 })
+        .limit(20)
+        .lean(),
+      Course.find({ ...gradeFilter, isActive: true })
+        .populate('teacher', 'firstName lastName')
+        .sort({ createdAt: -1 })
+        .limit(20)
+        .lean(),
+      Assignment.find({ course: { $in: enrolledCourseIds } })
+        .populate('course', 'title subject')
+        .populate('teacher', 'firstName lastName')
+        .sort({ dueDate: 1 })
+        .limit(50)
+        .lean(),
+      Message.find({ $or: [{ sender: userId }, { receiver: userId }] })
+        .sort({ createdAt: -1 })
+        .limit(20)
+        .populate('sender receiver', 'firstName lastName')
+        .lean(),
+      Notification.find({ user: userId })
+        .sort({ createdAt: -1 })
+        .limit(20)
+        .lean(),
+    ]);
+
+    // Calculate stats
+    const totalCourses = enrolledCourses.length;
+    const totalAssignments = assignments.length;
+    
+    const pendingAssignments = assignments.filter(a => {
+      const hasSubmitted = a.submissions?.some(s => s.student?.toString() === userId);
+      return !hasSubmitted && new Date(a.dueDate) >= new Date();
+    }).length;
+
+    const overdueAssignments = assignments.filter(a => {
+      const hasSubmitted = a.submissions?.some(s => s.student?.toString() === userId);
+      return !hasSubmitted && new Date(a.dueDate) < new Date();
+    }).length;
+
+    const unreadMessages = messages.filter(
+      m => m.receiver?._id?.toString() === userId && !m.isRead
+    ).length;
+
+    const unreadNotifications = notifications.filter(n => !n.isRead).length;
+
+    // Today's schedule
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const todaySchedule = assignments.filter(a => {
+      const dueDate = new Date(a.dueDate);
+      return dueDate >= today && dueDate < tomorrow;
+    });
+
+    // Recent activities
+    const recentActivities = [
+      ...assignments.slice(0, 5).map(a => ({
+        type: 'assignment',
+        id: a._id,
+        title: a.title,
+        description: `Due: ${new Date(a.dueDate).toLocaleDateString()}`,
+        createdAt: a.createdAt,
+      })),
+      ...notifications.slice(0, 5).map(n => ({
+        type: 'notification',
+        id: n._id,
+        title: n.title,
+        description: n.body,
+        createdAt: n.createdAt,
+        isRead: n.isRead,
+      })),
+    ].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 10);
+
+    // Calculate progress data (like getProgress endpoint)
+    const subjectMap = {};
+    let totalWatchedVideos = 0;
+    let totalVideos = 0;
+    
+    enrolledCourses.forEach(course => {
+      const subject = course.subject || course.title || 'General';
+      if (!subjectMap[subject]) {
+        subjectMap[subject] = {
+          name: subject,
+          progress: 0,
+          totalVideos: 0,
+          watchedVideos: 0,
+          coursesCount: 0,
+          grade: '-',
+          colorClass: getSubjectColorClass(subject),
+        };
+      }
+      
+      const courseVideoCount = (course.videoUrls?.length || 0) + (course.uploadedVideos?.length || 0);
+      subjectMap[subject].totalVideos += courseVideoCount;
+      subjectMap[subject].coursesCount += 1;
+      totalVideos += courseVideoCount;
+      
+      const studentProgress = course.videoProgress?.find(vp => vp.student?.toString() === userId);
+      if (studentProgress) {
+        const watchedCount = (studentProgress.watchedVideoUrls?.length || 0) + (studentProgress.watchedUploadedVideos?.length || 0);
+        subjectMap[subject].watchedVideos += watchedCount;
+        totalWatchedVideos += watchedCount;
+      }
+    });
+
+    // Calculate grades for each subject
+    Object.values(subjectMap).forEach(subject => {
+      if (subject.totalVideos > 0) {
+        subject.progress = Math.round((subject.watchedVideos / subject.totalVideos) * 100);
+      }
+      if (subject.progress >= 90) subject.grade = 'A+';
+      else if (subject.progress >= 80) subject.grade = 'A';
+      else if (subject.progress >= 70) subject.grade = 'B+';
+      else if (subject.progress >= 60) subject.grade = 'B';
+      else if (subject.progress >= 50) subject.grade = 'C';
+      else if (subject.progress > 0) subject.grade = 'D';
+    });
+
+    const subjectProgress = Object.values(subjectMap);
+    const overallProgress = totalVideos > 0 ? Math.round((totalWatchedVideos / totalVideos) * 100) : 0;
+
+    // Calculate assignment stats
+    let totalSubmitted = 0;
+    let totalGraded = 0;
+    let totalScore = 0;
+    assignments.forEach(assignment => {
+      const studentSubmission = assignment.submissions?.find(s => s.student?.toString() === userId);
+      if (studentSubmission) {
+        totalSubmitted++;
+        if (studentSubmission.isGraded && studentSubmission.grade !== undefined) {
+          totalGraded++;
+          totalScore += studentSubmission.grade;
+        }
+      }
+    });
+
+    const achievements = calculateAchievements(enrolledCourses, assignments, totalSubmitted, userId);
+
+    // Sanitize course data
+    const sanitizedCourses = enrolledCourses.map(course => {
+      const studentProgress = course.videoProgress?.find(vp => vp.student?.toString() === userId);
+      const totalCourseVideos = (course.videoUrls?.length || 0) + (course.uploadedVideos?.length || 0);
+      const watchedCount = studentProgress ? (studentProgress.watchedVideoUrls?.length || 0) + (studentProgress.watchedUploadedVideos?.length || 0) : 0;
+      const progressPercent = totalCourseVideos > 0 ? Math.round((watchedCount / totalCourseVideos) * 100) : 0;
+      
+      return {
+        ...course,
+        videoProgress: undefined,
+        students: undefined,
+        progress: progressPercent,
+        totalVideos: totalCourseVideos,
+        watchedVideos: watchedCount,
+      };
+    });
+
+    // Sanitize assignment data
+    const sanitizedAssignments = assignments.map(assignment => {
+      const studentSubmission = assignment.submissions?.find(s => s.student?.toString() === userId);
+      return {
+        ...assignment,
+        submissions: undefined,
+        mySubmission: studentSubmission || null,
+        hasSubmitted: !!studentSubmission,
+      };
+    });
+
+    const responseData = {
+      // Profile
+      profile: {
+        id: student._id,
+        firstName: student.firstName,
+        lastName: student.lastName,
+        email: student.email,
+        grade: student.schoolGrade || student.universityMajor,
+        studentType: student.studentType,
+        profilePicture: student.profilePicture,
+      },
+      // Stats
+      stats: {
+        totalCourses,
+        totalAssignments,
+        pendingAssignments,
+        overdueAssignments,
+        unreadMessages,
+        unreadNotifications,
+      },
+      // Progress
+      progress: {
+        overallProgress,
+        subjectProgress,
+        totalVideos,
+        totalWatchedVideos,
+        averageScore: totalGraded > 0 ? Math.round(totalScore / totalGraded) : 0,
+        achievements: achievements.filter(a => a.earned).map(a => ({
+          title: a.title,
+          icon: a.icon,
+          date: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        })),
+      },
+      // Data
+      courses: sanitizedCourses.slice(0, 6),
+      availableCourses: availableCourses.filter(c => !c.students?.some(s => s.toString() === userId)).slice(0, 6),
+      assignments: sanitizedAssignments.slice(0, 6),
+      todaySchedule,
+      recentActivities,
+      notifications: notifications.slice(0, 10),
+      messages: messages.slice(0, 10),
+    };
+
+    // Cache for 30 seconds
+    CacheManager.set(cacheKey, responseData, 30000);
+
+    res.json(responseData);
+  } catch (err) {
+    console.error('Error in getFullDashboard:', err);
+    next(err);
+  }
+};
 
 // Student dashboard: aggregate key stats and recent activity for logged-in student
 exports.getDashboard = async (req, res, next) => {
@@ -39,32 +303,42 @@ exports.getDashboard = async (req, res, next) => {
     // This ensures new students don't see other students' data
     const enrolledFilter = { students: userId };
 
-    // Fetch courses, assignments, messages, notifications in parallel
+    // First get enrolled course IDs (fast query) to avoid nested await in Promise.all
+    const enrolledCourseIds = await Course.find(enrolledFilter).distinct('_id');
+
+    // Fetch courses, assignments, messages, notifications in parallel with optimizations
     const [enrolledCourses, availableCourses, assignments, messages, notifications] = await Promise.all([
-      // Courses the student is enrolled in
+      // Courses the student is enrolled in (use lean for faster reads)
       Course.find({ ...enrolledFilter, isActive: true })
         .populate('teacher', 'firstName lastName')
-        .sort({ createdAt: -1 }),
+        .sort({ createdAt: -1 })
+        .limit(20)
+        .lean(),
       // Available courses for their grade (for discovery, not enrolled yet)
       Course.find({ ...gradeFilter, isActive: true })
         .populate('teacher', 'firstName lastName')
-        .sort({ createdAt: -1 }),
-      // Assignments only from enrolled courses
+        .sort({ createdAt: -1 })
+        .limit(20)
+        .lean(),
+      // Assignments only from enrolled courses (use pre-fetched IDs)
       Assignment.find({ 
         ...gradeFilter,
-        // Only show assignments from courses the student is enrolled in
-        course: { $in: await Course.find(enrolledFilter).distinct('_id') }
+        course: { $in: enrolledCourseIds }
       })
         .populate('course', 'title')
         .populate('teacher', 'firstName lastName')
-        .sort({ dueDate: 1 }),
+        .sort({ dueDate: 1 })
+        .limit(50)
+        .lean(),
       Message.find({ $or: [{ sender: userId }, { receiver: userId }] })
         .sort({ createdAt: -1 })
         .limit(20)
-        .populate('sender receiver', 'firstName lastName'),
+        .populate('sender receiver', 'firstName lastName')
+        .lean(),
       Notification.find({ user: userId })
         .sort({ createdAt: -1 })
-        .limit(20),
+        .limit(20)
+        .lean(),
     ]);
 
     // Use enrolled courses for stats
@@ -130,7 +404,8 @@ exports.getDashboard = async (req, res, next) => {
 
     // Sanitize courses - remove other students' progress data and only include current student's progress
     const sanitizedCourses = courses.slice(0, 6).map(course => {
-      const courseObj = course.toObject();
+      // Already a plain object due to .lean()
+      const courseObj = { ...course };
       
       // Find only this student's video progress
       const studentProgress = courseObj.videoProgress?.find(
@@ -161,7 +436,8 @@ exports.getDashboard = async (req, res, next) => {
 
     // Sanitize assignments - remove other students' submissions
     const sanitizedAssignments = assignments.slice(0, 6).map(assignment => {
-      const assignmentObj = assignment.toObject();
+      // Already a plain object due to .lean()
+      const assignmentObj = { ...assignment };
       
       // Find only this student's submission
       const studentSubmission = assignmentObj.submissions?.find(

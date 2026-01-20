@@ -125,25 +125,39 @@ courseSchema.methods.getStudentChapterStatus = function(studentId) {
 
 // Method to update student's course progress after completing a chapter
 courseSchema.methods.updateStudentProgress = function(studentId, completedChapter) {
-  let progressEntry = this.studentCourseProgress?.find(
+  // Ensure the array exists
+  if (!this.studentCourseProgress) {
+    this.studentCourseProgress = [];
+  }
+  
+  // Find existing progress entry index
+  const progressIndex = this.studentCourseProgress.findIndex(
     p => p.student.toString() === studentId.toString()
   );
   
-  if (!progressEntry) {
-    this.studentCourseProgress = this.studentCourseProgress || [];
+  let progressEntry;
+  
+  if (progressIndex === -1) {
+    // Create new progress entry
     progressEntry = {
       student: studentId,
       currentChapter: 1,
-      chaptersCompleted: [],
+      chaptersCompleted: [completedChapter], // Include completed chapter immediately
       overallProgress: 0,
       lastAccessedAt: new Date()
     };
     this.studentCourseProgress.push(progressEntry);
-  }
-  
-  // Add completed chapter if not already completed
-  if (!progressEntry.chaptersCompleted.includes(completedChapter)) {
-    progressEntry.chaptersCompleted.push(completedChapter);
+  } else {
+    // Get existing entry
+    progressEntry = this.studentCourseProgress[progressIndex];
+    
+    // Add completed chapter if not already completed
+    if (!progressEntry.chaptersCompleted) {
+      progressEntry.chaptersCompleted = [];
+    }
+    if (!progressEntry.chaptersCompleted.includes(completedChapter)) {
+      progressEntry.chaptersCompleted.push(completedChapter);
+    }
   }
   
   // Update current chapter to next one
@@ -163,11 +177,21 @@ courseSchema.methods.updateStudentProgress = function(studentId, completedChapte
   
   progressEntry.lastAccessedAt = new Date();
   
+  // Mark the subdocument array as modified to ensure Mongoose saves it
+  this.markModified('studentCourseProgress');
+  
   return progressEntry;
 };
 
 // Ensure virtuals are included in JSON
 courseSchema.set('toJSON', { virtuals: true });
 courseSchema.set('toObject', { virtuals: true });
+
+// Add indexes for better query performance
+courseSchema.index({ teacher: 1, createdAt: -1 });
+courseSchema.index({ isActive: 1, createdAt: -1 });
+courseSchema.index({ grade: 1, subject: 1 });
+courseSchema.index({ students: 1 });
+courseSchema.index({ 'studentCourseProgress.student': 1 });
 
 module.exports = mongoose.model('Course', courseSchema);

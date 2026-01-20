@@ -112,13 +112,23 @@ export default function AssignmentManagement() {
     description: '',
   });
 
+  const [assignmentPage, setAssignmentPage] = React.useState(1);
+  const [hasMoreAssignments, setHasMoreAssignments] = React.useState(true);
+  const [loadingMore, setLoadingMore] = React.useState(false);
+
   useEffect(() => {
-    fetchAssignments();
+    fetchAssignments(true);
   }, [teacher.id, contextAssignments]);
 
-  const fetchAssignments = async () => {
+  const fetchAssignments = async (reset = false) => {
     try {
-      if (contextAssignments && contextAssignments.length > 0) {
+      if (reset) {
+        setAssignmentPage(1);
+        setAssignments([]);
+        setHasMoreAssignments(true);
+      }
+
+      if (contextAssignments && contextAssignments.length > 0 && reset) {
         setAssignments(contextAssignments.map(a => ({
           id: a._id || a.id,
           title: a.title || 'Untitled Assignment',
@@ -145,9 +155,16 @@ export default function AssignmentManagement() {
         return;
       }
 
-      const response = await assignmentAPI.getAssignments();
+      const currentPage = reset ? 1 : assignmentPage;
+      const limit = 20; // Load 20 assignments at a time
+      
+      const response = await assignmentAPI.getAssignments({
+        page: currentPage,
+        limit: limit,
+      });
+      
       if (Array.isArray(response.data) && response.data.length > 0) {
-        setAssignments(response.data.map(a => ({
+        const mapped = response.data.map(a => ({
           id: a._id || a.id,
           title: a.title,
           subject: a.subject || 'General',
@@ -167,20 +184,36 @@ export default function AssignmentManagement() {
           graded: a.graded || 0,
           status: a.status || 'active',
           description: a.description || '',
-        })));
+        }));
+        
+        if (reset) {
+          setAssignments(mapped);
+        } else {
+          setAssignments(prev => [...prev, ...mapped]);
+        }
+        
+        setHasMoreAssignments(response.data.length === limit);
+        setAssignmentPage(currentPage + 1);
       }
     } catch (err) {
       console.error('Error fetching assignments:', err);
     } finally {
       setLoading(false);
       setRefreshing(false);
+      setLoadingMore(false);
     }
+  };
+
+  const loadMoreAssignments = async () => {
+    if (!hasMoreAssignments || loadingMore) return;
+    setLoadingMore(true);
+    await fetchAssignments(false);
   };
 
   const onRefresh = async () => {
     setRefreshing(true);
     await refreshData();
-    fetchAssignments();
+    await fetchAssignments(true);
   };
 
   const resetForm = () => {
@@ -719,6 +752,14 @@ export default function AssignmentManagement() {
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#007bff']} />
         }
+        onScroll={({ nativeEvent }) => {
+          const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
+          const paddingToBottom = 20;
+          if (layoutMeasurement.height + contentOffset.y >= contentSize.height - paddingToBottom) {
+            loadMoreAssignments();
+          }
+        }}
+        scrollEventThrottle={400}
       >
         {getFilteredAssignments().length > 0 ? (
           getFilteredAssignments().map((assignment) => {
@@ -822,6 +863,17 @@ export default function AssignmentManagement() {
             <Text style={styles.emptyIcon}>📋</Text>
             <Text style={styles.emptyTitle}>No Assignments Yet</Text>
             <Text style={styles.emptySubtitle}>Click "Create Assignment" to add your first assignment.</Text>
+          </View>
+        )}
+        {loadingMore && (
+          <View style={{ padding: 20, alignItems: 'center' }}>
+            <ActivityIndicator size="small" color="#007bff" />
+            <Text style={{ color: '#666', marginTop: 8 }}>Loading more assignments...</Text>
+          </View>
+        )}
+        {!hasMoreAssignments && assignments.length > 0 && (
+          <View style={{ padding: 20, alignItems: 'center' }}>
+            <Text style={{ color: '#999', fontSize: 14 }}>✓ All assignments loaded</Text>
           </View>
         )}
         <View style={{ height: 20 }} />

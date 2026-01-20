@@ -2,6 +2,7 @@ const Course = require('../models/Course');
 const Chapter = require('../models/Chapter');
 const Notification = require('../models/Notification');
 const User = require('../models/user_model');
+const { CacheManager, FastQuery, OptimizedQuery } = require('../utils/dbOptimizer');
 
 exports.createCourse = async (req, res, next) => {
   try {
@@ -116,8 +117,6 @@ exports.getCourses = async (req, res, next) => {
     const { teacher, grade, specialization, subject, isActive } = req.query;
     const filter = {};
 
-    console.log('getCourses query params:', { teacher, grade, specialization, subject, isActive });
-
     if (teacher) {
       filter.teacher = teacher;
     }
@@ -144,98 +143,108 @@ exports.getCourses = async (req, res, next) => {
     if (isActive !== undefined) {
       filter.isActive = isActive === 'true';
     }
-
-    console.log('getCourses filter:', JSON.stringify(filter));
+    
+    // Optimize query with pagination and limited fields
+    const limit = parseInt(req.query.limit) || 50; // Default 50 courses max
+    const page = parseInt(req.query.page) || 1;
+    const skip = (page - 1) * limit;
+    
+    // Generate cache key based on query parameters
+    const cacheKey = `courses:${JSON.stringify(filter)}:${page}:${limit}`;
+    
+    // Try to get from cache first (30 second TTL for fast refresh)
+    const cachedCourses = CacheManager.get(cacheKey);
+    if (cachedCourses) {
+      // Still need to process for user role
+      const userId = req.userId;
+      const userRole = req.User?.role;
+      const isStudent = userRole && userRole.toLowerCase() === 'student';
+      
+      if (isStudent) {
+        const sanitizedCourses = cachedCourses.map(course => {
+          const isEnrolled = course.students?.some(s => s.toString() === userId);
+          return { ...course, isEnrolled, students: undefined };
+        });
+        return res.json(sanitizedCourses);
+      }
+      return res.json(cachedCourses);
+    }
     
     const courses = await Course.find(filter)
-      .populate('teacher', 'firstName lastName email')
-      .populate('students', 'firstName lastName email')
-      .populate('chapters', '_id chapterNumber title isPublished slides lectures resources')
-      .sort({ createdAt: -1 });
-
-    console.log('getCourses found', courses.length, 'courses');
+      .select('-videoProgress -studentCourseProgress -uploadedVideos') // Exclude large arrays
+      .populate('teacher', 'firstName lastName')
+      .populate({
+        path: 'chapters',
+        select: '_id chapterNumber title isPublished',
+        options: { limit: 20 } // Limit chapters loaded
+      })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .skip(skip)
+      .lean(); // Use lean for better performance
     
+    // Cache the raw results for 30 seconds
+    CacheManager.set(cacheKey, courses, 30000);
+
     // For students, sanitize the course data to hide other students' information
     const userId = req.userId;
     const userRole = req.User?.role;
-    
-    console.log('getCourses - userId:', userId, 'userRole:', userRole, 'req.User:', JSON.stringify(req.User));
     
     // Check if user is a student (case-insensitive)
     const isStudent = userRole && userRole.toLowerCase() === 'student';
     
     if (isStudent) {
       const sanitizedCourses = courses.map(course => {
-        const courseObj = course.toObject();
-        
-        console.log('Course:', course.title, 'students array:', courseObj.students?.map(s => s._id?.toString() || s.toString()));
-        
-        // Check if current student is enrolled BEFORE removing students array
-        const isEnrolled = courseObj.students?.some(
-          s => (s._id?.toString() || s.toString()) === userId
+        // Check if student is enrolled (simplified check against students array)
+        const isEnrolled = course.students?.some(
+          s => s.toString() === userId
         );
-        
-        console.log('Course:', course.title, 'isEnrolled:', isEnrolled, 'userId:', userId);
-        
-        // Find only this student's video progress
-        const studentProgress = courseObj.videoProgress?.find(
-          vp => vp.student && vp.student.toString() === userId
-        );
-        
-        // Calculate progress for this student
-        const totalVideos = (courseObj.videoUrls?.length || 0) + (courseObj.uploadedVideos?.length || 0);
-        let watchedCount = 0;
-        if (studentProgress) {
-          watchedCount = 
-            (studentProgress.watchedVideoUrls?.length || 0) + 
-            (studentProgress.watchedUploadedVideos?.length || 0);
-        }
-        const progressPercent = totalVideos > 0 ? Math.round((watchedCount / totalVideos) * 100) : 0;
-        
-        // Remove sensitive data (other students' info)
-        delete courseObj.videoProgress;
-        delete courseObj.students;
-        
-        // Count chapters that have actual content (slides, lectures, or resources) or are published
-        const chaptersWithContent = courseObj.chapters?.filter(ch => {
-          const hasSlides = ch.slides && ch.slides.length > 0;
-          const hasLectures = ch.lectures && ch.lectures.length > 0;
-          const hasResources = ch.resources && ch.resources.length > 0;
-          return ch.isPublished || hasSlides || hasLectures || hasResources;
-        }).length || 0;
-        
-        console.log('Course:', courseObj.title, 'chapters count:', courseObj.chapters?.length, 'chaptersWithContent:', chaptersWithContent);
         
         return {
-          ...courseObj,
-          isEnrolled, // Add enrollment status for frontend
-          progress: progressPercent,
-          totalVideos,
-          watchedVideos: watchedCount,
-          chaptersWithContent, // Number of chapters with actual content
+          _id: course._id,
+          title: course.title,
+          description: course.description,
+          teacher: course.teacher,
+          subject: course.subject,
+          grade: course.grade,
+          duration: course.duration,
+          thumbnail: course.thumbnail,
+          startDate: course.startDate,
+          endDate: course.endDate,
+          isActive: course.isActive,
+          subjectType: course.subjectType,
+          numberOfChapters: course.numberOfChapters,
+          chaptersCount: course.chapters?.length || 0,
+          isEnrolled,
+          createdAt: course.createdAt
         };
       });
       return res.json(sanitizedCourses);
     }
     
-    // For non-students (teachers, etc), still add chaptersWithContent
-    const coursesWithChapterCount = courses.map(course => {
-      const courseObj = course.toObject();
-      const chaptersWithContent = courseObj.chapters?.filter(ch => {
-        const hasSlides = ch.slides && ch.slides.length > 0;
-        const hasLectures = ch.lectures && ch.lectures.length > 0;
-        const hasResources = ch.resources && ch.resources.length > 0;
-        return ch.isPublished || hasSlides || hasLectures || hasResources;
-      }).length || 0;
-      
-      return {
-        ...courseObj,
-        chaptersWithContent
-      };
-    });
+    // For non-students (teachers, etc), return simplified data
+    const simplifiedCourses = courses.map(course => ({
+      _id: course._id,
+      title: course.title,
+      description: course.description,
+      teacher: course.teacher,
+      subject: course.subject,
+      grade: course.grade,
+      duration: course.duration,
+      thumbnail: course.thumbnail,
+      startDate: course.startDate,
+      endDate: course.endDate,
+      isActive: course.isActive,
+      subjectType: course.subjectType,
+      numberOfChapters: course.numberOfChapters,
+      chaptersCount: course.chapters?.length || 0,
+      studentsCount: course.students?.length || 0,
+      createdAt: course.createdAt
+    }));
     
-    res.json(coursesWithChapterCount);
+    res.json(simplifiedCourses);
   } catch (err) {
+    console.error('courseController getCourses error:', err.message);
     next(err);
   }
 };
@@ -252,7 +261,7 @@ exports.getCourseById = async (req, res, next) => {
     
     // For students, sanitize the course data
     if (userRole === 'student') {
-      const courseObj = course.toObject();
+      const courseObj = course.toObject ? course.toObject() : course;
       
       // Check if current student is enrolled BEFORE removing students array
       const isEnrolled = courseObj.students?.some(
@@ -330,7 +339,7 @@ exports.getStudentCourses = async (req, res, next) => {
 
     // Calculate progress for each course and mark enrollment status
     const coursesWithProgress = courses.map(course => {
-      const courseObj = course.toObject();
+      const courseObj = course.toObject ? course.toObject() : course;
       
       // Check if student is enrolled in this course
       const isEnrolled = course.students?.some(

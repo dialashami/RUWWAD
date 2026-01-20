@@ -11,9 +11,12 @@
 
 const isDevelopment = process.env.NODE_ENV === 'development';
 
-// Get API base URL from environment or use default
-const API_BASE_URL = process.env.REACT_APP_API_BASE_URL || 
-  (isDevelopment ? 'http://localhost:5000' : window.location.origin);
+// IMPORTANT: Always use localhost:5000 for development
+// This ensures consistent API connection regardless of environment variable loading
+const API_BASE_URL = 'http://localhost:5000';
+
+// Log configuration
+console.log('🔗 API Config: Using', API_BASE_URL);
 
 export const API_CONFIG = {
   // Base URL for all API calls

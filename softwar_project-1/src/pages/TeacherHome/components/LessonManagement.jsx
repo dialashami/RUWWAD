@@ -774,6 +774,7 @@ import { useNavigate } from 'react-router-dom';
 import '../styles/lesson-management.css';
 import CourseDetail from './CourseDetail';
 import CourseChaptersManager from './CourseChaptersManager';
+import { API_CONFIG } from '../../../config/api.config';
 
 function LessonManagement({ onNavigate }) {
   const navigate = useNavigate();
@@ -785,6 +786,10 @@ function LessonManagement({ onNavigate }) {
 
   const [lessons, setLessons] = useState([]);
   const [loadingLessons, setLoadingLessons] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const ITEMS_PER_PAGE = 10; // Load 10 items at a time (20% chunks)
 
   // Handle delete course
   const handleDeleteCourse = async (lesson, e) => {
@@ -805,7 +810,7 @@ function LessonManagement({ onNavigate }) {
       
       const courseId = lesson._id || lesson.id;
       const res = await fetch(
-        `${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/courses/${courseId}`,
+        `${API_CONFIG.BASE_URL}/api/courses/${courseId}`,
         {
           method: 'DELETE',
           headers: {
@@ -845,114 +850,6 @@ function LessonManagement({ onNavigate }) {
     materials: ''
   });
 
-  // Load courses for the logged-in teacher from backend
-  useEffect(() => {
-    const fetchCourses = async () => {
-      setLoadingLessons(true);
-      try {
-        const token = localStorage.getItem('token');
-        if (!token) {
-          setLoadingLessons(false);
-          return;
-        }
-
-        let teacherId = null;
-        try {
-          const storedUser = localStorage.getItem('user');
-          if (storedUser) {
-            const parsed = JSON.parse(storedUser);
-            teacherId = parsed?._id || parsed?.id || null;
-          }
-        } catch {
-          // ignore parsing errors and try decoding from token instead
-        }
-
-        // Fallback: decode userId from JWT payload if not found in localStorage.user
-        if (!teacherId) {
-          try {
-            const [, payloadBase64] = token.split('.') || [];
-            if (payloadBase64) {
-              const payloadJson = atob(payloadBase64.replace(/-/g, '+').replace(/_/g, '/'));
-              const payload = JSON.parse(payloadJson);
-              teacherId = payload.userId || payload._id || payload.id || null;
-            }
-          } catch {
-            // if decoding fails, continue without filtering
-          }
-        }
-
-        console.log('Fetching courses for teacher:', teacherId);
-        
-        // Use query parameter to filter by teacher on backend
-        const url = teacherId 
-          ? `${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/courses?teacher=${teacherId}`
-          : `${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/courses`;
-          
-        const res = await fetch(url, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (!res.ok) {
-          console.error('Failed to fetch courses:', res.status);
-          setLoadingLessons(false);
-          return;
-        }
-
-        const data = await res.json();
-        console.log('Courses received:', data);
-        
-        if (!Array.isArray(data)) {
-          setLoadingLessons(false);
-          return;
-        }
-
-        // Data is already filtered by backend, but double-check on frontend too
-        const filtered = data.filter((course) => {
-          if (!teacherId) return true;
-          const teacher = course.teacher;
-          // Handle both populated object and string ID
-          const courseTeacherId = typeof teacher === 'string' 
-            ? teacher 
-            : (teacher?._id || teacher?.id);
-          return courseTeacherId === teacherId;
-        });
-
-        // Map to display format
-        const mapped = filtered.map((course) => ({
-          id: course._id || course.id,
-          _id: course._id || course.id,
-          title: course.title || 'Untitled Course',
-          subject: course.subject || 'Course',
-          subjectType: course.subjectType || 'other',
-          grade: course.grade || 'All Grades',
-          status: course.isActive === false ? 'draft' : 'published',
-          duration: course.duration || '45 min',
-          lastEdited: course.updatedAt
-            ? formatTimeAgo(course.updatedAt)
-            : 'recently',
-          description: course.description || 'No description provided.',
-          students: course.students?.length || 0,
-          zoomLink: course.zoomLink || null,
-          isChapterBased: course.isChapterBased || false,
-          numberOfChapters: course.numberOfChapters || 0,
-          chapters: course.chapters || [],
-        }));
-
-        setLessons(mapped);
-      } catch (err) {
-        console.error('Error fetching courses:', err);
-      } finally {
-        setLoadingLessons(false);
-      }
-    };
-
-    fetchCourses();
-  }, []);
-
   // Helper to format time ago
   const formatTimeAgo = (dateString) => {
     if (!dateString) return 'Recently';
@@ -968,6 +865,128 @@ function LessonManagement({ onNavigate }) {
     if (diffDays < 7) return `${diffDays} days ago`;
     return date.toLocaleDateString();
   };
+
+  // Map course data to display format
+  const mapCourseData = (data, teacherId) => {
+    const filtered = data.filter((course) => {
+      if (!teacherId) return true;
+      const teacher = course.teacher;
+      const courseTeacherId = typeof teacher === 'string' 
+        ? teacher 
+        : (teacher?._id || teacher?.id);
+      return courseTeacherId === teacherId;
+    });
+
+    return filtered.map((course) => ({
+      id: course._id || course.id,
+      _id: course._id || course.id,
+      title: course.title || 'Untitled Course',
+      subject: course.subject || 'Course',
+      subjectType: course.subjectType || 'other',
+      grade: course.grade || 'All Grades',
+      status: course.isActive === false ? 'draft' : 'published',
+      duration: course.duration || '45 min',
+      lastEdited: course.updatedAt ? formatTimeAgo(course.updatedAt) : 'recently',
+      description: course.description || 'No description provided.',
+      students: course.students?.length || 0,
+      zoomLink: course.zoomLink || null,
+      isChapterBased: course.isChapterBased || false,
+      numberOfChapters: course.numberOfChapters || 0,
+      chapters: course.chapters || [],
+    }));
+  };
+
+  // Fetch courses with pagination
+  const fetchCourses = async (page = 1, reset = false) => {
+    if (reset) {
+      setLoadingLessons(true);
+      setLessons([]);
+      setCurrentPage(1);
+      setHasMore(true);
+    } else {
+      setLoadingMore(true);
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setLoadingLessons(false);
+        setLoadingMore(false);
+        return;
+      }
+
+      let teacherId = null;
+      try {
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+          const parsed = JSON.parse(storedUser);
+          teacherId = parsed?._id || parsed?.id || null;
+        }
+      } catch {}
+
+      if (!teacherId) {
+        try {
+          const [, payloadBase64] = token.split('.') || [];
+          if (payloadBase64) {
+            const payloadJson = atob(payloadBase64.replace(/-/g, '+').replace(/_/g, '/'));
+            const payload = JSON.parse(payloadJson);
+            teacherId = payload.userId || payload._id || payload.id || null;
+          }
+        } catch {}
+      }
+
+      // Build URL with pagination
+      let url = `${API_CONFIG.BASE_URL}/api/courses?page=${page}&limit=${ITEMS_PER_PAGE}`;
+      if (teacherId) url += `&teacher=${teacherId}`;
+
+      const res = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) {
+        console.error('Failed to fetch courses:', res.status);
+        return;
+      }
+
+      const data = await res.json();
+      
+      if (!Array.isArray(data)) {
+        return;
+      }
+
+      const mapped = mapCourseData(data, teacherId);
+
+      if (reset || page === 1) {
+        setLessons(mapped);
+      } else {
+        setLessons(prev => [...prev, ...mapped]);
+      }
+
+      setHasMore(data.length === ITEMS_PER_PAGE);
+      setCurrentPage(page);
+    } catch (err) {
+      console.error('Error fetching courses:', err);
+    } finally {
+      setLoadingLessons(false);
+      setLoadingMore(false);
+    }
+  };
+
+  // Load more handler
+  const loadMoreCourses = () => {
+    if (!loadingMore && hasMore) {
+      fetchCourses(currentPage + 1);
+    }
+  };
+
+  // Load courses for the logged-in teacher from backend
+  useEffect(() => {
+    fetchCourses(1, true);
+  }, []);
 
   // 🔹 Zoom meeting state
   const [zoomMeeting, setZoomMeeting] = useState(null);
@@ -1082,7 +1101,7 @@ function LessonManagement({ onNavigate }) {
 
       console.log('Creating course with data:', body);
       
-      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/courses`, {
+      const res = await fetch(`${API_CONFIG.BASE_URL}/api/courses`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1196,7 +1215,7 @@ function LessonManagement({ onNavigate }) {
         const token = localStorage.getItem('token');
         if (token) {
           try {
-            await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/courses/${selectedCourseForZoom}`, {
+            await fetch(`${API_CONFIG.BASE_URL}/api/courses/${selectedCourseForZoom}`, {
               method: 'PUT',
               headers: {
                 'Content-Type': 'application/json',
@@ -1434,6 +1453,36 @@ function LessonManagement({ onNavigate }) {
                 <i className="fas fa-book" style={{ fontSize: '48px', color: '#ccc', marginBottom: '16px' }}></i>
                 <h3 style={{ color: '#666', marginBottom: '8px' }}>No Courses Yet</h3>
                 <p style={{ color: '#999' }}>Click "Create New Course" to add your first course with chapters.</p>
+              </div>
+            )}
+            
+            {/* Load More Button */}
+            {hasMore && !loadingLessons && lessons.length > 0 && (
+              <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '20px' }}>
+                <button
+                  onClick={loadMoreCourses}
+                  disabled={loadingMore}
+                  style={{
+                    padding: '12px 32px',
+                    backgroundColor: loadingMore ? '#9ca3af' : '#3b82f6',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: loadingMore ? 'not-allowed' : 'pointer',
+                    fontSize: '0.95rem',
+                    fontWeight: '500',
+                    transition: 'background-color 0.2s',
+                  }}
+                >
+                  {loadingMore ? 'Loading...' : 'Load More Courses'}
+                </button>
+              </div>
+            )}
+            
+            {/* All Loaded Indicator */}
+            {!hasMore && lessons.length > 0 && (
+              <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '20px', color: '#9ca3af' }}>
+                ✓ All courses loaded
               </div>
             )}
           </div>

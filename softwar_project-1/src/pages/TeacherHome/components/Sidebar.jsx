@@ -15,6 +15,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { logout } from '../../../slices/authSlice';
+import { API_CONFIG } from '../../../config/api.config';
 
 const menuItems = [
   { id: 'dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -64,7 +65,7 @@ export function Sidebar({ activeItem, onItemChange }) {
         const token = localStorage.getItem('token');
         if (!token) return;
 
-        const response = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/notifications/unread-count`, {
+        const response = await fetch(`${API_CONFIG.BASE_URL}/api/notifications/unread-count`, {
           headers: {
             'Authorization': `Bearer ${token}`
           }

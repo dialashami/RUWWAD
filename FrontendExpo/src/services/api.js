@@ -7,6 +7,7 @@ import { API_CONFIG } from '../config/api.config';
 // Set ENVIRONMENT to 'local' or 'tunnel' as needed
 
 console.log('🔗 API connecting to:', API_CONFIG.BASE_URL);
+console.log('⏱️  API timeout set to:', API_CONFIG.TIMEOUT + 'ms');
 
 const api = axios.create({
   baseURL: API_CONFIG.BASE_URL,
@@ -30,15 +31,56 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor to handle errors
+// Response interceptor to handle errors and retry on timeout
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
+    const config = error.config;
+
+    // Handle 401 Unauthorized
     if (error.response?.status === 401) {
-      // Token expired or invalid
       await AsyncStorage.removeItem('token');
       await AsyncStorage.removeItem('user');
+      return Promise.reject(error);
     }
+
+    // Retry logic for timeout errors and 5xx server errors
+    const isTimeout = error.code === 'ECONNABORTED' || error.message?.includes('timeout');
+    const isServerError = error.response?.status >= 500;
+    const shouldRetry = isTimeout || isServerError;
+
+    if (shouldRetry && config && !config.retryCount) {
+      config.retryCount = 0;
+    }
+
+    if (shouldRetry && config && config.retryCount < API_CONFIG.MAX_RETRIES) {
+      config.retryCount += 1;
+      const delay = API_CONFIG.RETRY_DELAY * config.retryCount;
+      
+      if (isTimeout) {
+        console.warn(
+          `⚠️  Request timeout (${error.code}). Retrying in ${delay}ms... (Attempt ${config.retryCount}/${API_CONFIG.MAX_RETRIES})`,
+          `${config.method?.toUpperCase()} ${config.url}`
+        );
+      } else if (isServerError) {
+        console.warn(
+          `⚠️  Server error (${error.response?.status}). Retrying in ${delay}ms... (Attempt ${config.retryCount}/${API_CONFIG.MAX_RETRIES})`,
+          `${config.method?.toUpperCase()} ${config.url}`
+        );
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return api(config);
+    }
+
+    // Log timeout errors with more detail
+    if (isTimeout) {
+      console.error(
+        `❌ API timeout after ${API_CONFIG.TIMEOUT}ms and ${config.retryCount || 0} retries`,
+        `${config.method?.toUpperCase()} ${config.url}`
+      );
+    }
+
     return Promise.reject(error);
   }
 );
@@ -82,7 +124,10 @@ export const userAPI = {
 
 // ========= Course API =========
 export const courseAPI = {
-  getCourses: () => api.get('/api/courses'),
+  getCourses: (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return api.get(`/api/courses${queryString ? `?${queryString}` : ''}`);
+  },
   getCourse: (id) => api.get(`/api/courses/${id}`),
   getCourseWithProgress: (id, studentId) => {
     const url = studentId 
@@ -131,9 +176,14 @@ export const chapterAPI = {
 // ========= Quiz API =========
 export const quizAPI = {
   // Generate quiz for a chapter (teacher only)
-  generateQuiz: (chapterId) => api.post(`/api/quiz/generate/${chapterId}`),
+  generateQuiz: (chapterId, settings = {}) => 
+    api.post(`/api/quiz/generate/${chapterId}`, settings),
   // Regenerate quiz with new questions (teacher only)
-  regenerateQuiz: (chapterId) => api.post(`/api/quiz/regenerate/${chapterId}`),
+  regenerateQuiz: (chapterId, settings = {}) => 
+    api.post(`/api/quiz/regenerate/${chapterId}`, settings),
+  // Update quiz settings (teacher only)
+  updateQuizSettings: (chapterId, settings) =>
+    api.put(`/api/quiz/${chapterId}/settings`, settings),
   // Start a quiz attempt (student)
   startQuiz: (chapterId, studentId) => 
     api.post(`/api/quiz/start/${chapterId}`, { studentId }),
@@ -142,13 +192,24 @@ export const quizAPI = {
     api.post(`/api/quiz/submit/${attemptId}`, { studentId, answers }),
   // Get quiz results for a chapter (student)
   getQuizResults: (chapterId) => api.get(`/api/quiz/results/${chapterId}`),
+  // Get quiz preview for teacher
+  getQuizPreview: (chapterId) => api.get(`/api/quiz/${chapterId}/preview`),
 };
 
 // ========= Assignment API =========
 export const assignmentAPI = {
-  getAssignments: () => api.get('/api/assignments'),
-  getMyAssignments: () => api.get('/api/assignments'), // Same endpoint, backend filters by user
-  getTeacherAssignments: () => api.get('/api/assignments'), // Teacher's assignments
+  getAssignments: (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return api.get(`/api/assignments${queryString ? `?${queryString}` : ''}`);
+  },
+  getMyAssignments: (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return api.get(`/api/assignments${queryString ? `?${queryString}` : ''}`);
+  },
+  getTeacherAssignments: (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return api.get(`/api/assignments${queryString ? `?${queryString}` : ''}`);
+  },
   getAssignment: (id) => api.get(`/api/assignments/${id}`),
   createAssignment: (data) => api.post('/api/assignments', data),
   updateAssignment: (id, data) => api.put(`/api/assignments/${id}`, data),
@@ -221,6 +282,7 @@ export const feedbackAPI = {
 
 // ========= Dashboard APIs =========
 export const studentDashboardAPI = {
+  getFullDashboard: () => api.get('/api/student/full-dashboard'), // ALL data in ONE request
   getDashboard: () => api.get('/api/student/dashboard'),
   getProgress: () => api.get('/api/student/progress'),
   getLessons: () => api.get('/api/student/lessons'),

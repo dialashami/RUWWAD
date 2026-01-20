@@ -1,7 +1,9 @@
+const mongoose = require('mongoose');
 const Assignment = require('../models/Assignment');
 const Notification = require('../models/Notification');
 const User = require('../models/user_model');
 const { resolveUserId, isValidObjectId } = require('../utils/userIdResolver');
+const { CacheManager, FastQuery, OptimizedQuery } = require('../utils/dbOptimizer');
 
 exports.createAssignment = async (req, res, next) => {
   try {
@@ -119,34 +121,99 @@ exports.getAssignments = async (req, res, next) => {
       filter.status = status;
     }
 
-    const assignments = await Assignment.find(filter)
-      .populate('course', 'title subject grade')
-      .populate('teacher', 'firstName lastName email')
-      .sort({ dueDate: 1 });
+    // Add pagination for better performance
+    const limit = parseInt(req.query.limit) || 100;
+    const page = parseInt(req.query.page) || 1;
+    const skip = (page - 1) * limit;
 
-    // For students, sanitize submissions to only show their own
+    // Generate cache key for base assignments query
+    const cacheKey = `assignments:${JSON.stringify(filter)}:${page}:${limit}`;
+    
+    // Check cache first (20 second TTL for assignments)
+    let assignments = CacheManager.get(cacheKey);
+    
+    if (!assignments) {
+      assignments = await Assignment.find(filter)
+        .select('-submissions') // Don't load all submissions initially
+        .populate('course', 'title subject grade')
+        .populate('teacher', 'firstName lastName')
+        .sort({ dueDate: 1 })
+        .limit(limit)
+        .skip(skip)
+        .lean();
+      
+      // Cache for 20 seconds
+      CacheManager.set(cacheKey, assignments, 20000);
+    }
+
+    const assignmentIds = assignments.map(a => a._id);
+
+    if (assignmentIds.length === 0) {
+      return res.json([]);
+    }
+
+    // For students, get only their submission + counts using aggregation (avoid loading full submissions)
     if (userRole === 'student') {
+      const userObjectId = mongoose.Types.ObjectId.isValid(userId)
+        ? new mongoose.Types.ObjectId(userId)
+        : null;
+
+      const submissionsSummary = await Assignment.aggregate([
+        { $match: { _id: { $in: assignmentIds } } },
+        {
+          $project: {
+            _id: 1,
+            submissionsCount: { $size: { $ifNull: ['$submissions', []] } },
+            mySubmission: userObjectId ? {
+              $first: {
+                $filter: {
+                  input: { $ifNull: ['$submissions', []] },
+                  as: 's',
+                  cond: { $eq: ['$$s.student', userObjectId] }
+                }
+              }
+            } : null
+          }
+        }
+      ]);
+
+      const submissionMap = new Map(
+        submissionsSummary.map(s => [s._id.toString(), s])
+      );
+
       const sanitizedAssignments = assignments.map(assignment => {
-        const assignmentObj = assignment.toObject();
-        
-        // Find only this student's submission
-        const studentSubmission = assignmentObj.submissions?.find(
-          s => s.student && s.student.toString() === userId
-        );
-        
-        // Replace submissions array with only the student's submission info
+        const summary = submissionMap.get(assignment._id.toString());
+        const studentSubmission = summary?.mySubmission || null;
         return {
-          ...assignmentObj,
-          submissions: undefined, // Remove all submissions
-          mySubmission: studentSubmission || null,
+          ...assignment,
+          mySubmission: studentSubmission,
           hasSubmitted: !!studentSubmission,
-          submittedCount: assignment.submissions?.length || 0, // Keep count for display
+          submittedCount: summary?.submissionsCount || 0
         };
       });
+
       return res.json(sanitizedAssignments);
     }
 
-    res.json(assignments);
+    // For teachers/admins, get submission counts only (no full submissions)
+    const counts = await Assignment.aggregate([
+      { $match: { _id: { $in: assignmentIds } } },
+      {
+        $project: {
+          _id: 1,
+          submissionsCount: { $size: { $ifNull: ['$submissions', []] } }
+        }
+      }
+    ]);
+
+    const countMap = new Map(counts.map(c => [c._id.toString(), c.submissionsCount]));
+
+    const withCounts = assignments.map(assignment => ({
+      ...assignment,
+      submissionsCount: countMap.get(assignment._id.toString()) || 0
+    }));
+
+    res.json(withCounts);
   } catch (err) {
     next(err);
   }
@@ -165,7 +232,7 @@ exports.getAssignmentById = async (req, res, next) => {
     
     // For students, only show their own submission
     if (userRole === 'student') {
-      const assignmentObj = assignment.toObject();
+      const assignmentObj = assignment.toObject ? assignment.toObject() : assignment;
       const studentSubmission = assignmentObj.submissions?.find(
         s => s.student && (s.student._id?.toString() === userId || s.student.toString() === userId)
       );

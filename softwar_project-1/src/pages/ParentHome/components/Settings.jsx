@@ -14,6 +14,7 @@ import {
   Plus,
   Users,
 } from "lucide-react";
+import { API_CONFIG } from '../../../config/api.config';
 
 export default function Settings() {
   // ===========================
@@ -93,7 +94,7 @@ export default function Settings() {
           return;
         }
 
-        const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/users/profile`, {
+        const res = await fetch(`${API_CONFIG.BASE_URL}/api/users/profile`, {
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
@@ -137,7 +138,7 @@ export default function Settings() {
         const token = localStorage.getItem('token');
         if (!token) return;
 
-        const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/users/children`, {
+        const res = await fetch(`${API_CONFIG.BASE_URL}/api/users/children`, {
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
@@ -203,7 +204,7 @@ export default function Settings() {
         return;
       }
 
-      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/users/children`, {
+      const res = await fetch(`${API_CONFIG.BASE_URL}/api/users/children`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -240,7 +241,7 @@ export default function Settings() {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/users/children/${childId}`, {
+      const res = await fetch(`${API_CONFIG.BASE_URL}/api/users/children/${childId}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
@@ -286,7 +287,7 @@ export default function Settings() {
         return;
       }
 
-      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/users/profile`, {
+      const res = await fetch(`${API_CONFIG.BASE_URL}/api/users/profile`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -344,7 +345,7 @@ export default function Settings() {
         return;
       }
 
-      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/users/preferences`, {
+      const res = await fetch(`${API_CONFIG.BASE_URL}/api/users/preferences`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -394,7 +395,7 @@ export default function Settings() {
         return;
       }
       try {
-        const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/users/change-password`, {
+        const res = await fetch(`${API_CONFIG.BASE_URL}/api/users/change-password`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -420,7 +421,7 @@ export default function Settings() {
       }
     } else if (modalType === "2fa") {
       try {
-        const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/users/toggle-2fa`, {
+        const res = await fetch(`${API_CONFIG.BASE_URL}/api/users/toggle-2fa`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -445,7 +446,7 @@ export default function Settings() {
         return;
       }
       try {
-        const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/users/account`, {
+        const res = await fetch(`${API_CONFIG.BASE_URL}/api/users/account`, {
           method: 'DELETE',
           headers: {
             'Content-Type': 'application/json',

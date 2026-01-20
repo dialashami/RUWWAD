@@ -82,6 +82,10 @@ export default function Assignments() {
   }, [student.id, contextAssignments]);
 
   // Helper to find the student's submission in an assignment
+  const [assignmentPage, setAssignmentPage] = React.useState(1);
+  const [hasMoreAssignments, setHasMoreAssignments] = React.useState(true);
+  const [loadingMore, setLoadingMore] = React.useState(false);
+
   const getStudentSubmission = (assignment) => {
     if (!assignment.submissions || !student.id) return null;
     return assignment.submissions.find(s => 
@@ -89,10 +93,16 @@ export default function Assignments() {
     );
   };
 
-  const fetchAssignments = async () => {
+  const fetchAssignments = async (reset = false) => {
     try {
+      if (reset) {
+        setAssignmentPage(1);
+        setAssignments([]);
+        setHasMoreAssignments(true);
+      }
+
       // First try context assignments
-      if (contextAssignments && contextAssignments.length > 0) {
+      if (contextAssignments && contextAssignments.length > 0 && reset) {
         setAssignments(contextAssignments.map(a => {
           const submission = getStudentSubmission(a);
           let status = 'pending';
@@ -116,11 +126,18 @@ export default function Assignments() {
         return;
       }
 
-      // Fallback to API call
-      const response = await assignmentAPI.getMyAssignments();
+      // Fallback to API call with pagination
+      const currentPage = reset ? 1 : assignmentPage;
+      const limit = 20; // Load 20 assignments at a time
+      
+      const response = await assignmentAPI.getMyAssignments({
+        page: currentPage,
+        limit: limit,
+      });
+      
       const data = response.data || [];
       if (data.length > 0) {
-        setAssignments(data.map(a => {
+        const mapped = data.map(a => {
           const submission = getStudentSubmission(a);
           let status = 'pending';
           if (submission) {
@@ -137,23 +154,39 @@ export default function Assignments() {
             feedback: submission?.feedback,
             isGraded: submission?.isGraded || false,
           };
-        }));
-      } else {
+        });
+        
+        if (reset) {
+          setAssignments(mapped);
+        } else {
+          setAssignments(prev => [...prev, ...mapped]);
+        }
+        
+        setHasMoreAssignments(data.length === limit);
+        setAssignmentPage(currentPage + 1);
+      } else if (reset) {
         setAssignments(defaultAssignments);
       }
     } catch (err) {
       console.error('Error fetching assignments:', err);
-      setAssignments(defaultAssignments);
+      if (reset) setAssignments(defaultAssignments);
     } finally {
       setLoading(false);
       setRefreshing(false);
+      setLoadingMore(false);
     }
+  };
+
+  const loadMoreAssignments = async () => {
+    if (!hasMoreAssignments || loadingMore) return;
+    setLoadingMore(true);
+    await fetchAssignments(false);
   };
 
   const onRefresh = async () => {
     setRefreshing(true);
     await refreshData();
-    fetchAssignments();
+    await fetchAssignments(true);
   };
 
   // File picker handler
@@ -368,6 +401,14 @@ export default function Assignments() {
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
+        onScroll={({ nativeEvent }) => {
+          const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
+          const paddingToBottom = 20;
+          if (layoutMeasurement.height + contentOffset.y >= contentSize.height - paddingToBottom) {
+            loadMoreAssignments();
+          }
+        }}
+        scrollEventThrottle={400}
       >
         {filteredAssignments.map((assignment) => (
           <TouchableOpacity key={assignment.id} style={[styles.assignmentCard, isDarkMode && { backgroundColor: theme.card }]}>
@@ -437,6 +478,17 @@ export default function Assignments() {
             )}
           </TouchableOpacity>
         ))}
+        {loadingMore && (
+          <View style={{ padding: 20, alignItems: 'center' }}>
+            <ActivityIndicator size="small" color="#007bff" />
+            <Text style={{ color: '#666', marginTop: 8 }}>Loading more assignments...</Text>
+          </View>
+        )}
+        {!hasMoreAssignments && assignments.length > 0 && (
+          <View style={{ padding: 20, alignItems: 'center' }}>
+            <Text style={{ color: '#999', fontSize: 14 }}>✓ All assignments loaded</Text>
+          </View>
+        )}
       </ScrollView>
 
       {/* Submit Assignment Modal */}

@@ -1,6 +1,7 @@
 // src/components/FeedbackStar.jsx
 import React, { useState } from 'react';
 import { Star, X } from 'lucide-react';
+import { API_CONFIG } from '../../../config/api.config';
 
 export default function FeedbackStar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -38,7 +39,7 @@ export default function FeedbackStar() {
         throw new Error('Not authenticated');
       }
 
-      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/feedback`, {
+      const res = await fetch(`${API_CONFIG.BASE_URL}/api/feedback`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

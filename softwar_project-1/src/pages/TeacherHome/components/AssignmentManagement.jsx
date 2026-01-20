@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { API_CONFIG } from '../../../config/api.config';
 import '../styles/AssignmentManagement.css';
 
 function AssignmentManagement({ onNavigate }) { // إضافة onNavigate كـ prop
@@ -23,6 +24,10 @@ function AssignmentManagement({ onNavigate }) { // إضافة onNavigate كـ pr
   // بيانات الواجبات
   const [assignments, setAssignments] = useState([]);
   const [loadingAssignments, setLoadingAssignments] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const ITEMS_PER_PAGE = 20; // Load 20 items at a time (20% chunks)
 
   // Helper to get teacher ID from token or localStorage
   const getTeacherId = () => {
@@ -72,75 +77,103 @@ function AssignmentManagement({ onNavigate }) { // إضافة onNavigate كـ pr
     return date.toLocaleDateString();
   };
 
+  // Map assignment data
+  const mapAssignmentData = (data) => {
+    return data.map((a) => ({
+      id: a._id || a.id,
+      title: a.title || 'Untitled Assignment',
+      subject: a.subject || 'Subject',
+      grade: a.grade || 'All Grades',
+      dueDate: a.dueDate ? a.dueDate.split('T')[0] : '',
+      displayDate: a.dueDate
+        ? new Date(a.dueDate).toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+          })
+        : 'No date',
+      totalStudents: a.totalStudents || 0,
+      submitted: a.submitted || (a.submissions?.length || 0),
+      graded: a.graded || (a.submissions?.filter(s => s.isGraded).length || 0),
+      status: a.status || 'upcoming',
+      lastEdited: formatTimeAgo(a.updatedAt),
+      description: a.description || 'No description provided.',
+      points: a.points || 100,
+      passingScore: a.passingScore || 60,
+      instructions: a.description || '',
+      instructionsFileName: a.instructionsFileName || null,
+      instructionsFileUrl: a.instructionsFileUrl || null,
+    }));
+  };
+
+  // Fetch assignments with pagination
+  const fetchAssignments = async (page = 1, reset = false) => {
+    if (reset) {
+      setLoadingAssignments(true);
+      setAssignments([]);
+      setCurrentPage(1);
+      setHasMore(true);
+    } else {
+      setLoadingMore(true);
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setLoadingAssignments(false);
+        setLoadingMore(false);
+        return;
+      }
+
+      const teacherId = getTeacherId();
+      let url = `${API_CONFIG.BASE_URL}/api/assignments?page=${page}&limit=${ITEMS_PER_PAGE}`;
+      if (teacherId) url += `&teacher=${teacherId}`;
+
+      const res = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) {
+        console.error('Failed to fetch assignments:', res.status);
+        return;
+      }
+
+      const data = await res.json();
+
+      if (Array.isArray(data)) {
+        const mapped = mapAssignmentData(data);
+
+        if (reset || page === 1) {
+          setAssignments(mapped);
+        } else {
+          setAssignments(prev => [...prev, ...mapped]);
+        }
+
+        setHasMore(data.length === ITEMS_PER_PAGE);
+        setCurrentPage(page);
+      }
+    } catch (err) {
+      console.error('Error fetching assignments:', err);
+    } finally {
+      setLoadingAssignments(false);
+      setLoadingMore(false);
+    }
+  };
+
+  // Load more handler
+  const loadMoreAssignments = () => {
+    if (!loadingMore && hasMore) {
+      fetchAssignments(currentPage + 1);
+    }
+  };
+
   // Fetch assignments from backend on mount
   useEffect(() => {
-    const fetchAssignments = async () => {
-      setLoadingAssignments(true);
-      try {
-        const token = localStorage.getItem('token');
-        if (!token) {
-          setLoadingAssignments(false);
-          return;
-        }
-
-        const teacherId = getTeacherId();
-        const url = teacherId
-          ? `${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/assignments?teacher=${teacherId}`
-          : `${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/assignments`;
-
-        const res = await fetch(url, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (!res.ok) {
-          console.error('Failed to fetch assignments:', res.status);
-          setLoadingAssignments(false);
-          return;
-        }
-
-        const data = await res.json();
-        console.log('Assignments received:', data);
-
-        if (Array.isArray(data)) {
-          const mapped = data.map((a) => ({
-            id: a._id || a.id,
-            title: a.title || 'Untitled Assignment',
-            subject: a.subject || 'Subject',
-            grade: a.grade || 'All Grades',
-            dueDate: a.dueDate ? a.dueDate.split('T')[0] : '',
-            displayDate: a.dueDate
-              ? new Date(a.dueDate).toLocaleDateString('en-US', {
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric',
-                })
-              : 'No date',
-            totalStudents: a.totalStudents || 0,
-            submitted: a.submitted || (a.submissions?.length || 0),
-            graded: a.graded || (a.submissions?.filter(s => s.isGraded).length || 0),
-            status: a.status || 'upcoming',
-            lastEdited: formatTimeAgo(a.updatedAt),
-            description: a.description || 'No description provided.',
-            points: a.points || 100,
-            passingScore: a.passingScore || 60,
-            instructions: a.description || '',
-            instructionsFileName: a.instructionsFileName || null,
-            instructionsFileUrl: a.instructionsFileUrl || null,
-          }));
-          setAssignments(mapped);
-        }
-      } catch (err) {
-        console.error('Error fetching assignments:', err);
-      } finally {
-        setLoadingAssignments(false);
-      }
-    };
-
-    fetchAssignments();
+    fetchAssignments(1, true);
   }, []);
 
   // بيانات الطلاب - dynamic from API
@@ -157,8 +190,7 @@ function AssignmentManagement({ onNavigate }) { // إضافة onNavigate كـ pr
         return;
       }
 
-      const apiBase = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
-      const res = await fetch(`${apiBase}/api/assignments/${assignmentId}`, {
+      const res = await fetch(`${API_CONFIG.BASE_URL}/api/assignments/${assignmentId}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -308,7 +340,7 @@ function AssignmentManagement({ onNavigate }) { // إضافة onNavigate كـ pr
     setLoadingStudentCount(true);
     try {
       const token = localStorage.getItem('token');
-      let url = `${process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000'}/api/users/student-count?grade=${encodeURIComponent(grade)}`;
+      let url = `${API_CONFIG.BASE_URL}/api/users/student-count?grade=${encodeURIComponent(grade)}`;
       
       if (grade === 'University' && universityMajor) {
         url += `&universityMajor=${encodeURIComponent(universityMajor)}`;
@@ -498,7 +530,7 @@ const handleSaveEdit = async () => {
   try {
     // Call backend API to update assignment
     if (token && selectedAssignment.id) {
-      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/assignments/${selectedAssignment.id}`, {
+      const res = await fetch(`${API_CONFIG.BASE_URL}/api/assignments/${selectedAssignment.id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -580,7 +612,7 @@ const handleSaveGrade = async () => {
     const token = localStorage.getItem('token');
     if (token && selectedAssignment && selectedStudent) {
       // Call backend API to grade submission
-      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/assignments/${selectedAssignment.id}/grade`, {
+      const res = await fetch(`${API_CONFIG.BASE_URL}/api/assignments/${selectedAssignment.id}/grade`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -662,7 +694,7 @@ const handleSaveBulkGrade = () => {
       try {
         // Call backend API to delete assignment
         if (token && assignmentId) {
-          const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/assignments/${assignmentId}`, {
+          const res = await fetch(`${API_CONFIG.BASE_URL}/api/assignments/${assignmentId}`, {
             method: 'DELETE',
             headers: {
               'Content-Type': 'application/json',
@@ -732,7 +764,7 @@ const handleCreateAssignment = async () => {
 
     // Call backend API to create assignment
     if (token && teacherId) {
-      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/assignments`, {
+      const res = await fetch(`${API_CONFIG.BASE_URL}/api/assignments`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1030,15 +1062,34 @@ const handleCreateAssignment = async () => {
           </div>
 
           {/* قسم تحميل المزيد */}
-          <div className="load-more-section">
-            <button className="load-more-btn">
-              <i className="fas fa-redo"></i>
-              Load More Assignments
-            </button>
-            <div className="pagination-info">
-              Showing {filteredAssignments.length} of {assignments.length} assignments
+          {hasMore && !loadingAssignments && assignments.length > 0 && (
+            <div className="load-more-section" style={{ textAlign: 'center', padding: '20px' }}>
+              <button 
+                className="load-more-btn"
+                onClick={loadMoreAssignments}
+                disabled={loadingMore}
+                style={{
+                  padding: '12px 32px',
+                  backgroundColor: loadingMore ? '#9ca3af' : '#3b82f6',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: loadingMore ? 'not-allowed' : 'pointer',
+                  fontSize: '0.95rem',
+                  fontWeight: '500',
+                }}
+              >
+                <i className="fas fa-redo" style={{ marginRight: '8px' }}></i>
+                {loadingMore ? 'Loading...' : 'Load More Assignments'}
+              </button>
             </div>
-          </div>
+          )}
+          
+          {!hasMore && assignments.length > 0 && (
+            <div style={{ textAlign: 'center', padding: '20px', color: '#9ca3af' }}>
+              ✓ All assignments loaded ({assignments.length} total)
+            </div>
+          )}
         </div>
       </div>
 

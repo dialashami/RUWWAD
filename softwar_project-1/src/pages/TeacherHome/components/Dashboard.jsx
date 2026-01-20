@@ -10,6 +10,7 @@ import {
   FaBell,
   FaCalendarAlt
 } from 'react-icons/fa';
+import { API_CONFIG } from '../../../config/api.config';
 
 export function Dashboard() {
   const [loading, setLoading] = useState(true);
@@ -66,7 +67,7 @@ export function Dashboard() {
 
       try {
         // Fetch teacher dashboard data
-        const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/teacher/dashboard`, {
+        const res = await fetch(`${API_CONFIG.BASE_URL}/api/teacher/dashboard`, {
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,

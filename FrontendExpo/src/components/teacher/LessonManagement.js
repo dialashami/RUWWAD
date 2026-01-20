@@ -19,6 +19,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import { useTeacher } from '../../context/TeacherContext';
 import { courseAPI } from '../../services/api';
+import CourseDetail from './CourseDetail';
 
 // Options matching web version
 const subjectOptions = [
@@ -97,13 +98,23 @@ export default function LessonManagement() {
     materials: '',
   });
 
+  const [coursePage, setCoursePage] = React.useState(1);
+  const [hasMoreCourses, setHasMoreCourses] = React.useState(true);
+  const [loadingMore, setLoadingMore] = React.useState(false);
+
   useEffect(() => {
-    fetchCourses();
+    fetchCourses(true);
   }, [teacher.id, contextCourses]);
 
-  const fetchCourses = async () => {
+  const fetchCourses = async (reset = false) => {
     try {
-      if (contextCourses && contextCourses.length > 0) {
+      if (reset) {
+        setCoursePage(1);
+        setLessons([]);
+        setHasMoreCourses(true);
+      }
+
+      if (contextCourses && contextCourses.length > 0 && reset) {
         const mapped = contextCourses.map((course) => ({
           id: course._id || course.id,
           title: course.title || 'Untitled Course',
@@ -130,9 +141,16 @@ export default function LessonManagement() {
         }
       }
 
-      const response = teacherId 
-        ? await courseAPI.getCourses({ teacher: teacherId })
-        : await courseAPI.getCourses();
+      const currentPage = reset ? 1 : coursePage;
+      const limit = 10; // Load 10 courses at a time (20% if total is ~50)
+      
+      const params = {
+        page: currentPage,
+        limit: limit,
+      };
+      if (teacherId) params.teacher = teacherId;
+
+      const response = await courseAPI.getCourses(params);
 
       if (Array.isArray(response.data)) {
         const mapped = response.data.map((course) => ({
@@ -146,14 +164,30 @@ export default function LessonManagement() {
           description: course.description || 'No description provided.',
           students: course.students?.length || 0,
         }));
-        setLessons(mapped);
+        
+        if (reset) {
+          setLessons(mapped);
+        } else {
+          setLessons(prev => [...prev, ...mapped]);
+        }
+        
+        // Check if we have more data
+        setHasMoreCourses(response.data.length === limit);
+        setCoursePage(currentPage + 1);
       }
     } catch (err) {
       console.error('Error fetching courses:', err);
     } finally {
       setLoading(false);
       setRefreshing(false);
+      setLoadingMore(false);
     }
+  };
+
+  const loadMoreCourses = async () => {
+    if (!hasMoreCourses || loadingMore) return;
+    setLoadingMore(true);
+    await fetchCourses(false);
   };
 
   const formatTimeAgo = (dateString) => {
@@ -608,6 +642,14 @@ export default function LessonManagement() {
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#007bff']} />
         }
+        onScroll={({ nativeEvent }) => {
+          const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
+          const paddingToBottom = 20;
+          if (layoutMeasurement.height + contentOffset.y >= contentSize.height - paddingToBottom) {
+            loadMoreCourses();
+          }
+        }}
+        scrollEventThrottle={400}
       >
         {filteredLessons.length > 0 ? (
           filteredLessons.map((lesson) => (
@@ -654,6 +696,17 @@ export default function LessonManagement() {
             <Text style={styles.emptyIcon}>📚</Text>
             <Text style={styles.emptyTitle}>No Lessons Yet</Text>
             <Text style={styles.emptySubtitle}>Click "Create New Lesson" to add your first lesson.</Text>
+          </View>
+        )}
+        {loadingMore && (
+          <View style={{ padding: 20, alignItems: 'center' }}>
+            <ActivityIndicator size="small" color="#007bff" />
+            <Text style={{ color: '#666', marginTop: 8 }}>Loading more courses...</Text>
+          </View>
+        )}
+        {!hasMoreCourses && lessons.length > 0 && (
+          <View style={{ padding: 20, alignItems: 'center' }}>
+            <Text style={{ color: '#999', fontSize: 14 }}>✓ All courses loaded</Text>
           </View>
         )}
         <View style={{ height: 20 }} />
@@ -849,332 +902,29 @@ export default function LessonManagement() {
         </View>
       </Modal>
 
-      {/* Course Details Modal */}
+      {/* Course Details Modal - Full Screen with CourseDetail Component */}
       <Modal
         visible={showCourseDetails}
         animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowCourseDetails(false)}
+        onRequestClose={() => { setShowCourseDetails(false); setSelectedCourse(null); }}
       >
-        <View style={styles.detailsModalOverlay}>
-          <View style={styles.detailsModalContainer}>
-            {/* Modal Header */}
-            <View style={styles.detailsModalHeader}>
-              <Text style={styles.detailsModalTitle}>📚 Course Details</Text>
-              <TouchableOpacity 
-                onPress={() => { setShowCourseDetails(false); setSelectedCourse(null); }}
-                style={styles.detailsCloseBtn}
-              >
-                <Text style={styles.detailsCloseBtnText}>✕</Text>
-              </TouchableOpacity>
-            </View>
-
-            {courseDetailsLoading ? (
-              <View style={styles.detailsLoading}>
-                <ActivityIndicator size="large" color="#007bff" />
-                <Text style={styles.detailsLoadingText}>Loading course details...</Text>
-              </View>
-            ) : selectedCourse ? (
-              <ScrollView style={styles.detailsContent} showsVerticalScrollIndicator={false}>
-                {/* Course Info Card */}
-                <View style={styles.courseInfoCard}>
-                  <Text style={styles.courseInfoTitle}>{selectedCourse.title}</Text>
-                  <View style={styles.courseInfoMeta}>
-                    <View style={styles.courseMetaItem}>
-                      <Text style={styles.courseMetaIcon}>📚</Text>
-                      <Text style={styles.courseMetaText}>{selectedCourse.subject || 'No subject'}</Text>
-                    </View>
-                    <View style={styles.courseMetaItem}>
-                      <Text style={styles.courseMetaIcon}>📍</Text>
-                      <Text style={styles.courseMetaText}>{selectedCourse.grade || 'All grades'}</Text>
-                    </View>
-                    <View style={styles.courseMetaItem}>
-                      <Text style={styles.courseMetaIcon}>⏱️</Text>
-                      <Text style={styles.courseMetaText}>{selectedCourse.duration || '45 min'}</Text>
-                    </View>
-                  </View>
-                  {selectedCourse.description && (
-                    <Text style={styles.courseInfoDescription}>{selectedCourse.description}</Text>
-                  )}
-                </View>
-
-                {/* Stats Overview */}
-                <View style={styles.detailsStatsRow}>
-                  <View style={styles.detailsStatCard}>
-                    <Text style={styles.detailsStatNumber}>{selectedCourse.enrolledCount || 0}</Text>
-                    <Text style={styles.detailsStatLabel}>Enrolled</Text>
-                  </View>
-                  <View style={styles.detailsStatCard}>
-                    <Text style={styles.detailsStatNumber}>{selectedCourse.totalVideos || 0}</Text>
-                    <Text style={styles.detailsStatLabel}>Videos</Text>
-                  </View>
-                  <View style={styles.detailsStatCard}>
-                    <Text style={[styles.detailsStatNumber, { color: '#10b981' }]}>
-                      {selectedCourse.studentsWithAttendance?.filter(s => s.hasAttended).length || 0}
-                    </Text>
-                    <Text style={styles.detailsStatLabel}>Active</Text>
-                  </View>
-                </View>
-
-                {/* Manage Videos Button */}
-                <TouchableOpacity
-                  style={styles.manageVideosButton}
-                  onPress={() => {
-                    if (!showVideoEditor) {
-                      // Opening - load existing videos
-                      const existingUrls = selectedCourse.videoUrls || [];
-                      const existingUploaded = selectedCourse.uploadedVideos || [];
-                      setVideoUrls(existingUrls.length > 0 ? [...existingUrls] : ['']);
-                      setUploadedVideos(existingUploaded.map(v => ({
-                        uri: v.fileUrl,
-                        fileName: v.fileName,
-                        fileSize: v.fileSize,
-                        duration: v.duration,
-                      })));
-                    }
-                    setShowVideoEditor(!showVideoEditor);
-                  }}
-                >
-                  <Text style={styles.manageVideosIcon}>🎬</Text>
-                  <Text style={styles.manageVideosText}>
-                    {showVideoEditor ? 'Hide Video Editor' : 'Manage Videos'}
-                  </Text>
-                  <Text style={styles.manageVideosCount}>
-                    {(selectedCourse.videoUrls?.length || 0) + (selectedCourse.uploadedVideos?.length || 0)} video(s)
-                  </Text>
-                </TouchableOpacity>
-
-                {/* Inline Video Editor */}
-                {showVideoEditor && (
-                  <View style={styles.inlineVideoEditor}>
-                    {/* Section 1: Video Links */}
-                    <Text style={styles.videoEditorSectionTitle}>🔗 Add Video Links</Text>
-                    <Text style={styles.videoEditorInstructionsText}>
-                      Add YouTube, Vimeo, or direct video links.
-                    </Text>
-
-                    {videoUrls.map((url, index) => (
-                      <View key={`video-input-${index}`} style={styles.videoUrlInputContainer}>
-                        <View style={styles.videoUrlInputRow}>
-                          <Text style={styles.videoUrlLabel}>Link {index + 1}</Text>
-                          {videoUrls.length > 1 && (
-                            <TouchableOpacity
-                              onPress={() => handleRemoveVideoField(index)}
-                            >
-                              <Text style={styles.removeVideoBtnText}>✕ Remove</Text>
-                            </TouchableOpacity>
-                          )}
-                        </View>
-                        <TextInput
-                          style={styles.videoUrlInput}
-                          placeholder="https://youtube.com/watch?v=..."
-                          placeholderTextColor="#9ca3af"
-                          value={url}
-                          onChangeText={(value) => handleVideoUrlChange(index, value)}
-                          autoCapitalize="none"
-                          autoCorrect={false}
-                        />
-                      </View>
-                    ))}
-
-                    <TouchableOpacity
-                      style={styles.addVideoBtn}
-                      onPress={handleAddVideoField}
-                    >
-                      <Text style={styles.addVideoBtnText}>+ Add Another Link</Text>
-                    </TouchableOpacity>
-
-                    {/* Divider */}
-                    <View style={styles.videoEditorDivider}>
-                      <View style={styles.dividerLine} />
-                      <Text style={styles.dividerText}>OR</Text>
-                      <View style={styles.dividerLine} />
-                    </View>
-
-                    {/* Section 2: Upload from Device */}
-                    <Text style={styles.videoEditorSectionTitle}>📱 Upload from Device</Text>
-                    <Text style={styles.videoEditorInstructionsText}>
-                      Select videos from your phone's gallery.
-                    </Text>
-
-                    <TouchableOpacity
-                      style={styles.uploadVideoBtn}
-                      onPress={handlePickVideo}
-                      disabled={isUploadingVideo}
-                    >
-                      {isUploadingVideo ? (
-                        <ActivityIndicator size="small" color="#007bff" />
-                      ) : (
-                        <>
-                          <Text style={styles.uploadVideoIcon}>📤</Text>
-                          <Text style={styles.uploadVideoBtnText}>Choose Video from Gallery</Text>
-                        </>
-                      )}
-                    </TouchableOpacity>
-
-                    {/* Show uploaded videos */}
-                    {uploadedVideos.length > 0 && (
-                      <View style={styles.uploadedVideosList}>
-                        <Text style={styles.uploadedVideosTitle}>
-                          Uploaded Videos ({uploadedVideos.length})
-                        </Text>
-                        {uploadedVideos.map((video, index) => (
-                          <View key={`uploaded-${index}`} style={styles.uploadedVideoItem}>
-                            <View style={styles.uploadedVideoInfo}>
-                              <Text style={styles.uploadedVideoIcon}>🎥</Text>
-                              <View style={styles.uploadedVideoDetails}>
-                                <Text style={styles.uploadedVideoName} numberOfLines={1}>
-                                  {video.fileName}
-                                </Text>
-                                {video.duration && (
-                                  <Text style={styles.uploadedVideoDuration}>
-                                    Duration: {Math.round(video.duration / 1000)}s
-                                  </Text>
-                                )}
-                              </View>
-                            </View>
-                            <TouchableOpacity
-                              onPress={() => handleRemoveUploadedVideo(index)}
-                              style={styles.removeUploadedBtn}
-                            >
-                              <Text style={styles.removeUploadedBtnText}>✕</Text>
-                            </TouchableOpacity>
-                          </View>
-                        ))}
-                      </View>
-                    )}
-
-                    {/* Summary */}
-                    <View style={styles.videoSummary}>
-                      <Text style={styles.videoSummaryText}>
-                        Total: {videoUrls.filter(u => u && u.trim() !== '').length} link(s) + {uploadedVideos.length} uploaded
-                      </Text>
-                    </View>
-
-                    {/* Action Buttons */}
-                    <View style={styles.videoEditorActions}>
-                      <TouchableOpacity
-                        style={[styles.videoEditorBtn, styles.videoEditorCancelBtn]}
-                        onPress={() => {
-                          setShowVideoEditor(false);
-                          setVideoUrls(['']);
-                        }}
-                      >
-                        <Text style={styles.videoEditorCancelBtnText}>Cancel</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[
-                          styles.videoEditorBtn, 
-                          styles.videoEditorSaveBtn,
-                          isSavingVideos && styles.disabledButton
-                        ]}
-                        onPress={handleSaveVideos}
-                        disabled={isSavingVideos}
-                      >
-                        {isSavingVideos ? (
-                          <ActivityIndicator size="small" color="#fff" />
-                        ) : (
-                          <Text style={styles.videoEditorSaveBtnText}>Save Videos</Text>
-                        )}
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                )}
-
-                {/* Display Current Videos */}
-                {((selectedCourse.videoUrls && selectedCourse.videoUrls.length > 0) || 
-                  (selectedCourse.uploadedVideos && selectedCourse.uploadedVideos.length > 0)) && (
-                  <View style={styles.videosSection}>
-                    <Text style={styles.videosSectionTitle}>
-                      📹 Course Videos ({(selectedCourse.videoUrls?.length || 0) + (selectedCourse.uploadedVideos?.length || 0)})
-                    </Text>
-                    
-                    {/* Video Links */}
-                    {selectedCourse.videoUrls?.map((url, index) => (
-                      <View key={`url-${index}`} style={styles.videoItem}>
-                        <View style={styles.videoItemLeft}>
-                          <Text style={styles.videoItemIcon}>🔗</Text>
-                          <View style={styles.videoItemInfo}>
-                            <Text style={styles.videoItemTitle}>Link {index + 1}</Text>
-                            <Text style={styles.videoItemUrl} numberOfLines={1}>{url}</Text>
-                          </View>
-                        </View>
-                      </View>
-                    ))}
-                    
-                    {/* Uploaded Videos */}
-                    {selectedCourse.uploadedVideos?.map((video, index) => (
-                      <View key={`uploaded-${index}`} style={styles.videoItem}>
-                        <View style={styles.videoItemLeft}>
-                          <Text style={styles.videoItemIcon}>🎥</Text>
-                          <View style={styles.videoItemInfo}>
-                            <Text style={styles.videoItemTitle}>{video.fileName}</Text>
-                            <Text style={styles.videoItemUrl}>Uploaded from device</Text>
-                          </View>
-                        </View>
-                      </View>
-                    ))}
-                  </View>
-                )}
-
-                {/* Attendance Section */}
-                <View style={styles.attendanceSection}>
-                  <Text style={styles.attendanceSectionTitle}>👥 Student Attendance</Text>
-                  
-                  {selectedCourse.studentsWithAttendance?.length > 0 ? (
-                    selectedCourse.studentsWithAttendance.map((student, index) => (
-                      <View key={student.id || index} style={styles.studentAttendanceCard}>
-                        <View style={styles.studentInfo}>
-                          <View style={styles.studentAvatar}>
-                            <Text style={styles.studentAvatarText}>
-                              {student.name.charAt(0).toUpperCase()}
-                            </Text>
-                          </View>
-                          <View style={styles.studentDetails}>
-                            <Text style={styles.studentName}>{student.name}</Text>
-                            <Text style={styles.studentEmail}>{student.email}</Text>
-                          </View>
-                        </View>
-                        <View style={styles.attendanceInfo}>
-                          <View style={styles.progressBarContainer}>
-                            <View 
-                              style={[
-                                styles.progressBar, 
-                                { 
-                                  width: `${student.attendancePercent}%`,
-                                  backgroundColor: student.attendancePercent >= 70 ? '#10b981' : 
-                                                   student.attendancePercent >= 40 ? '#f59e0b' : '#ef4444'
-                                }
-                              ]} 
-                            />
-                          </View>
-                          <Text style={[
-                            styles.attendancePercent,
-                            { color: student.attendancePercent >= 70 ? '#10b981' : 
-                                     student.attendancePercent >= 40 ? '#f59e0b' : '#ef4444' }
-                          ]}>
-                            {student.attendancePercent}%
-                          </Text>
-                        </View>
-                        <Text style={styles.watchedText}>
-                          {student.watchedCount}/{student.totalVideos} videos watched
-                        </Text>
-                      </View>
-                    ))
-                  ) : (
-                    <View style={styles.noStudentsCard}>
-                      <Text style={styles.noStudentsIcon}>👤</Text>
-                      <Text style={styles.noStudentsText}>No students enrolled yet</Text>
-                      <Text style={styles.noStudentsSubtext}>Students who enroll will appear here</Text>
-                    </View>
-                  )}
-                </View>
-
-                <View style={{ height: 30 }} />
-              </ScrollView>
-            ) : null}
+        {courseDetailsLoading ? (
+          <View style={styles.detailsLoading}>
+            <ActivityIndicator size="large" color="#007bff" />
+            <Text style={styles.detailsLoadingText}>Loading course details...</Text>
           </View>
-        </View>
+        ) : selectedCourse ? (
+          <CourseDetail
+            course={selectedCourse}
+            onClose={() => { 
+              setShowCourseDetails(false); 
+              setSelectedCourse(null);
+              // Refresh courses list after closing
+              fetchCourses(true);
+            }}
+            isTeacher={true}
+          />
+        ) : null}
       </Modal>
     </View>
   );

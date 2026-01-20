@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { API_CONFIG } from '../../../config/api.config';
 
 const StudentContext = createContext(null);
 
@@ -107,7 +108,7 @@ export function StudentProvider({ children }) {
         return;
       }
 
-      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/student/dashboard`, {
+      const res = await fetch(`${API_CONFIG.BASE_URL}/api/student/dashboard`, {
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
@@ -127,7 +128,7 @@ export function StudentProvider({ children }) {
 
       // Fetch unread notification count from backend
       try {
-        const notifRes = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/notifications/unread-count`, {
+        const notifRes = await fetch(`${API_CONFIG.BASE_URL}/api/notifications/unread-count`, {
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
@@ -175,7 +176,7 @@ export function StudentProvider({ children }) {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/student/progress`, {
+      const res = await fetch(`${API_CONFIG.BASE_URL}/api/student/progress`, {
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
@@ -276,7 +277,7 @@ export function StudentProvider({ children }) {
         throw new Error('Not authenticated');
       }
 
-      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/auth/profile`, {
+      const res = await fetch(`${API_CONFIG.BASE_URL}/api/auth/profile`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

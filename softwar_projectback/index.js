@@ -62,17 +62,25 @@ app.use((req, res, next) => {
 //   next();
 // });
 
-// ========= MongoDB Connection =========
+// ========= MongoDB Connection (Optimized) =========
+const { OPTIMIZED_OPTIONS } = require('./config/db');
+
+// Import models for debug endpoint
+const User = require('./models/user_model');
+const Course = require('./models/Course');
+const Chapter = require('./models/Chapter');
+const Assignment = require('./models/Assignment');
 
 const MONGODB_URI =
   process.env.MONGODB_URI ||
   'mongodb+srv://aboodjamal684_db_user:Abd123456@abd.lvp2v4i.mongodb.net/ruwwad_test?retryWrites=true&w=majority&appName=abd';
 
 mongoose
-  .connect(MONGODB_URI, {
-    maxPoolSize: 10,
+  .connect(MONGODB_URI, OPTIMIZED_OPTIONS)
+  .then(() => {
+    console.log('✅ MongoDB connected');
+    console.log(`📊 Pool: ${OPTIMIZED_OPTIONS.maxPoolSize} connections | Compression: enabled`);
   })
-  .then(() => console.log('✅ MongoDB connected'))
   .catch((err) => console.log('❌ error connecting to mongoDB', err));
 
 // ========= Import Routes =========
@@ -103,6 +111,88 @@ const quizRoutes = require('./routes/quizRoutes');
 
 // Error handling middleware
 const errorHandler = require('./middleware/errorMiddleware');
+
+// ========= Simple Test Endpoint =========
+app.get('/api/test', (req, res) => {
+  console.log('Test endpoint hit!');
+  res.json({ message: 'Test successful!' });
+});
+
+// ========= Debug Database Endpoint (Before Routes) =========
+app.get('/api/debug/database', async (req, res) => {
+  console.log('\n========================================');
+  console.log('📊 DATABASE DEBUG REQUEST RECEIVED');
+  console.log('========================================');
+  console.log('⏰ Time:', new Date().toISOString());
+  
+  try {
+    const connState = mongoose.connection.readyState;
+    console.log('🔗 Connection State:', connState === 1 ? '✅ Connected' : '❌ Disconnected');
+    console.log('🗄️  Database Name:', mongoose.connection.name || 'N/A');
+    console.log('🌐 Database Host:', mongoose.connection.host || 'N/A');
+    
+    // Get collection stats
+    console.log('\n📈 Querying collection counts...');
+    const userCount = await User.countDocuments();
+    console.log('   👥 Users:', userCount);
+    
+    const courseCount = await Course.countDocuments();
+    console.log('   📚 Courses:', courseCount);
+    
+    const chapterCount = await Chapter.countDocuments();
+    console.log('   📑 Chapters:', chapterCount);
+    
+    const assignmentCount = await Assignment.countDocuments();
+    console.log('   📝 Assignments:', assignmentCount);
+    
+    const dbStats = {
+      connectionState: connState === 1 ? 'Connected' : 'Disconnected',
+      databaseName: mongoose.connection.name,
+      host: mongoose.connection.host,
+      collections: {
+        users: userCount,
+        courses: courseCount,
+        chapters: chapterCount,
+        assignments: assignmentCount,
+      },
+      timestamp: new Date().toISOString(),
+    };
+    
+    // Get sample data
+    console.log('\n📋 Fetching sample data...');
+    const sampleUser = await User.findOne().select('firstName lastName email role').lean();
+    if (sampleUser) {
+      console.log('   User Sample:', JSON.stringify(sampleUser, null, 2));
+    }
+    
+    const sampleCourse = await Course.findOne().select('title subject grade').lean();
+    if (sampleCourse) {
+      console.log('   Course Sample:', JSON.stringify(sampleCourse, null, 2));
+    }
+    
+    console.log('\n========================================');
+    console.log('✅ Debug request completed successfully');
+    console.log('========================================\n');
+    
+    res.json({
+      success: true,
+      message: 'Database statistics logged to console',
+      stats: dbStats,
+      samples: {
+        user: sampleUser,
+        course: sampleCourse,
+      },
+    });
+  } catch (error) {
+    console.error('\n❌ Error in database debug:', error.message);
+    console.error('Stack:', error.stack);
+    console.error('========================================\n');
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
 
 // Core existing routes
 app.use('/api', textRoutes);

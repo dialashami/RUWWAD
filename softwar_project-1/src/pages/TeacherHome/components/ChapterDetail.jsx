@@ -1,7 +1,8 @@
 // src/pages/TeacherHome/components/ChapterDetail.jsx
 import React, { useState, useEffect } from 'react';
+import { API_CONFIG } from '../../../config/api.config';
 
-const API_BASE = process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000';
+const API_BASE = API_CONFIG.BASE_URL;
 
 function ChapterDetail({ chapter, courseId, onClose, isTeacher = true }) {
   const [chapterData, setChapterData] = useState(chapter);

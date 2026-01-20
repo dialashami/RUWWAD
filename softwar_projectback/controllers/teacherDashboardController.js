@@ -1,8 +1,10 @@
+const mongoose = require('mongoose');
 const Course = require('../models/Course');
 const Assignment = require('../models/Assignment');
 const Message = require('../models/Message');
 const Notification = require('../models/Notification');
 const User = require('../models/user_model');
+const { CacheManager, FastQuery } = require('../utils/dbOptimizer');
 
 // Teacher dashboard: aggregate key stats and recent activity for logged-in teacher
 exports.getDashboard = async (req, res, next) => {
@@ -23,23 +25,87 @@ exports.getDashboard = async (req, res, next) => {
       return res.status(403).json({ message: `Teacher access required. Current role: ${userPayload?.role || 'unknown'}` });
     }
 
-    // Fetch all data in parallel
+    // Return cached dashboard if available (short TTL)
+    const cacheKey = `teacherDashboard:${userId}`;
+    const cached = CacheManager.get(cacheKey);
+    if (cached) {
+      return res.json(cached);
+    }
+
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const teacherObjectId = new mongoose.Types.ObjectId(userId);
+
+    // Fetch all data in parallel - OPTIMIZED with lean(), projections, and aggregates
     const [
       courses,
-      assignments,
-      allStudents,
+      totalAssignments,
+      submissionsSummary,
+      recentAssignments,
+      recentAssignmentsWeek,
+      totalStudentsCount,
       sentMessages,
       receivedMessages,
       notifications,
-      allTeachers
+      totalTeachersCount
     ] = await Promise.all([
-      Course.find({ teacher: userId }),
-      Assignment.find({ teacher: userId }),
-      User.find({ role: 'student' }),
-      Message.find({ sender: userId }),
-      Message.find({ receiver: userId }),
-      Notification.find({ user: userId }).sort({ createdAt: -1 }).limit(20),
-      User.find({ role: 'teacher' }),
+      Course.find({ teacher: userId })
+        .select('title description subject grade students isActive zoomLink createdAt scheduleTime')
+        .lean(),
+      Assignment.countDocuments({ teacher: userId }),
+      Assignment.aggregate([
+        { $match: { teacher: teacherObjectId } },
+        {
+          $project: {
+            submissionsCount: { $size: { $ifNull: ['$submissions', []] } },
+            pendingSubmissionsCount: {
+              $size: {
+                $filter: {
+                  input: { $ifNull: ['$submissions', []] },
+                  as: 's',
+                  cond: {
+                    $and: [
+                      { $or: [{ $eq: ['$$s.grade', null] }, { $eq: ['$$s.grade', undefined] }] },
+                      { $or: [{ $eq: ['$$s.feedback', null] }, { $eq: ['$$s.feedback', undefined] }] }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            totalSubmissions: { $sum: '$submissionsCount' },
+            pendingSubmissions: { $sum: '$pendingSubmissionsCount' }
+          }
+        }
+      ]),
+      Assignment.find({ teacher: userId })
+        .select({ title: 1, description: 1, createdAt: 1, updatedAt: 1, submissions: { $slice: 3 } })
+        .sort({ createdAt: -1 })
+        .limit(20)
+        .lean(),
+      Assignment.find({ teacher: userId, createdAt: { $gte: sevenDaysAgo } })
+        .select('createdAt')
+        .lean(),
+      User.countDocuments({ role: 'student' }),
+      Message.find({ sender: userId })
+        .select('content createdAt isRead')
+        .sort({ createdAt: -1 })
+        .limit(50)
+        .lean(),
+      Message.find({ receiver: userId })
+        .select('content createdAt isRead')
+        .sort({ createdAt: -1 })
+        .limit(50)
+        .lean(),
+      Notification.find({ user: userId })
+        .select('title body isRead createdAt')
+        .sort({ createdAt: -1 })
+        .limit(20)
+        .lean(),
+      User.countDocuments({ role: 'teacher' })
     ]);
 
     // Calculate real stats
@@ -51,29 +117,26 @@ exports.getDashboard = async (req, res, next) => {
       });
     });
     // If no students enrolled in courses, show total students in system
-    const totalStudents = studentIds.size > 0 ? studentIds.size : allStudents.length;
+    const totalStudents = studentIds.size > 0 ? studentIds.size : totalStudentsCount;
 
     // 2. Active courses count
     const activeCourses = courses.filter((c) => c.isActive !== false).length;
 
     // 3. Total assignments
-    const totalAssignments = assignments.length;
+    const totalAssignmentsCount = totalAssignments || 0;
 
-    // 4. Calculate submissions count
-    let totalSubmissions = 0;
-    let pendingSubmissions = 0;
-    assignments.forEach((a) => {
-      const subs = a.submissions || [];
-      totalSubmissions += subs.length;
-      pendingSubmissions += subs.filter(s => !s.grade && !s.feedback).length;
-    });
+    // 4. Calculate submissions count from aggregate
+    const summary = submissionsSummary && submissionsSummary[0]
+      ? submissionsSummary[0]
+      : { totalSubmissions: 0, pendingSubmissions: 0 };
+    const totalSubmissions = summary.totalSubmissions || 0;
+    const pendingSubmissions = summary.pendingSubmissions || 0;
 
     // 5. Activity rate (percentage based on recent activity)
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    const recentAssignments = assignments.filter((a) => new Date(a.createdAt) >= sevenDaysAgo);
+    const recentAssignmentsForRate = recentAssignmentsWeek || [];
     const recentMessages = [...sentMessages, ...receivedMessages].filter((m) => new Date(m.createdAt) >= sevenDaysAgo);
     // Calculate activity rate as percentage (max 100)
-    const activityScore = recentAssignments.length * 10 + recentMessages.length * 5;
+    const activityScore = recentAssignmentsForRate.length * 10 + recentMessages.length * 5;
     const activityRate = Math.min(activityScore, 100);
 
     // 6. Unread messages count
@@ -83,7 +146,7 @@ exports.getDashboard = async (req, res, next) => {
     const recentActivities = [];
 
     // Add recent assignments
-    assignments.slice(0, 5).forEach((a) => {
+    recentAssignments.slice(0, 5).forEach((a) => {
       recentActivities.push({
         type: 'assignment',
         id: a._id,
@@ -94,7 +157,7 @@ exports.getDashboard = async (req, res, next) => {
     });
 
     // Add recent submissions
-    assignments.forEach((a) => {
+    recentAssignments.forEach((a) => {
       (a.submissions || []).slice(0, 3).forEach((sub) => {
         recentActivities.push({
           type: 'submission',
@@ -137,17 +200,51 @@ exports.getDashboard = async (req, res, next) => {
         zoomLink: c.zoomLink,
       }));
 
-    return res.json({
+    // Build weekly stats based on recent activity
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const today = new Date();
+    const weeklyStats = [];
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date(today);
+      date.setDate(date.getDate() - i);
+      const dayName = dayNames[date.getDay()];
+      
+      // Count activities for this day
+      const dayStart = new Date(date.setHours(0, 0, 0, 0));
+      const dayEnd = new Date(date.setHours(23, 59, 59, 999));
+      
+      let activityCount = 0;
+      
+      // Count assignments created on this day
+      activityCount += recentAssignmentsWeek.filter(a => {
+        const createdAt = new Date(a.createdAt);
+        return createdAt >= dayStart && createdAt <= dayEnd;
+      }).length * 20;
+      
+      // Count messages sent/received on this day
+      activityCount += [...sentMessages, ...receivedMessages].filter(m => {
+        const createdAt = new Date(m.createdAt);
+        return createdAt >= dayStart && createdAt <= dayEnd;
+      }).length * 10;
+      
+      // Cap at 100
+      weeklyStats.push({
+        day: dayName,
+        value: Math.min(activityCount, 100)
+      });
+    }
+
+    const responsePayload = {
       teacherId: userId,
       stats: {
         totalStudents,
         activeCourses,
-        totalAssignments,
+        totalAssignments: totalAssignmentsCount,
         totalSubmissions,
         pendingSubmissions,
         activityRate,
         unreadMessages,
-        totalTeachers: allTeachers.length,
+        totalTeachers: totalTeachersCount,
       },
       courses: courses.map(c => ({
         _id: c._id,
@@ -162,7 +259,12 @@ exports.getDashboard = async (req, res, next) => {
       })),
       recentActivities: limitedActivities,
       upcomingLessons,
-    });
+      weeklyStats,
+    };
+
+    CacheManager.set(cacheKey, responsePayload, 15000);
+
+    return res.json(responsePayload);
   } catch (err) {
     console.error('Teacher Dashboard Error:', err);
     next(err);

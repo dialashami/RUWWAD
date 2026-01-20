@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Search, X, BookOpen, User, Calendar, Clock, Link as LinkIcon, FileText } from "lucide-react";
 import { Input } from "./ui/input";
 import { useStudent } from '../context/StudentContext';
+import { API_CONFIG } from '../../../config/api.config';
 import CourseDetail from '../../TeacherHome/components/CourseDetail';
 import CourseChaptersView from './CourseChaptersView';
 
@@ -13,6 +14,10 @@ export function MyLessons() {
   const [searchTerm, setSearchTerm] = useState("");
   const [lessons, setLessons] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const ITEMS_PER_PAGE = 10; // Load 10 items at a time (20% chunks)
   const [showCourseDetail, setShowCourseDetail] = useState(false);
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [showChaptersView, setShowChaptersView] = useState(false);
@@ -20,122 +25,132 @@ export function MyLessons() {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [selectedDetailsLesson, setSelectedDetailsLesson] = useState(null);
 
-  useEffect(() => {
-    const fetchStudentCourses = async () => {
+  // Map course data to display format
+  const mapCourseData = (data, studentId, grade) => {
+    return data.map((course, index) => {
+      const progress = typeof course.progress === 'number' ? course.progress : 0;
+      const actualChapters = course.chapters?.length || 0;
+      const isEnrolled = course.isEnrolled === true || course.students?.some(s => 
+        (typeof s === 'string' ? s : s?._id) === studentId
+      );
+      const statusFromCourse = isEnrolled 
+        ? (progress >= 100 ? 'completed' : 'in-progress')
+        : 'recommended';
+      const courseId = course._id || course.id;
+
+      const subjectImages = {
+        'Mathematics': 'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=600&auto=format&fit=crop',
+        'Science': 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?w=600&auto=format&fit=crop',
+        'English': 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=600&auto=format&fit=crop',
+        'Physics': 'https://images.unsplash.com/photo-1636466497217-26a8cbeaf0aa?w=600&auto=format&fit=crop',
+        'Chemistry': 'https://images.unsplash.com/photo-1603126857599-f6e157fa2fe6?w=600&auto=format&fit=crop',
+        'Biology': 'https://images.unsplash.com/photo-1530026405186-ed1f139313f8?w=600&auto=format&fit=crop',
+        'History': 'https://images.unsplash.com/photo-1461360370896-922624d12a74?w=600&auto=format&fit=crop',
+        'Arabic': 'https://images.unsplash.com/photo-1579187707643-35646d22b596?w=600&auto=format&fit=crop',
+        'Computer Engineering': 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=600&auto=format&fit=crop',
+      };
+      
+      const defaultThumbnail = course.subject && subjectImages[course.subject] 
+        ? subjectImages[course.subject]
+        : `https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=600&auto=format&fit=crop&sig=${courseId || index}`;
+
+      return {
+        id: courseId || `temp-${index}`,
+        _id: courseId || `temp-${index}`,
+        title: course.title || 'Untitled course',
+        subject: course.subject || 'Course',
+        grade: course.grade || grade || 'N/A',
+        description: course.description || '',
+        progress: isEnrolled ? progress : 0,
+        status: statusFromCourse,
+        teacherName: course.teacher?.firstName 
+          ? `${course.teacher.firstName} ${course.teacher.lastName || ''}`
+          : 'Unknown Instructor',
+        zoomLink: course.zoomLink || null,
+        isChapterBased: course.isChapterBased || false,
+        numberOfChapters: course.numberOfChapters || 0,
+        chaptersWithContent: actualChapters,
+        subjectType: course.subjectType || '',
+        thumbnail: course.thumbnail || defaultThumbnail,
+      };
+    });
+  };
+
+  // Fetch courses with pagination
+  const fetchStudentCourses = async (page = 1, reset = false) => {
+    if (reset) {
       setLoading(true);
-      try {
-        const token = localStorage.getItem('token');
-        if (!token) {
-          setLoading(false);
-          return;
-        }
-
-        // Use student data from context
-        const grade = student.grade || null;
-        const major = student.studentType === 'university' ? student.grade : null;
-        const studentId = student.id || null;
-
-        console.log('Fetching courses for student grade:', grade, 'studentId:', studentId);
-
-        // Fetch all active courses that match student's grade
-        let url = `${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/courses?isActive=true`;
-        if (grade) url += `&grade=${encodeURIComponent(grade)}`;
-        if (major) url += `&specialization=${encodeURIComponent(major)}`;
-
-        const res = await fetch(url, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (!res.ok) {
-          console.error('Failed to fetch courses:', res.status);
-          setLoading(false);
-          return;
-        }
-
-        const data = await res.json();
-        console.log('Courses received for student:', data);
-        
-        if (!Array.isArray(data)) {
-          setLoading(false);
-          return;
-        }
-
-        const mapped = data.map((course, index) => {
-          const progress = typeof course.progress === 'number' ? course.progress : 0;
-          
-          // Count actual chapters from populated array (chapters with real content)
-          const actualChapters = course.chapters?.length || 0;
-          console.log(`Course "${course.title}": chapters array:`, course.chapters, 'actualChapters:', actualChapters);
-          
-          // Check if student is enrolled - use isEnrolled from backend (preferred) or fallback to students array check
-          const isEnrolled = course.isEnrolled === true || course.students?.some(s => 
-            (typeof s === 'string' ? s : s?._id) === studentId
-          );
-          const statusFromCourse = isEnrolled 
-            ? (progress >= 100 ? 'completed' : 'in-progress')
-            : 'recommended';
-
-          const courseId = course._id || course.id;
-          console.log('Mapped course:', course.title, 'id:', courseId, 'isEnrolled:', isEnrolled, 'isChapterBased:', course.isChapterBased);
-          
-          if (!courseId) {
-            console.warn('Course missing ID:', course);
-          }
-
-          // Generate unique placeholder image based on subject if no thumbnail
-          const subjectImages = {
-            'Mathematics': 'https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=600&auto=format&fit=crop',
-            'Science': 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?w=600&auto=format&fit=crop',
-            'English': 'https://images.unsplash.com/photo-1456513080510-7bf3a84b82f8?w=600&auto=format&fit=crop',
-            'Physics': 'https://images.unsplash.com/photo-1636466497217-26a8cbeaf0aa?w=600&auto=format&fit=crop',
-            'Chemistry': 'https://images.unsplash.com/photo-1603126857599-f6e157fa2fe6?w=600&auto=format&fit=crop',
-            'Biology': 'https://images.unsplash.com/photo-1530026405186-ed1f139313f8?w=600&auto=format&fit=crop',
-            'History': 'https://images.unsplash.com/photo-1461360370896-922624d12a74?w=600&auto=format&fit=crop',
-            'Arabic': 'https://images.unsplash.com/photo-1579187707643-35646d22b596?w=600&auto=format&fit=crop',
-            'Computer Engineering': 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=600&auto=format&fit=crop',
-          };
-          
-          const defaultThumbnail = course.subject && subjectImages[course.subject] 
-            ? subjectImages[course.subject]
-            : `https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=600&auto=format&fit=crop&sig=${courseId || index}`;
-
-          return {
-            id: courseId || `temp-${index}`, // Use temp prefix if no ID to avoid confusion
-            _id: courseId || `temp-${index}`,
-            title: course.title || 'Untitled course',
-            subject: course.subject || 'Course',
-            grade: course.grade || grade || 'N/A',
-            description: course.description || '',
-            progress: isEnrolled ? progress : 0,
-            status: statusFromCourse,
-            teacherName: course.teacher?.firstName 
-              ? `${course.teacher.firstName} ${course.teacher.lastName || ''}`
-              : 'Unknown Instructor',
-            zoomLink: course.zoomLink || null,
-            isChapterBased: course.isChapterBased || false,
-            numberOfChapters: course.numberOfChapters || 0,
-            chaptersWithContent: actualChapters, // Use actual populated chapters array length
-            subjectType: course.subjectType || '',
-            thumbnail: course.thumbnail || defaultThumbnail,
-          };
-        });
-        
-        // Debug: log chapters info
-        console.log('Courses with chapter info:', mapped.map(m => ({ title: m.title, chaptersWithContent: m.chaptersWithContent, numberOfChapters: m.numberOfChapters })));
-
-        setLessons(mapped);
-      } catch (err) {
-        console.error('Error fetching courses:', err);
-      } finally {
+      setLessons([]);
+      setCurrentPage(1);
+      setHasMore(true);
+    } else {
+      setLoadingMore(true);
+    }
+    
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
         setLoading(false);
+        setLoadingMore(false);
+        return;
       }
-    };
 
-    fetchStudentCourses();
+      const grade = student.grade || null;
+      const major = student.studentType === 'university' ? student.grade : null;
+      const studentId = student.id || null;
+
+      // Build URL with pagination
+      let url = `${API_CONFIG.BASE_URL}/api/courses?isActive=true&page=${page}&limit=${ITEMS_PER_PAGE}`;
+      if (grade) url += `&grade=${encodeURIComponent(grade)}`;
+      if (major) url += `&specialization=${encodeURIComponent(major)}`;
+
+      const res = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) {
+        console.error('Failed to fetch courses:', res.status);
+        return;
+      }
+
+      const data = await res.json();
+      
+      if (!Array.isArray(data)) {
+        return;
+      }
+
+      const mapped = mapCourseData(data, studentId, grade);
+
+      if (reset || page === 1) {
+        setLessons(mapped);
+      } else {
+        setLessons(prev => [...prev, ...mapped]);
+      }
+
+      // Check if there are more items to load
+      setHasMore(data.length === ITEMS_PER_PAGE);
+      setCurrentPage(page);
+    } catch (err) {
+      console.error('Error fetching courses:', err);
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  };
+
+  // Load more handler
+  const loadMore = () => {
+    if (!loadingMore && hasMore) {
+      fetchStudentCourses(currentPage + 1);
+    }
+  };
+
+  useEffect(() => {
+    fetchStudentCourses(1, true);
   }, [student.id, student.grade]);
 
   const filteredLessons = lessons.filter((lesson) => {
@@ -188,7 +203,7 @@ export function MyLessons() {
         return;
       }
 
-      const apiUrl = `${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/courses/${courseId}/enroll`;
+      const apiUrl = `${API_CONFIG.BASE_URL}/api/courses/${courseId}/enroll`;
       console.log('Enrollment API URL:', apiUrl);
       
       const res = await fetch(apiUrl, {
@@ -248,7 +263,7 @@ export function MyLessons() {
         return;
       }
 
-      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/courses/${courseId}/unenroll`, {
+      const res = await fetch(`${API_CONFIG.BASE_URL}/api/courses/${courseId}/unenroll`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -466,6 +481,36 @@ export function MyLessons() {
           }}>
             <h3 style={{ color: '#666', marginBottom: '8px' }}>No Courses Available</h3>
             <p style={{ color: '#999' }}>No courses are available for your grade yet. Check back later!</p>
+          </div>
+        )}
+        
+        {/* Load More Button */}
+        {hasMore && !loading && lessons.length > 0 && (
+          <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '20px' }}>
+            <button
+              onClick={loadMore}
+              disabled={loadingMore}
+              style={{
+                padding: '12px 32px',
+                backgroundColor: loadingMore ? '#9ca3af' : '#3b82f6',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: loadingMore ? 'not-allowed' : 'pointer',
+                fontSize: '0.95rem',
+                fontWeight: '500',
+                transition: 'background-color 0.2s',
+              }}
+            >
+              {loadingMore ? 'Loading...' : 'Load More Courses'}
+            </button>
+          </div>
+        )}
+        
+        {/* All Loaded Indicator */}
+        {!hasMore && lessons.length > 0 && (
+          <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '20px', color: '#9ca3af' }}>
+            ✓ All courses loaded
           </div>
         )}
       </div>

@@ -290,6 +290,12 @@ exports.getChildren = async (req, res, next) => {
     const userId = req.userId;
     if (!userId) return res.status(401).json({ message: 'Not authenticated' });
     
+    // Check if userId is a valid ObjectId (not the hardcoded "admin")
+    const mongoose = require('mongoose');
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(403).json({ message: 'Only parents can view children' });
+    }
+    
     const parent = await User.findById(userId).populate('children', '-password');
     if (!parent) return res.status(404).json({ message: 'User not found' });
     if (parent.role !== 'parent') return res.status(403).json({ message: 'Only parents can view children' });
@@ -308,6 +314,12 @@ exports.getChildDashboard = async (req, res, next) => {
     
     if (!userId) return res.status(401).json({ message: 'Not authenticated' });
     
+    // Check if userId is a valid ObjectId (not the hardcoded "admin")
+    const mongoose = require('mongoose');
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return res.status(403).json({ message: 'Only parents can view child data' });
+    }
+    
     // Verify parent has access to this child
     const parent = await User.findById(userId);
     if (!parent) return res.status(404).json({ message: 'User not found' });
@@ -316,47 +328,217 @@ exports.getChildDashboard = async (req, res, next) => {
       return res.status(403).json({ message: 'You do not have access to this child\'s data' });
     }
     
+    if (!mongoose.Types.ObjectId.isValid(childId)) {
+      return res.status(400).json({ message: 'Invalid child ID' });
+    }
+
+    const childObjectId = new mongoose.Types.ObjectId(childId);
+
     // Get child info
-    const child = await User.findById(childId).select('-password');
+    const child = await User.findById(childId).select('-password').lean();
     if (!child) return res.status(404).json({ message: 'Child not found' });
     
     // Get child's courses
     const Course = require('../models/Course');
     const Assignment = require('../models/Assignment');
-    
+    const Chapter = require('../models/Chapter');
+
     // Find courses matching child's grade
     let courseFilter = {};
+    let assignmentGradeFilter = {};
+    
     if (child.studentType === 'university') {
       courseFilter.grade = { $regex: /university|engineering/i };
+      assignmentGradeFilter.grade = { $regex: /university|engineering/i };
     } else if (child.schoolGrade) {
       const gradeNum = child.schoolGrade.replace('grade', '');
-      courseFilter.grade = { $regex: new RegExp(`grade\\s*${gradeNum}|${gradeNum}`, 'i') };
+      const gradeRegex = new RegExp(`grade\\s*${gradeNum}|${gradeNum}`, 'i');
+      courseFilter.grade = { $regex: gradeRegex };
+      assignmentGradeFilter.grade = { $regex: gradeRegex };
     }
-    
-    const courses = await Course.find(courseFilter).lean();
-    
-    // Get assignments for these courses
+
+    // Fetch courses (lean, minimal fields)
+    const courses = await Course.find(courseFilter)
+      .select('title subject grade universityMajor numberOfChapters isChapterBased chapters')
+      .lean();
+
+    // Get assignments - both course-linked and grade-based (limit submissions to this child)
     const courseIds = courses.map(c => c._id);
-    const assignments = await Assignment.find({ course: { $in: courseIds } }).lean();
     
+    // Fetch assignments that either:
+    // 1. Belong to one of the child's courses, OR
+    // 2. Match the child's grade directly (for assignments not linked to courses)
+    let assignments = [];
+    
+    if (Object.keys(assignmentGradeFilter).length > 0) {
+      // Has grade filter - search by course OR by grade
+      const assignmentQuery = {
+        $or: [
+          { course: { $in: courseIds } },
+          assignmentGradeFilter
+        ]
+      };
+      assignments = await Assignment.find(assignmentQuery)
+        .select('title description dueDate points course grade submissions')
+        .select({ submissions: { $elemMatch: { student: childObjectId } } })
+        .lean();
+    } else {
+      // No grade filter - just get course-based assignments
+      assignments = await Assignment.find({ course: { $in: courseIds } })
+        .select('title description dueDate points course grade submissions')
+        .select({ submissions: { $elemMatch: { student: childObjectId } } })
+        .lean();
+    }
+
     // Get child's submissions and grades
+    const courseMap = new Map(courses.map(c => [c._id.toString(), c]));
+
     const childAssignments = assignments.map(assignment => {
-      const submission = assignment.submissions?.find(
-        s => s.student?.toString() === childId
-      );
+      const submission = assignment.submissions?.[0] || null;
+      const courseInfo = assignment.course
+        ? courseMap.get(assignment.course.toString())
+        : null;
+      
+      // Determine assignment status
+      const now = new Date();
+      const dueDate = new Date(assignment.dueDate);
+      let status = 'pending';
+      if (submission) {
+        if (submission.isGraded) {
+          status = 'graded';
+        } else {
+          status = 'submitted';
+        }
+      } else if (dueDate < now) {
+        status = 'overdue';
+      }
+      
       return {
         _id: assignment._id,
         title: assignment.title,
         description: assignment.description,
         dueDate: assignment.dueDate,
-        course: courses.find(c => c._id.toString() === assignment.course?.toString()),
+        points: assignment.points || 100,
+        course: courseInfo ? {
+          _id: courseInfo._id,
+          title: courseInfo.title,
+          subject: courseInfo.subject,
+          grade: courseInfo.grade,
+        } : null,
         submitted: !!submission,
-        grade: submission?.grade || null,
+        submittedAt: submission?.submittedAt || null,
+        grade: submission?.grade ?? null,
         feedback: submission?.feedback || null,
         isGraded: submission?.isGraded || false,
+        status: status,
+        isOverdue: dueDate < now && !submission,
+        fileName: submission?.fileName || null,
       };
     });
-    
+
+    const courseObjectIds = courseIds.map(id => new mongoose.Types.ObjectId(id));
+    const chapters = courseObjectIds.length > 0
+      ? await Chapter.aggregate([
+          { $match: { course: { $in: courseObjectIds } } },
+          {
+            $project: {
+              course: 1,
+              chapterNumber: 1,
+              title: 1,
+              description: 1,
+              isPublished: 1,
+              isLocked: 1,
+              order: 1,
+              quiz: {
+                isGenerated: '$quiz.isGenerated',
+                passingScore: '$quiz.passingScore',
+                maxAttempts: '$quiz.maxAttempts',
+                timeLimit: '$quiz.timeLimit'
+              },
+              studentProgress: {
+                $filter: {
+                  input: { $ifNull: ['$studentProgress', []] },
+                  as: 'p',
+                  cond: { $eq: ['$$p.student', childObjectId] }
+                }
+              }
+            }
+          }
+        ])
+      : [];
+
+    const chaptersByCourse = new Map();
+    chapters.forEach((chapter) => {
+      const key = chapter.course.toString();
+      if (!chaptersByCourse.has(key)) {
+        chaptersByCourse.set(key, []);
+      }
+      chaptersByCourse.get(key).push(chapter);
+    });
+
+    const detailedCourses = courses.map((course) => {
+      const chaptersForCourse = chaptersByCourse.get(course._id.toString()) || [];
+
+      const detailedChapters = chaptersForCourse.map((chapter) => {
+        const progress = chapter.studentProgress?.[0] || {};
+        const quiz = chapter.quiz || {};
+        const quizAttempts = (progress.quizAttempts || []).map(a => ({
+          attemptNumber: a.attemptNumber,
+          score: a.score,
+          correctAnswers: a.correctAnswers,
+          totalQuestions: a.totalQuestions,
+          passed: a.passed,
+          attemptedAt: a.attemptedAt,
+        }));
+
+        let calculatedBestScore = progress.bestScore || 0;
+        if (quizAttempts.length > 0) {
+          const maxFromAttempts = Math.max(...quizAttempts.map(a => a.score || 0));
+          calculatedBestScore = Math.max(calculatedBestScore, maxFromAttempts);
+        }
+
+        return {
+          _id: chapter._id,
+          chapterNumber: chapter.chapterNumber,
+          title: chapter.title,
+          description: chapter.description,
+          isPublished: chapter.isPublished,
+          isLocked: chapter.isLocked,
+          order: chapter.order,
+          progress: {
+            slidesViewed: progress.slidesViewed || false,
+            lecturesWatched: progress.lecturesWatched || [],
+            allLecturesCompleted: progress.allLecturesCompleted || false,
+            quizPassed: progress.quizPassed || false,
+            bestScore: calculatedBestScore,
+            chapterCompleted: progress.chapterCompleted || false,
+            chapterCompletedAt: progress.chapterCompletedAt || null,
+          },
+          quiz: {
+            isGenerated: quiz.isGenerated || false,
+            passingScore: quiz.passingScore || 60,
+            maxAttempts: quiz.maxAttempts || 0,
+            timeLimit: quiz.timeLimit || 0,
+            attempts: quizAttempts,
+            bestScore: calculatedBestScore,
+            quizPassed: progress.quizPassed || (calculatedBestScore >= (quiz.passingScore || 60)),
+            quizPassedAt: progress.quizPassedAt || null,
+          }
+        };
+      });
+
+      return {
+        _id: course._id,
+        title: course.title,
+        subject: course.subject,
+        grade: course.grade,
+        universityMajor: course.universityMajor,
+        numberOfChapters: course.numberOfChapters,
+        isChapterBased: course.isChapterBased,
+        chapters: detailedChapters,
+      };
+    });
+
     // Calculate stats
     const totalAssignments = childAssignments.length;
     const completedAssignments = childAssignments.filter(a => a.submitted).length;
@@ -364,7 +546,28 @@ exports.getChildDashboard = async (req, res, next) => {
     const averageGrade = gradedAssignments.length > 0 
       ? Math.round(gradedAssignments.reduce((sum, a) => sum + (a.grade || 0), 0) / gradedAssignments.length)
       : 0;
+
+    // Calculate quiz stats across all courses
+    let totalQuizzes = 0;
+    let passedQuizzes = 0;
+    let totalQuizScore = 0;
+    let quizzesTaken = 0;
     
+    detailedCourses.forEach(course => {
+      (course.chapters || []).forEach(chapter => {
+        if (chapter.quiz?.isGenerated) {
+          totalQuizzes++;
+          if (chapter.quiz.quizPassed) passedQuizzes++;
+          if (chapter.quiz.attempts?.length > 0) {
+            quizzesTaken++;
+            totalQuizScore += chapter.quiz.bestScore || 0;
+          }
+        }
+      });
+    });
+    
+    const averageQuizScore = quizzesTaken > 0 ? Math.round(totalQuizScore / quizzesTaken) : 0;
+
     res.json({
       child: {
         _id: child._id,
@@ -376,15 +579,20 @@ exports.getChildDashboard = async (req, res, next) => {
         universityMajor: child.universityMajor,
         profileImage: child.profileImage,
       },
-      courses,
+      courses: detailedCourses,
       assignments: childAssignments,
       stats: {
-        totalCourses: courses.length,
+        totalCourses: detailedCourses.length,
         totalAssignments,
         completedAssignments,
         pendingAssignments: totalAssignments - completedAssignments,
         averageGrade,
         gradedAssignments: gradedAssignments.length,
+        // Quiz stats
+        totalQuizzes,
+        passedQuizzes,
+        quizzesTaken,
+        averageQuizScore,
       }
     });
   } catch (err) {

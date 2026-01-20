@@ -91,7 +91,10 @@ export const userAPI = {
 // ============================================
 
 export const courseAPI = {
-  getCourses: () => api.get('/api/courses'),
+  getCourses: (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return api.get(`/api/courses${queryString ? `?${queryString}` : ''}`);
+  },
   getCourseById: (id) => api.get(`/api/courses/${id}`),
   createCourse: (data) => api.post('/api/courses', data),
   updateCourse: (id, data) => api.put(`/api/courses/${id}`, data),
@@ -109,7 +112,10 @@ export const courseAPI = {
 // ============================================
 
 export const assignmentAPI = {
-  getAssignments: () => api.get('/api/assignments'),
+  getAssignments: (params = {}) => {
+    const queryString = new URLSearchParams(params).toString();
+    return api.get(`/api/assignments${queryString ? `?${queryString}` : ''}`);
+  },
   getAssignmentById: (id) => api.get(`/api/assignments/${id}`),
   createAssignment: (data) => api.post('/api/assignments', data),
   updateAssignment: (id, data) => api.put(`/api/assignments/${id}`, data),

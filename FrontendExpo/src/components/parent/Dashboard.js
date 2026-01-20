@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,6 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useParent } from '../../context/ParentContext';
-import { parentDashboardAPI } from '../../services/api';
 
 export default function Dashboard() {
   // Get data from context
@@ -53,6 +52,48 @@ export default function Dashboard() {
     if (percentage >= 65) return 'C+';
     if (percentage >= 60) return 'C';
     return 'D';
+  };
+
+  const getCourseProgress = (course) => {
+    if (!course?.chapters || course.chapters.length === 0) {
+      return { completed: 0, total: 0, percentage: 0 };
+    }
+    const completed = course.chapters.filter(ch => ch?.progress?.chapterCompleted).length;
+    const total = course.chapters.length;
+    return {
+      completed,
+      total,
+      percentage: total > 0 ? Math.round((completed / total) * 100) : 0,
+    };
+  };
+
+  const getQuizSummary = (course) => {
+    if (!course?.chapters || course.chapters.length === 0) {
+      return { passed: 0, total: 0, avgScore: 0 };
+    }
+    const quizChapters = course.chapters.filter(ch => ch?.quiz?.isGenerated);
+    const passed = quizChapters.filter(ch => ch?.quiz?.quizPassed).length;
+    const totalScores = quizChapters.reduce((sum, ch) => sum + (ch?.quiz?.bestScore || 0), 0);
+    return {
+      passed,
+      total: quizChapters.length,
+      avgScore: quizChapters.length > 0 ? Math.round(totalScores / quizChapters.length) : 0,
+    };
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'passed':
+        return { bg: '#dcfce7', text: '#166534' };
+      case 'failed':
+        return { bg: '#fee2e2', text: '#991b1b' };
+      case 'pending':
+        return { bg: '#fef9c3', text: '#854d0e' };
+      case 'not-started':
+        return { bg: '#f3f4f6', text: '#6b7280' };
+      default:
+        return { bg: '#e0f2fe', text: '#0369a1' };
+    }
   };
 
   if (contextLoading) {
@@ -198,53 +239,187 @@ export default function Dashboard() {
           {/* Stats Grid */}
           <View style={styles.statsGrid}>
             <View style={styles.statCard}>
-              <Text style={styles.statIcon}>📚</Text>
               <Text style={styles.statLabel}>Courses</Text>
               <Text style={styles.statValue}>{currentChildData?.stats?.totalCourses || 0}</Text>
               <Text style={styles.statSub}>Enrolled</Text>
             </View>
 
             <View style={styles.statCard}>
-              <Text style={styles.statIcon}>🏆</Text>
-              <Text style={styles.statLabel}>Average</Text>
-              <Text style={styles.statValue}>{currentChildData?.stats?.averageGrade || 0}%</Text>
-              <Text style={styles.statSub}>Score</Text>
+              <Text style={styles.statLabel}>Quiz Avg</Text>
+              <Text style={[styles.statValue, { color: (currentChildData?.stats?.averageQuizScore || 0) >= 60 ? '#16a34a' : '#991b1b' }]}>
+                {currentChildData?.stats?.averageQuizScore || 0}%
+              </Text>
+              <Text style={styles.statSub}>
+                {currentChildData?.stats?.passedQuizzes || 0}/{currentChildData?.stats?.totalQuizzes || 0} Passed
+              </Text>
             </View>
 
             <View style={styles.statCard}>
-              <Text style={styles.statIcon}>🎯</Text>
-              <Text style={styles.statLabel}>Pending</Text>
-              <Text style={styles.statValue}>{currentChildData?.stats?.pendingAssignments || 0}</Text>
-              <Text style={styles.statSub}>Assignments</Text>
+              <Text style={styles.statLabel}>Assignments</Text>
+              <Text style={styles.statValue}>
+                {currentChildData?.stats?.completedAssignments || 0}/{currentChildData?.stats?.totalAssignments || 0}
+              </Text>
+              <Text style={styles.statSub}>{currentChildData?.stats?.pendingAssignments || 0} Pending</Text>
             </View>
 
             <View style={styles.statCard}>
-              <Text style={styles.statIcon}>✅</Text>
-              <Text style={styles.statLabel}>Completed</Text>
-              <Text style={styles.statValue}>{currentChildData?.stats?.completedAssignments || 0}</Text>
-              <Text style={styles.statSub}>Assignments</Text>
+              <Text style={styles.statLabel}>Grade Avg</Text>
+              <Text style={[styles.statValue, { color: (currentChildData?.stats?.averageGrade || 0) >= 60 ? '#16a34a' : '#991b1b' }]}>
+                {currentChildData?.stats?.averageGrade || 0}%
+              </Text>
+              <Text style={styles.statSub}>{getLetterGrade(currentChildData?.stats?.averageGrade || 0)}</Text>
             </View>
           </View>
 
-          {/* Courses Section */}
+          {/* Courses Section with Chapters & Quizzes */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Enrolled Courses</Text>
+            <Text style={styles.sectionTitle}>🎓 Enrolled Courses & Progress</Text>
             {currentChildData?.courses?.length > 0 ? (
-              currentChildData.courses.map((course) => (
-                <View key={course._id} style={styles.courseItem}>
-                  <View style={styles.courseInfo}>
-                    <Text style={styles.courseName}>{course.title}</Text>
-                    <Text style={styles.courseDetails}>
-                      {course.subject || 'General'} • {course.grade || 'All Grades'}
-                    </Text>
-                  </View>
-                  <View style={styles.lessonBadge}>
-                    <Text style={styles.lessonText}>
-                      {course.lessons?.length || 0} lessons
-                    </Text>
-                  </View>
-                </View>
-              ))
+              <View style={styles.courseList}>
+                {currentChildData.courses.map((course) => {
+                  const courseProgress = getCourseProgress(course);
+                  const quizSummary = getQuizSummary(course);
+
+                  return (
+                    <View key={course._id} style={styles.courseCard}>
+                      <View style={styles.courseHeaderRow}>
+                        <View style={styles.courseHeaderLeft}>
+                          <Text style={styles.courseName}>{course.title}</Text>
+                          <Text style={styles.courseDetails}>
+                            {course.subject || 'General'} • {course.grade || course.universityMajor || 'All Grades'}
+                          </Text>
+                        </View>
+                        <View style={[
+                          styles.courseStatusBadge,
+                          courseProgress.percentage === 100 ? styles.courseStatusCompleted : styles.courseStatusInProgress,
+                        ]}>
+                          <Text style={[
+                            styles.courseStatusText,
+                            courseProgress.percentage === 100 ? styles.courseStatusTextCompleted : styles.courseStatusTextInProgress,
+                          ]}>
+                            {courseProgress.percentage === 100 ? '✅ Completed' : `${courseProgress.percentage}% Complete`}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <View style={styles.courseProgressRow}>
+                        <Text style={styles.courseProgressLabel}>
+                          Chapters: {courseProgress.completed}/{courseProgress.total}
+                        </Text>
+                        <Text style={styles.courseProgressLabel}>
+                          Quizzes Passed: {quizSummary.passed}/{quizSummary.total}
+                        </Text>
+                      </View>
+
+                      <View style={styles.courseProgressBar}>
+                        <View
+                          style={[
+                            styles.courseProgressFill,
+                            {
+                              width: `${courseProgress.percentage}%`,
+                              backgroundColor: courseProgress.percentage === 100 ? '#16a34a' : '#3b82f6',
+                            },
+                          ]}
+                        />
+                      </View>
+
+                      {quizSummary.total > 0 && (
+                        <Text style={styles.courseQuizAverage}>
+                          Average Quiz Score:{' '}
+                          <Text style={{ color: quizSummary.avgScore >= 60 ? '#16a34a' : '#991b1b', fontWeight: '700' }}>
+                            {quizSummary.avgScore}%
+                          </Text>
+                        </Text>
+                      )}
+
+                      {course.chapters && course.chapters.length > 0 && (
+                        <View style={styles.chapterSection}>
+                          <Text style={styles.chapterHeader}>📚 Chapters & Quiz Grades</Text>
+                          {course.chapters.map((chapter) => {
+                            const progress = chapter.progress || {};
+                            const quiz = chapter.quiz || {};
+                            const quizStatus = !quiz.isGenerated
+                              ? 'not-started'
+                              : quiz.quizPassed
+                              ? 'passed'
+                              : (quiz.attempts?.length > 0 ? 'failed' : 'pending');
+                            const statusColors = getStatusColor(quizStatus);
+
+                            return (
+                              <View key={chapter._id} style={styles.chapterCard}>
+                                <View style={styles.chapterRow}>
+                                  <View style={styles.chapterInfo}>
+                                    <Text style={styles.chapterTitle}>
+                                      Chapter {chapter.chapterNumber}: {chapter.title}
+                                    </Text>
+                                    <Text style={styles.chapterMeta}>
+                                      {chapter.isLocked ? '🔒 Locked' : '🔓 Unlocked'}
+                                      {progress.slidesViewed ? ' • 📄 Slides Viewed' : ''}
+                                      {progress.allLecturesCompleted ? ' • 🎥 Lectures Done' : ''}
+                                    </Text>
+                                  </View>
+                                  <View style={[
+                                    styles.chapterStatus,
+                                    progress.chapterCompleted ? styles.chapterStatusCompleted : styles.chapterStatusInProgress,
+                                  ]}>
+                                    <Text style={[
+                                      styles.chapterStatusText,
+                                      progress.chapterCompleted ? styles.chapterStatusTextCompleted : styles.chapterStatusTextInProgress,
+                                    ]}>
+                                      {progress.chapterCompleted ? 'Completed' : 'In Progress'}
+                                    </Text>
+                                  </View>
+                                </View>
+
+                                {quiz.isGenerated && (
+                                  <View style={styles.quizCard}>
+                                    <View style={styles.quizHeaderRow}>
+                                      <Text style={styles.quizTitle}>📝 Quiz - {course.title}</Text>
+                                      <View style={[styles.quizStatusBadge, { backgroundColor: statusColors.bg }]}>
+                                        <Text style={[styles.quizStatusText, { color: statusColors.text }]}
+                                        >
+                                          {quizStatus === 'passed' && '✅ Passed'}
+                                          {quizStatus === 'failed' && '❌ Not Passed'}
+                                          {quizStatus === 'pending' && '⏳ Not Attempted'}
+                                          {quizStatus === 'not-started' && '📋 No Quiz'}
+                                        </Text>
+                                      </View>
+                                    </View>
+
+                                    <View style={styles.quizStatsRow}>
+                                      <Text style={styles.quizStat}>Attempts: <Text style={styles.quizStatBold}>{quiz.attempts?.length || 0}</Text></Text>
+                                      <Text style={styles.quizStat}>Best Score: <Text style={[styles.quizStatBold, { color: (quiz.bestScore || 0) >= (quiz.passingScore || 60) ? '#16a34a' : '#991b1b' }]}>{quiz.bestScore || 0}%</Text></Text>
+                                      <Text style={styles.quizStat}>Passing: <Text style={styles.quizStatBold}>{quiz.passingScore}%</Text></Text>
+                                      <Text style={styles.quizStat}>Grade: <Text style={styles.quizStatBold}>{getLetterGrade(quiz.bestScore || 0)}</Text></Text>
+                                    </View>
+
+                                    {quiz.attempts && quiz.attempts.length > 0 && (
+                                      <View style={styles.quizAttemptsList}>
+                                        {quiz.attempts.map((attempt, index) => (
+                                          <View key={`${chapter._id}-attempt-${index}`} style={styles.quizAttemptRow}>
+                                            <Text style={styles.quizAttemptCell}>Attempt {attempt.attemptNumber}</Text>
+                                            <Text style={styles.quizAttemptCell}>{attempt.score}%</Text>
+                                            <Text style={styles.quizAttemptCell}>{getLetterGrade(attempt.score)}</Text>
+                                            <Text style={styles.quizAttemptCell}>{attempt.correctAnswers}/{attempt.totalQuestions}</Text>
+                                            <Text style={styles.quizAttemptCell}>{attempt.passed ? '✅' : '❌'}</Text>
+                                            <Text style={styles.quizAttemptCell}>
+                                              {attempt.attemptedAt ? new Date(attempt.attemptedAt).toLocaleDateString() : '-'}
+                                            </Text>
+                                          </View>
+                                        ))}
+                                      </View>
+                                    )}
+                                  </View>
+                                )}
+                              </View>
+                            );
+                          })}
+                        </View>
+                      )}
+                    </View>
+                  );
+                })}
+              </View>
             ) : (
               <Text style={styles.emptySection}>No courses enrolled yet.</Text>
             )}
@@ -457,10 +632,6 @@ const styles = StyleSheet.create({
     width: '48%',
     alignItems: 'center',
   },
-  statIcon: {
-    fontSize: 20,
-    marginBottom: 6,
-  },
   statLabel: {
     fontSize: 12,
     color: '#6b7280',
@@ -484,21 +655,29 @@ const styles = StyleSheet.create({
     color: '#1f2937',
     marginBottom: 12,
   },
-  courseItem: {
+  courseList: {
+    gap: 16,
+  },
+  courseCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    padding: 16,
+  },
+  courseHeaderRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    alignItems: 'flex-start',
+    marginBottom: 12,
   },
-  courseInfo: {
+  courseHeaderLeft: {
     flex: 1,
-    marginRight: 12,
+    marginRight: 10,
   },
   courseName: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
     color: '#1f2937',
   },
   courseDetails: {
@@ -506,16 +685,164 @@ const styles = StyleSheet.create({
     color: '#6b7280',
     marginTop: 2,
   },
-  lessonBadge: {
+  courseStatusBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 20,
+  },
+  courseStatusCompleted: {
+    backgroundColor: '#dcfce7',
+  },
+  courseStatusInProgress: {
     backgroundColor: '#e0f2fe',
+  },
+  courseStatusText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#0369a1',
+  },
+  courseStatusTextCompleted: {
+    color: '#166534',
+  },
+  courseStatusTextInProgress: {
+    color: '#0369a1',
+  },
+  courseProgressRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  courseProgressLabel: {
+    fontSize: 11,
+    color: '#6b7280',
+  },
+  courseProgressBar: {
+    backgroundColor: '#e5e7eb',
+    borderRadius: 6,
+    height: 8,
+    overflow: 'hidden',
+  },
+  courseProgressFill: {
+    height: '100%',
+  },
+  courseQuizAverage: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginTop: 6,
+  },
+  chapterSection: {
+    marginTop: 12,
+  },
+  chapterHeader: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  chapterCard: {
+    backgroundColor: '#f9fafb',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#f3f4f6',
+    padding: 12,
+    marginBottom: 10,
+  },
+  chapterRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  chapterInfo: {
+    flex: 1,
+    marginRight: 10,
+  },
+  chapterTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1f2937',
+  },
+  chapterMeta: {
+    fontSize: 11,
+    color: '#6b7280',
+    marginTop: 2,
+  },
+  chapterStatus: {
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 12,
   },
-  lessonText: {
-    color: '#0369a1',
+  chapterStatusCompleted: {
+    backgroundColor: '#dcfce7',
+  },
+  chapterStatusInProgress: {
+    backgroundColor: '#fef9c3',
+  },
+  chapterStatusText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#166534',
+  },
+  chapterStatusTextCompleted: {
+    color: '#166534',
+  },
+  chapterStatusTextInProgress: {
+    color: '#854d0e',
+  },
+  quizCard: {
+    marginTop: 8,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    padding: 10,
+  },
+  quizHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  quizTitle: {
     fontSize: 12,
-    fontWeight: '500',
+    fontWeight: '600',
+    color: '#0369a1',
+  },
+  quizStatusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 10,
+  },
+  quizStatusText: {
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  quizStatsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  quizStat: {
+    fontSize: 11,
+    color: '#4b5563',
+  },
+  quizStatBold: {
+    fontWeight: '700',
+  },
+  quizAttemptsList: {
+    marginTop: 8,
+    gap: 6,
+  },
+  quizAttemptRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    paddingVertical: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  quizAttemptCell: {
+    fontSize: 10,
+    color: '#374151',
   },
   assignmentItem: {
     flexDirection: 'row',

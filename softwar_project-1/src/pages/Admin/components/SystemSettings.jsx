@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Save, Globe, Mail, Check } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { API_CONFIG } from '../../../config/api.config';
 
-const API_BASE = (process.env.REACT_APP_API_BASE_URL || window.location.origin) + '/api';
+const API_BASE = API_CONFIG.BASE_URL + '/api';
 
 export function SystemSettings() {
   const { t, i18n } = useTranslation();

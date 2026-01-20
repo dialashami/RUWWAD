@@ -1,5 +1,6 @@
 // src/pages/TeacherHome/components/LessonVideoEditor.jsx
 import React, { useState, useEffect } from 'react';
+import { API_CONFIG } from '../../../config/api.config';
 
 function LessonVideoEditor({ courseId, courseTitle, onClose, onSave }) {
   // 🔹 لينكات أونلاين (YouTube, Vimeo, ... إلخ)
@@ -24,7 +25,7 @@ function LessonVideoEditor({ courseId, courseTitle, onClose, onSave }) {
 
       try {
         const token = localStorage.getItem('token');
-        const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/courses/${courseId}`, {
+        const res = await fetch(`${API_CONFIG.BASE_URL}/api/courses/${courseId}`, {
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
@@ -119,9 +120,9 @@ function LessonVideoEditor({ courseId, courseTitle, onClose, onSave }) {
       console.log('Course ID type:', typeof courseId);
       console.log('Video URLs:', filteredUrls);
       console.log('Uploaded Videos:', uploadedVideosData);
-      console.log('API URL:', `${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/courses/${courseId}`);
+      console.log('API URL:', `${API_CONFIG.BASE_URL}/api/courses/${courseId}`);
 
-      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/courses/${courseId}`, {
+      const res = await fetch(`${API_CONFIG.BASE_URL}/api/courses/${courseId}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

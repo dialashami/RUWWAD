@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import '../styles/Notifications.css';
+import { API_CONFIG } from '../../../config/api.config';
 
 function Notifications({ onNavigate }) {
   const [activeTab, setActiveTab] = useState('templates');
@@ -16,7 +17,7 @@ function Notifications({ onNavigate }) {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/notifications/sent`, {
+      const res = await fetch(`${API_CONFIG.BASE_URL}/api/notifications/sent`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -92,7 +93,7 @@ function Notifications({ onNavigate }) {
           return;
         }
 
-        const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/notifications/assignment-reminder`, {
+        const res = await fetch(`${API_CONFIG.BASE_URL}/api/notifications/assignment-reminder`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -159,7 +160,7 @@ function Notifications({ onNavigate }) {
         status: 'sent'
       };
 
-      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/notifications/sent`, {
+      const res = await fetch(`${API_CONFIG.BASE_URL}/api/notifications/sent`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

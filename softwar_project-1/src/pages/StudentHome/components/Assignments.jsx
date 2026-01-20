@@ -1,5 +1,6 @@
  
 
+import { API_CONFIG } from '../../../config/api.config';
 
 // // Assignments.jsx
 // import { useState } from 'react';
@@ -397,141 +398,150 @@ export function Assignments() {
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [submissionText, setSubmissionText] = useState('');
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const ITEMS_PER_PAGE = 20; // Load 20 items at a time (20% chunks)
   const [submitting, setSubmitting] = useState(false);
 
-  // Fetch assignments from backend based on student's grade/major
-  useEffect(() => {
-    const fetchAssignments = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        if (!token) {
-          setLoading(false);
-          return;
-        }
+  // Map assignment data
+  const mapAssignmentData = (data, studentId) => {
+    return data.map((assignment) => {
+      const dueDate = new Date(assignment.dueDate);
+      const now = new Date();
+      
+      const studentSubmission = assignment.mySubmission || assignment.submissions?.find(
+        s => s.student === studentId || s.student?._id === studentId
+      );
+      const hasSubmitted = assignment.hasSubmitted || !!studentSubmission;
+      
+      let status = 'pending';
+      let progress = 0;
+      let submittedDate = null;
+      let studentGrade = null;
+      let feedback = null;
 
-        // Use student data from context
-        const grade = student.grade || null;
-        const major = student.studentType === 'university' ? student.grade : null;
-        const studentId = student.id || null;
-
-        // Build URL with filters
-        let url = `${process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000'}/api/assignments`;
-        const params = [];
-        if (grade) params.push(`grade=${encodeURIComponent(grade)}`);
-        if (major) params.push(`specialization=${encodeURIComponent(major)}`);
-        if (params.length) {
-          url += `?${params.join('&')}`;
-        }
-
-        const res = await fetch(url, {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
+      if (hasSubmitted && studentSubmission) {
+        submittedDate = new Date(studentSubmission.submittedAt).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric',
         });
-
-        if (!res.ok) {
-          console.error('Failed to fetch assignments:', res.status);
-          setLoading(false);
-          return;
-        }
-
-        const data = await res.json();
-        console.log('Fetched assignments:', data);
+        progress = 100;
         
-        if (!Array.isArray(data)) {
-          console.error('Invalid assignments response:', data);
-          setLoading(false);
-          return;
+        if (studentSubmission.isGraded) {
+          status = 'graded';
+          studentGrade = studentSubmission.grade;
+          feedback = studentSubmission.feedback;
+        } else {
+          status = 'submitted';
         }
-        
-        if (data.length === 0) {
-          // No assignments found - keep empty list
-          setAssignmentsList([]);
-          setLoading(false);
-          return;
-        }
-
-        // Map backend data to component format
-        const mapped = data.map((assignment) => {
-          const dueDate = new Date(assignment.dueDate);
-          const now = new Date();
-          
-          // Check if student has submitted (use mySubmission from sanitized response)
-          const studentSubmission = assignment.mySubmission || assignment.submissions?.find(
-            s => s.student === studentId || s.student?._id === studentId
-          );
-          const hasSubmitted = assignment.hasSubmitted || !!studentSubmission;
-          
-          // Determine status
-          let status = 'pending';
-          let progress = 0;
-          let submittedDate = null;
-          let studentGrade = null;
-          let feedback = null;
-
-          if (hasSubmitted && studentSubmission) {
-            submittedDate = new Date(studentSubmission.submittedAt).toLocaleDateString('en-US', {
-              year: 'numeric',
-              month: 'short',
-              day: 'numeric',
-            });
-            progress = 100;
-            
-            if (studentSubmission.isGraded) {
-              status = 'graded';
-              studentGrade = studentSubmission.grade;
-              feedback = studentSubmission.feedback;
-            } else {
-              status = 'submitted'; // submitted but not graded yet
-            }
-          } else if (dueDate < now) {
-            status = 'late';
-            progress = 0;
-          } else {
-            status = 'pending';
-          }
-
-          return {
-            id: assignment._id || assignment.id,
-            title: assignment.title || 'Untitled Assignment',
-            subject: assignment.subject || assignment.course?.title || 'Course',
-            description: assignment.description || 'No description provided.',
-            dueDate: dueDate.toLocaleDateString('en-US', {
-              year: 'numeric',
-              month: 'short',
-              day: 'numeric',
-            }),
-            dueTime: dueDate.toLocaleTimeString('en-US', {
-              hour: 'numeric',
-              minute: '2-digit',
-              hour12: true,
-            }),
-            status,
-            progress,
-            grade: studentGrade,
-            submittedDate,
-            feedback,
-            attachments: assignment.attachments || [],
-            instructionsFileUrl: assignment.instructionsFileUrl,
-            instructionsFileName: assignment.instructionsFileName,
-            points: assignment.points || 100,
-            teacherName: assignment.teacher 
-              ? `${assignment.teacher.firstName} ${assignment.teacher.lastName}`
-              : 'Teacher',
-          };
-        });
-
-        setAssignmentsList(mapped);
-      } catch (err) {
-        console.error('Error fetching assignments:', err);
-      } finally {
-        setLoading(false);
+      } else if (dueDate < now) {
+        status = 'late';
+        progress = 0;
+      } else {
+        status = 'pending';
       }
-    };
 
-    fetchAssignments();
+      return {
+        id: assignment._id || assignment.id,
+        title: assignment.title || 'Untitled Assignment',
+        subject: assignment.subject || assignment.course?.title || 'Course',
+        description: assignment.description || 'No description provided.',
+        dueDate: dueDate.toLocaleDateString('en-US', {
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        }),
+        dueTime: dueDate.toLocaleTimeString('en-US', {
+          hour: 'numeric',
+          minute: '2-digit',
+        }),
+        status,
+        progress,
+        grade: studentGrade,
+        submittedDate,
+        feedback,
+        attachments: assignment.attachments || [],
+        points: assignment.points || 100,
+      };
+    });
+  };
+
+  // Fetch assignments with pagination
+  const fetchAssignments = async (page = 1, reset = false) => {
+    if (reset) {
+      setLoading(true);
+      setAssignmentsList([]);
+      setCurrentPage(1);
+      setHasMore(true);
+    } else {
+      setLoadingMore(true);
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setLoading(false);
+        setLoadingMore(false);
+        return;
+      }
+
+      const grade = student.grade || null;
+      const major = student.studentType === 'university' ? student.grade : null;
+      const studentId = student.id || null;
+
+      // Build URL with pagination
+      let url = `${API_CONFIG.BASE_URL}/api/assignments?page=${page}&limit=${ITEMS_PER_PAGE}`;
+      if (grade) url += `&grade=${encodeURIComponent(grade)}`;
+      if (major) url += `&specialization=${encodeURIComponent(major)}`;
+
+      const res = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) {
+        console.error('Failed to fetch assignments:', res.status);
+        return;
+      }
+
+      const data = await res.json();
+      
+      if (!Array.isArray(data)) {
+        return;
+      }
+
+      const mapped = mapAssignmentData(data, studentId);
+
+      if (reset || page === 1) {
+        setAssignmentsList(mapped);
+      } else {
+        setAssignmentsList(prev => [...prev, ...mapped]);
+      }
+
+      setHasMore(data.length === ITEMS_PER_PAGE);
+      setCurrentPage(page);
+    } catch (err) {
+      console.error('Error fetching assignments:', err);
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
+    }
+  };
+
+  // Load more handler
+  const loadMore = () => {
+    if (!loadingMore && hasMore) {
+      fetchAssignments(currentPage + 1);
+    }
+  };
+
+  useEffect(() => {
+    fetchAssignments(1, true);
   }, [student.id, student.grade]);
 
   const filteredAssignments = assignmentsList.filter((assignment) => {
@@ -666,7 +676,7 @@ export function Assignments() {
       }
 
       // Submit to backend
-      const apiUrl = `${process.env.REACT_APP_API_BASE_URL || 'http://localhost:5000'}/api/assignments/${assignmentId}/submit`;
+      const apiUrl = `${API_CONFIG.BASE_URL}/api/assignments/${assignmentId}/submit`;
       console.log('Submitting assignment:', { apiUrl, assignmentId, studentId, fileName });
       
       const res = await fetch(apiUrl, {
@@ -980,6 +990,36 @@ export function Assignments() {
               </div>
             );
           })
+        )}
+        
+        {/* Load More Button */}
+        {hasMore && !loading && assignmentsList.length > 0 && (
+          <div style={{ textAlign: 'center', padding: '20px' }}>
+            <button
+              onClick={loadMore}
+              disabled={loadingMore}
+              style={{
+                padding: '12px 32px',
+                backgroundColor: loadingMore ? '#9ca3af' : '#3b82f6',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: loadingMore ? 'not-allowed' : 'pointer',
+                fontSize: '0.95rem',
+                fontWeight: '500',
+                transition: 'background-color 0.2s',
+              }}
+            >
+              {loadingMore ? 'Loading...' : 'Load More Assignments'}
+            </button>
+          </div>
+        )}
+        
+        {/* All Loaded Indicator */}
+        {!hasMore && assignmentsList.length > 0 && (
+          <div style={{ textAlign: 'center', padding: '20px', color: '#9ca3af' }}>
+            ✓ All assignments loaded
+          </div>
         )}
       </div>
 

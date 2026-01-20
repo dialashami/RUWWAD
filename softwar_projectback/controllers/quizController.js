@@ -59,10 +59,13 @@ REQUIREMENTS:
 1. Create exactly ${numQuestions} questions
 2. Each question should have exactly 4 options (A, B, C, D)
 3. Only one option should be correct
-4. Questions should test understanding of the core topics, not just memorization
-5. Include a mix of easy (30%), medium (50%), and hard (20%) questions
-6. Questions should be clear and unambiguous
-7. Distribute the correct answer across options; avoid always using the same option
+4. Questions should test deep understanding of the scientific concepts, not just memorization or trivial facts
+5. Distractor options (incorrect answers) must be plausible and scientifically close to the correct answer, not random or obviously wrong
+6. Avoid ambiguous, misleading, or trick questions
+7. Ensure the correct answer is always academically valid and supported by the content
+8. Include a mix of easy (30%), medium (50%), and hard (20%) questions
+9. Questions should be clear, unambiguous, and relevant to the chapter
+10. Distribute the correct answer across options; avoid always using the same option
 
 Return the questions in this exact JSON format (no markdown, just pure JSON):
 {
@@ -442,13 +445,40 @@ exports.startQuiz = async (req, res, next) => {
     // Check if student has access to this chapter
     const course = chapter.course;
     const courseStatus = course.getStudentChapterStatus(studentId);
-    const isUnlocked = chapter.chapterNumber === 1 || 
+    
+    // Primary check: courseStatus.chaptersCompleted array
+    let isUnlocked = chapter.chapterNumber === 1 || 
       courseStatus.chaptersCompleted?.includes(chapter.chapterNumber - 1);
+    
+    // Fallback check: If course progress doesn't show previous chapter complete,
+    // check the previous chapter's studentProgress directly
+    if (!isUnlocked && chapter.chapterNumber > 1) {
+      const previousChapter = await Chapter.findOne({
+        course: course._id,
+        chapterNumber: chapter.chapterNumber - 1
+      });
+      
+      if (previousChapter) {
+        const prevChapterProgress = previousChapter.studentProgress?.find(
+          p => p.student.toString() === studentId.toString()
+        );
+        
+        // If previous chapter quiz was passed, unlock this chapter
+        if (prevChapterProgress?.quizPassed) {
+          isUnlocked = true;
+          
+          // Also update the course progress to fix the inconsistency
+          course.updateStudentProgress(studentId, chapter.chapterNumber - 1);
+          await course.save();
+        }
+      }
+    }
     
     if (!isUnlocked) {
       return res.status(403).json({ 
         message: 'Chapter is locked. Complete the previous chapter quiz first.',
-        isLocked: true
+        isLocked: true,
+        requiredChapter: chapter.chapterNumber - 1
       });
     }
     
@@ -609,23 +639,46 @@ exports.submitQuiz = async (req, res, next) => {
     const result = attempt.submitAnswers(answers);
     await attempt.save();
     
+    console.log(`Quiz submitted - Score: ${result.score}%, Passed: ${result.passed}, PassingScore: ${attempt.passingScore}`);
+    
     // Update chapter progress
     const chapter = await Chapter.findById(attempt.chapter);
-    if (chapter) {
-      let progress = chapter.studentProgress.find(
-        p => p.student.toString() === studentId.toString()
-      );
-      
-      if (!progress) {
-        progress = {
+    if (!chapter) {
+      console.error('Chapter not found for attempt:', attempt.chapter);
+      return res.json({
+        success: true,
+        result,
+        message: 'Quiz submitted but chapter progress could not be updated',
+        canProceed: result.passed
+      });
+    }
+    
+    console.log(`Chapter found: ${chapter.title}, ChapterNumber: ${chapter.chapterNumber}`);
+    
+    // Find the index of existing progress entry
+    let progressIndex = chapter.studentProgress.findIndex(
+      p => p.student.toString() === studentId.toString()
+    );
+    
+    let progress;
+    if (progressIndex === -1) {
+      // Create new progress entry
+      progress = {
           student: studentId,
-          quizAttempts: []
+          quizAttempts: [],
+          bestScore: 0
         };
         chapter.studentProgress.push(progress);
+        progressIndex = chapter.studentProgress.length - 1;
       }
       
+      // Get reference to the actual subdocument
+      progress = chapter.studentProgress[progressIndex];
+      
       // Add this attempt to chapter progress
-      progress.quizAttempts = progress.quizAttempts || [];
+      if (!progress.quizAttempts) {
+        progress.quizAttempts = [];
+      }
       progress.quizAttempts.push({
         attemptNumber: attempt.attemptNumber,
         score: result.score,
@@ -635,23 +688,48 @@ exports.submitQuiz = async (req, res, next) => {
         attemptedAt: new Date()
       });
       
-      // Update quiz passed status
-      if (result.passed && !progress.quizPassed) {
-        progress.quizPassed = true;
-        progress.quizPassedAt = new Date();
-        progress.chapterCompleted = true;
-        progress.chapterCompletedAt = new Date();
+      console.log(`Added quiz attempt to chapter progress. Total attempts: ${progress.quizAttempts.length}`);
+      
+      // Update best score if this attempt is better
+      if (!progress.bestScore || result.score > progress.bestScore) {
+        progress.bestScore = result.score;
+        console.log(`Updated best score to: ${progress.bestScore}`);
+      }
+      
+      // Update quiz passed status - also update course progress every time quiz is passed
+      if (result.passed) {
+        const wasAlreadyPassed = progress.quizPassed;
         
-        // Update course progress
+        progress.quizPassed = true;
+        progress.quizPassedAt = progress.quizPassedAt || new Date();
+        progress.chapterCompleted = true;
+        progress.chapterCompletedAt = progress.chapterCompletedAt || new Date();
+        
+        console.log(`Quiz passed! Updating course progress. wasAlreadyPassed: ${wasAlreadyPassed}`);
+        
+        // Always update course progress when quiz is passed to ensure consistency
         const course = await Course.findById(chapter.course);
         if (course) {
+          console.log(`Found course: ${course.title}, updating progress for chapter ${chapter.chapterNumber}`);
           course.updateStudentProgress(studentId, chapter.chapterNumber);
           await course.save();
+          console.log(`Course saved. chaptersCompleted should now include: ${chapter.chapterNumber}`);
+          
+          // Verify the save
+          const verifiedCourse = await Course.findById(chapter.course);
+          const verifiedProgress = verifiedCourse.studentCourseProgress?.find(
+            p => p.student.toString() === studentId.toString()
+          );
+          console.log(`Verified chaptersCompleted: ${JSON.stringify(verifiedProgress?.chaptersCompleted)}`);
+        } else {
+          console.error(`Course not found for ID: ${chapter.course}`);
         }
       }
       
+      // Mark subdocument as modified to ensure Mongoose saves changes
+      chapter.markModified('studentProgress');
       await chapter.save();
-    }
+      console.log(`Chapter saved successfully with updated progress`);
     
     // Prepare response with detailed results
     const detailedResults = attempt.questions.map((q, i) => ({

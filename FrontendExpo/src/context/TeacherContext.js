@@ -165,7 +165,13 @@ export const TeacherProvider = ({ children }) => {
           }
         }
       } catch (err) {
-        console.log('Dashboard API error:', err);
+        const errorMsg = err.message || 'Failed to fetch dashboard';
+        const isTimeout = err.code === 'ECONNABORTED' || err.message?.includes('timeout');
+        if (isTimeout) {
+          console.log('Dashboard API timeout - using cached data:', err.message);
+        } else {
+          console.log('Dashboard API error:', errorMsg);
+        }
       }
 
       // Fetch unread message count
@@ -209,7 +215,13 @@ export const TeacherProvider = ({ children }) => {
           submissions: a.submissions?.length || 0,
         })));
       } catch (err) {
-        console.log('Assignments error:', err);
+        const errorMsg = err.message || 'Failed to fetch assignments';
+        const isTimeout = err.code === 'ECONNABORTED' || err.message?.includes('timeout');
+        if (isTimeout) {
+          console.log('Assignments API timeout - using cached data:', err.message);
+        } else {
+          console.log('Assignments error:', errorMsg);
+        }
       }
 
     } catch (err) {

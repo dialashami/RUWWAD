@@ -1,6 +1,7 @@
 // src/pages/TeacherHome/components/CourseDetail.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import ChapterDetail from './ChapterDetail';
+import { API_CONFIG } from '../../../config/api.config';
 
 function CourseDetail({ courseId, courseTitle, onClose, isTeacher = true }) {
   const [course, setCourse] = useState(null);
@@ -45,7 +46,7 @@ function CourseDetail({ courseId, courseTitle, onClose, isTeacher = true }) {
         
         // For students, fetch course with progress
         if (!isTeacher && userId) {
-          const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/courses/${courseId}/progress?studentId=${userId}`, {
+          const res = await fetch(`${API_CONFIG.BASE_URL}/api/courses/${courseId}/progress?studentId=${userId}`, {
             headers: {
               'Content-Type': 'application/json',
               Authorization: `Bearer ${token}`,
@@ -65,7 +66,7 @@ function CourseDetail({ courseId, courseTitle, onClose, isTeacher = true }) {
             }
           } else {
             // Fallback to regular fetch
-            const fallbackRes = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/courses/${courseId}`, {
+            const fallbackRes = await fetch(`${API_CONFIG.BASE_URL}/api/courses/${courseId}`, {
               headers: {
                 'Content-Type': 'application/json',
                 Authorization: `Bearer ${token}`,
@@ -78,7 +79,7 @@ function CourseDetail({ courseId, courseTitle, onClose, isTeacher = true }) {
           }
         } else {
           // Teacher view - just fetch course
-          const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/courses/${courseId}`, {
+          const res = await fetch(`${API_CONFIG.BASE_URL}/api/courses/${courseId}`, {
             headers: {
               'Content-Type': 'application/json',
               Authorization: `Bearer ${token}`,
@@ -111,7 +112,7 @@ function CourseDetail({ courseId, courseTitle, onClose, isTeacher = true }) {
       try {
         const token = localStorage.getItem('token');
         const res = await fetch(
-          `${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/chapters/course/${courseId}`,
+          `${API_CONFIG.BASE_URL}/api/chapters/course/${courseId}`,
           {
             headers: {
               'Content-Type': 'application/json',
@@ -146,7 +147,7 @@ function CourseDetail({ courseId, courseTitle, onClose, isTeacher = true }) {
     try {
       const token = localStorage.getItem('token');
       const res = await fetch(
-        `${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/chapters/course/${courseId}`,
+        `${API_CONFIG.BASE_URL}/api/chapters/course/${courseId}`,
         {
           method: 'POST',
           headers: {
@@ -209,7 +210,7 @@ function CourseDetail({ courseId, courseTitle, onClose, isTeacher = true }) {
     
     try {
       const token = localStorage.getItem('token');
-      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/courses/${courseId}/watch-video`, {
+      const res = await fetch(`${API_CONFIG.BASE_URL}/api/courses/${courseId}/watch-video`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import "../../TeacherHome/styles/ChatCenter.css";
 import { useStudent } from "../context/StudentContext";
+import { API_CONFIG } from '../../../config/api.config';
 
 // Fallback mock data for teachers (shown to students)
 const FALLBACK_TEACHERS = [
@@ -54,7 +55,7 @@ export const ChatCenter = ({ currentRole = "student" }) => {
       }
 
       // Fetch all users
-      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/users`, {
+      const res = await fetch(`${API_CONFIG.BASE_URL}/api/users`, {
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
@@ -72,7 +73,7 @@ export const ChatCenter = ({ currentRole = "student" }) => {
       // Also fetch conversations to get unread counts and find users who messaged this student
       let conversationsData = [];
       try {
-        const convRes = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/messages/conversations/${currentUserId}`, {
+        const convRes = await fetch(`${API_CONFIG.BASE_URL}/api/messages/conversations/${currentUserId}`, {
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`,
@@ -160,7 +161,7 @@ export const ChatCenter = ({ currentRole = "student" }) => {
       if (!token) return;
 
       const res = await fetch(
-        `${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/messages/conversation/${currentUserId}/${selectedConversation.id}`,
+        `${API_CONFIG.BASE_URL}/api/messages/conversation/${currentUserId}/${selectedConversation.id}`,
         {
           headers: {
             'Content-Type': 'application/json',
@@ -212,7 +213,7 @@ export const ChatCenter = ({ currentRole = "student" }) => {
       try {
         const token = localStorage.getItem('token');
         if (token) {
-          await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/messages/read/${currentUserId}/${conv.id}`, {
+          await fetch(`${API_CONFIG.BASE_URL}/api/messages/read/${currentUserId}/${conv.id}`, {
             method: 'PUT',
             headers: {
               'Content-Type': 'application/json',
@@ -263,7 +264,7 @@ export const ChatCenter = ({ currentRole = "student" }) => {
       const token = localStorage.getItem('token');
       if (!token) return;
 
-      const res = await fetch(`${process.env.REACT_APP_API_BASE_URL || window.location.origin}/api/messages`, {
+      const res = await fetch(`${API_CONFIG.BASE_URL}/api/messages`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
